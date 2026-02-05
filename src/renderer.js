@@ -44,8 +44,8 @@ let is2D = true;
 // Cesium Viewer Initialization
 // ============================================================
 
-// Suppress Ion token warning — we use our own tile provider
-Cesium.Ion.defaultAccessToken = undefined;
+// No Ion token needed — we use CartoDB tiles, but Cesium wants something non-null
+Cesium.Ion.defaultAccessToken = 'not-used';
 
 // Create dark basemap imagery provider (CartoDB dark_matter)
 const darkTiles = new Cesium.UrlTemplateImageryProvider({
@@ -56,8 +56,9 @@ const darkTiles = new Cesium.UrlTemplateImageryProvider({
   maximumLevel: 18,
 });
 
+// CesiumJS 1.104+ replaced `imageryProvider` with `baseLayer`
 viewer = new Cesium.Viewer('cesiumContainer', {
-  imageryProvider: darkTiles,
+  baseLayer: new Cesium.ImageryLayer(darkTiles),
   baseLayerPicker: false,
   geocoder: false,
   homeButton: false,
@@ -76,11 +77,7 @@ viewer = new Cesium.Viewer('cesiumContainer', {
   orderIndependentTranslucency: false,
 });
 
-// Remove default imagery if any extra layers exist
-const layers = viewer.imageryLayers;
-while (layers.length > 1) {
-  layers.remove(layers.get(0));
-}
+// With baseLayer set explicitly, no extra layers to remove
 
 // Set dark background color for globe/space
 viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0a0a');
