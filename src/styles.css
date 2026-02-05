@@ -274,3 +274,161 @@ input[type="range"]::-webkit-slider-thumb {
   );
   z-index: 50;
 }
+
+/* ============================================================
+   Settings Modal
+   ============================================================ */
+
+#settings-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#settings-overlay.hidden { display: none; }
+
+#settings-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--phosphor);
+  border-radius: 6px;
+  width: 380px;
+  box-shadow: 0 0 40px rgba(0, 204, 68, 0.15);
+}
+
+#settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--phosphor-bright);
+}
+
+#settings-close {
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--phosphor-dim);
+  line-height: 1;
+}
+#settings-close:hover { color: var(--phosphor-bright); }
+
+.settings-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--phosphor-dim);
+  margin-bottom: 8px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-color-row { flex-wrap: wrap; gap: 8px; }
+
+.color-swatch {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.2s, transform 0.1s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+#set-custom-color {
+  width: 28px; height: 28px;
+  border: 1px solid var(--phosphor-dim);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.settings-preview {
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: var(--phosphor);
+  line-height: 1.4;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+}
+.settings-actions .scope-btn { padding: 6px 16px; }
+
+/* ============================================================
+   Light Mode Theme Overrides
+   ============================================================ */
+
+body.theme-light {
+  --phosphor: #1a1a1a;
+  --phosphor-bright: #000000;
+  --phosphor-dim: rgba(0, 0, 0, 0.45);
+  --phosphor-faint: rgba(0, 0, 0, 0.1);
+  --bg: #e8e8e8;
+  --panel-bg: rgba(240, 240, 240, 0.92);
+  --border: rgba(0, 0, 0, 0.2);
+}
+
+body.theme-light .scope-btn {
+  color: #1a1a1a;
+  border-color: rgba(0, 0, 0, 0.3);
+}
+body.theme-light .scope-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: #1a1a1a;
+}
+body.theme-light .scope-btn.active {
+  background: #1a1a1a;
+  color: #ffffff;
+  border-color: #1a1a1a;
+}
+
+body.theme-light .toggle-label input[type="checkbox"]:checked {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+}
+body.theme-light .toggle-label input[type="checkbox"]:checked::after {
+  border-color: #ffffff;
+}
+
+body.theme-light input[type="range"] { background: rgba(0, 0, 0, 0.2); }
+body.theme-light input[type="range"]::-webkit-slider-thumb { background: #1a1a1a; }
+
+body.theme-light #settings-panel {
+  background: rgba(240, 240, 240, 0.95);
+  border-color: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+body.theme-light #aircraft-info {
+  border-color: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Remove scanline overlay in light mode */
+body.theme-light #cesiumContainer::after { display: none; }

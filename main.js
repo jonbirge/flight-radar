@@ -3,8 +3,45 @@
 
 const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const https = require('https');
 const http = require('http');
+
+// --- Settings Persistence ---
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+const DEFAULT_SETTINGS = {
+  fontSize: 11,
+  theme: 'dark',        // 'dark' | 'light'
+  darkColor: '#00cc44', // phosphor color for dark mode
+};
+
+function loadSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
+      return { ...DEFAULT_SETTINGS, ...data };
+    }
+  } catch (err) {
+    console.error('[Settings] Load error:', err.message);
+  }
+  return { ...DEFAULT_SETTINGS };
+}
+
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+    console.log('[Settings] Saved to', SETTINGS_FILE);
+  } catch (err) {
+    console.error('[Settings] Save error:', err.message);
+  }
+}
+
+// IPC handlers for settings
+ipcMain.handle('get-settings', () => loadSettings());
+ipcMain.handle('save-settings', (event, settings) => {
+  saveSettings(settings);
+  return true;
+});
 
 // --- OpenSky Network API ---
 const OPENSKY_BASE = 'https://opensky-network.org/api';
@@ -117,6 +154,18 @@ function buildMenu() {
     { role: 'fileMenu' },
     { role: 'editMenu' },
     { role: 'viewMenu' },
+    {
+      label: 'Settings',
+      submenu: [
+        {
+          label: 'Preferences...',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            mainWindow.webContents.send('open-settings');
+          },
+        },
+      ],
+    },
     {
       label: 'Help',
       submenu: [

@@ -20,12 +20,56 @@ const CONFIG = {
   granularTrails: true,       // fetch hi-res track data from API
   staleThreshold: 60,         // seconds before marking aircraft stale
 
-  // Visual
+  // Visual (dynamically updated by theme system)
+  fontSize: 11,
+  theme: 'dark',              // 'dark' | 'light'
+  darkColor: '#00cc44',       // user-selected dark mode color
   phosphor: '#00cc44',
   phosphorBright: '#33ff66',
   phosphorDim: 'rgba(0, 204, 68, 0.35)',
   trailColor: [0, 204, 68],  // RGB for trail polylines
+  labelOutlineColor: Cesium.Color.BLACK,
 };
+
+// ============================================================
+// Color Utilities
+// ============================================================
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return [r, g, b];
+}
+
+function brighten(hex, factor = 1.3) {
+  const [r, g, b] = hexToRgb(hex);
+  const clamp = v => Math.min(255, Math.round(v * factor));
+  return `#${clamp(r).toString(16).padStart(2,'0')}${clamp(g).toString(16).padStart(2,'0')}${clamp(b).toString(16).padStart(2,'0')}`;
+}
+
+function withAlpha(hex, alpha) {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Derive all color properties from a single base hex color
+function setDarkColors(hex) {
+  CONFIG.darkColor = hex;
+  CONFIG.phosphor = hex;
+  CONFIG.phosphorBright = brighten(hex, 1.4);
+  CONFIG.phosphorDim = withAlpha(hex, 0.35);
+  CONFIG.trailColor = hexToRgb(hex);
+}
+
+// Light mode uses fixed black/dark-gray palette
+function setLightColors() {
+  CONFIG.phosphor = '#1a1a1a';
+  CONFIG.phosphorBright = '#000000';
+  CONFIG.phosphorDim = 'rgba(0, 0, 0, 0.45)';
+  CONFIG.trailColor = [40, 40, 40];
+  CONFIG.labelOutlineColor = Cesium.Color.WHITE;
+}
 
 // ============================================================
 // State
@@ -91,6 +135,84 @@ viewer.scene.fog.enabled = false;
 viewer.camera.setView({
   destination: Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, CONFIG.startAlt),
 });
+
+// ============================================================
+// Theme Engine
+// ============================================================
+
+// Tile providers
+function makeDarkTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    credit: new Cesium.Credit('CartoDB'),
+    minimumLevel: 0, maximumLevel: 18,
+  });
+}
+
+function makeLightTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    credit: new Cesium.Credit('CartoDB'),
+    minimumLevel: 0, maximumLevel: 18,
+  });
+}
+
+function applyTheme() {
+  const isDark = CONFIG.theme === 'dark';
+
+  // Update color config
+  if (isDark) {
+    setDarkColors(CONFIG.darkColor);
+    CONFIG.labelOutlineColor = Cesium.Color.BLACK;
+  } else {
+    setLightColors();
+  }
+
+  // Swap tile layer
+  const layers = viewer.imageryLayers;
+  layers.removeAll();
+  layers.addImageryProvider(isDark ? makeDarkTiles() : makeLightTiles());
+
+  // Globe & scene background
+  const bgColor = isDark ? '#0a0a0a' : '#e8e8e8';
+  viewer.scene.backgroundColor = Cesium.Color.fromCssColorString(bgColor);
+  viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(bgColor);
+
+  // CSS body class for HUD/controls styling
+  document.body.classList.toggle('theme-light', !isDark);
+
+  // Update CSS custom properties for dynamic dark mode colors
+  if (isDark) {
+    const root = document.documentElement;
+    root.style.setProperty('--phosphor', CONFIG.phosphor);
+    root.style.setProperty('--phosphor-bright', CONFIG.phosphorBright);
+    root.style.setProperty('--phosphor-dim', CONFIG.phosphorDim);
+    root.style.setProperty('--phosphor-faint', withAlpha(CONFIG.darkColor, 0.15));
+    root.style.setProperty('--border', withAlpha(CONFIG.darkColor, 0.3));
+  } else {
+    // Light mode CSS variables are handled by the theme-light class overrides
+    const root = document.documentElement;
+    root.style.removeProperty('--phosphor');
+    root.style.removeProperty('--phosphor-bright');
+    root.style.removeProperty('--phosphor-dim');
+    root.style.removeProperty('--phosphor-faint');
+    root.style.removeProperty('--border');
+  }
+
+  // Force re-render all aircraft entities with new colors/sizes
+  refreshAllEntities();
+}
+
+// Destroy and re-create all aircraft entities to pick up new theme
+function refreshAllEntities() {
+  for (const [icao, ac] of aircraft) {
+    if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
+    if (ac.trailEntity) { viewer.entities.remove(ac.trailEntity); ac.trailEntity = null; }
+  }
+  renderAircraft();
+}
 
 // ============================================================
 // Aircraft Symbol Generator
@@ -282,9 +404,9 @@ function renderAircraft() {
         },
         label: CONFIG.labelsEnabled ? {
           text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
-          font: '11px Consolas, monospace',
+          font: `${CONFIG.fontSize}px Consolas, monospace`,
           fillColor: Cesium.Color.fromCssColorString(CONFIG.phosphor),
-          outlineColor: Cesium.Color.BLACK,
+          outlineColor: CONFIG.labelOutlineColor,
           outlineWidth: 2,
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
           pixelOffset: new Cesium.Cartesian2(14, -8),
@@ -305,9 +427,9 @@ function renderAircraft() {
         if (!ac.entity.label) {
           ac.entity.label = new Cesium.LabelGraphics({
             text: '',
-            font: '11px Consolas, monospace',
+            font: `${CONFIG.fontSize}px Consolas, monospace`,
             fillColor: Cesium.Color.fromCssColorString(CONFIG.phosphor),
-            outlineColor: Cesium.Color.BLACK,
+            outlineColor: CONFIG.labelOutlineColor,
             outlineWidth: 2,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             pixelOffset: new Cesium.Cartesian2(14, -8),
@@ -594,8 +716,129 @@ function hideAircraftInfo() {
 document.getElementById('info-close').addEventListener('click', hideAircraftInfo);
 
 // ============================================================
+// Settings Panel
+// ============================================================
+
+const settingsOverlay = document.getElementById('settings-overlay');
+const fontSizeSlider = document.getElementById('set-fontsize');
+const fontSizeVal = document.getElementById('set-fontsize-val');
+const fontPreview = document.getElementById('fontsize-preview');
+const btnThemeDark = document.getElementById('set-theme-dark');
+const btnThemeLight = document.getElementById('set-theme-light');
+const darkColorSection = document.getElementById('dark-color-section');
+const colorSwatches = document.querySelectorAll('.color-swatch');
+const customColorInput = document.getElementById('set-custom-color');
+
+// Temporary state while the settings panel is open
+let pendingSettings = {};
+
+function openSettings() {
+  // Snapshot current settings as pending
+  pendingSettings = {
+    fontSize: CONFIG.fontSize,
+    theme: CONFIG.theme,
+    darkColor: CONFIG.darkColor,
+  };
+  syncSettingsUI();
+  settingsOverlay.classList.remove('hidden');
+}
+
+function closeSettings() {
+  settingsOverlay.classList.add('hidden');
+}
+
+function syncSettingsUI() {
+  fontSizeSlider.value = pendingSettings.fontSize;
+  fontSizeVal.textContent = `${pendingSettings.fontSize}px`;
+  fontPreview.style.fontSize = `${pendingSettings.fontSize}px`;
+
+  btnThemeDark.classList.toggle('active', pendingSettings.theme === 'dark');
+  btnThemeLight.classList.toggle('active', pendingSettings.theme === 'light');
+  darkColorSection.style.display = pendingSettings.theme === 'dark' ? '' : 'none';
+
+  colorSwatches.forEach(sw => {
+    sw.classList.toggle('active', sw.dataset.color === pendingSettings.darkColor);
+  });
+  customColorInput.value = pendingSettings.darkColor;
+}
+
+// Font size slider
+fontSizeSlider.addEventListener('input', (e) => {
+  pendingSettings.fontSize = parseInt(e.target.value);
+  fontSizeVal.textContent = `${pendingSettings.fontSize}px`;
+  fontPreview.style.fontSize = `${pendingSettings.fontSize}px`;
+});
+
+// Theme toggle
+btnThemeDark.addEventListener('click', () => {
+  pendingSettings.theme = 'dark';
+  syncSettingsUI();
+});
+btnThemeLight.addEventListener('click', () => {
+  pendingSettings.theme = 'light';
+  syncSettingsUI();
+});
+
+// Color swatches
+colorSwatches.forEach(sw => {
+  sw.addEventListener('click', () => {
+    pendingSettings.darkColor = sw.dataset.color;
+    syncSettingsUI();
+  });
+});
+
+// Custom color picker
+customColorInput.addEventListener('input', (e) => {
+  pendingSettings.darkColor = e.target.value;
+  colorSwatches.forEach(sw => sw.classList.remove('active'));
+});
+
+// Apply
+document.getElementById('settings-apply').addEventListener('click', async () => {
+  CONFIG.fontSize = pendingSettings.fontSize;
+  CONFIG.theme = pendingSettings.theme;
+  CONFIG.darkColor = pendingSettings.darkColor;
+  applyTheme();
+  closeSettings();
+  await window.flightAPI.saveSettings({
+    fontSize: CONFIG.fontSize,
+    theme: CONFIG.theme,
+    darkColor: CONFIG.darkColor,
+  });
+});
+
+// Cancel
+document.getElementById('settings-cancel').addEventListener('click', closeSettings);
+document.getElementById('settings-close').addEventListener('click', closeSettings);
+
+// Close on overlay click (outside panel)
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) closeSettings();
+});
+
+// Listen for menu-triggered open
+window.flightAPI.onOpenSettings(() => openSettings());
+
+// ============================================================
 // Start
 // ============================================================
 
-console.log('[FlightRadar] Starting — centered on BOS');
-startPolling();
+async function init() {
+  // Load persisted settings
+  try {
+    const saved = await window.flightAPI.getSettings();
+    if (saved) {
+      CONFIG.fontSize = saved.fontSize || 11;
+      CONFIG.theme = saved.theme || 'dark';
+      CONFIG.darkColor = saved.darkColor || '#00cc44';
+      applyTheme();
+    }
+  } catch (err) {
+    console.warn('[Settings] Could not load:', err);
+  }
+
+  console.log('[FlightRadar] Starting — centered on BOS');
+  startPolling();
+}
+
+init();
