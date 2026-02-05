@@ -1,7 +1,7 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
 const https = require('https');
 const http = require('http');
@@ -105,5 +105,43 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  buildMenu();
+});
 app.on('window-all-closed', () => app.quit());
+
+// --- Application Menu ---
+function buildMenu() {
+  const template = [
+    { role: 'fileMenu' },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About Flight Radar',
+          click: () => {
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'About Flight Radar',
+              message: 'Flight Radar — FAA Scope Display',
+              detail: [
+                'Version 1.0.0',
+                '',
+                'Real-time flight tracking with CesiumJS',
+                'Data: OpenSky Network (ADS-B)',
+                '',
+                'Electron + CesiumJS 1.119',
+              ].join('\n'),
+              buttons: ['OK'],
+            });
+          },
+        },
+      ],
+    },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
