@@ -1,0 +1,276 @@
+/* FAA Radar Scope Aesthetic */
+/* Dark background, phosphor green, monospace everything */
+
+:root {
+  --phosphor: #00cc44;
+  --phosphor-bright: #33ff66;
+  --phosphor-dim: rgba(0, 204, 68, 0.4);
+  --phosphor-faint: rgba(0, 204, 68, 0.15);
+  --bg: #0a0a0a;
+  --panel-bg: rgba(0, 10, 2, 0.85);
+  --border: rgba(0, 204, 68, 0.3);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--phosphor);
+  font-family: 'Consolas', 'Courier New', monospace;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+#cesiumContainer {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Hide default Cesium UI elements we don't need */
+.cesium-viewer-toolbar,
+.cesium-viewer-animationContainer,
+.cesium-viewer-timelineContainer,
+.cesium-viewer-fullscreenContainer,
+.cesium-viewer-vrContainer,
+.cesium-viewer-geocoderContainer,
+.cesium-viewer-infoBoxContainer,
+.cesium-viewer-selectionIndicatorContainer,
+.cesium-viewer-bottom,
+.cesium-credit-logoContainer,
+.cesium-credit-expand-link,
+.cesium-widget-credits {
+  display: none !important;
+}
+
+/* Override Cesium credit bar */
+.cesium-viewer .cesium-widget-credits {
+  display: none !important;
+}
+
+/* HUD Top Bar */
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+#hud-top {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
+#scope-title {
+  color: var(--phosphor-bright);
+  text-shadow: 0 0 8px var(--phosphor-dim);
+}
+
+#clock {
+  color: var(--phosphor);
+}
+
+#hud-stats {
+  display: flex;
+  gap: 24px;
+  padding: 4px 16px;
+  font-size: 11px;
+  color: var(--phosphor-dim);
+  letter-spacing: 1px;
+}
+
+/* Controls Panel */
+#controls {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 100;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.control-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--phosphor-dim);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+
+.toggle-label input[type="checkbox"]:checked {
+  background: var(--phosphor);
+  border-color: var(--phosphor);
+}
+
+.toggle-label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.range-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 80px;
+  height: 4px;
+  background: var(--phosphor-dim);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--phosphor);
+  cursor: pointer;
+}
+
+.scope-btn {
+  background: transparent;
+  border: 1px solid var(--phosphor-dim);
+  color: var(--phosphor);
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.scope-btn:hover {
+  background: var(--phosphor-faint);
+  border-color: var(--phosphor);
+}
+
+.scope-btn.active {
+  background: var(--phosphor);
+  color: var(--bg);
+  border-color: var(--phosphor);
+}
+
+/* Aircraft Info Panel */
+#aircraft-info {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  z-index: 100;
+  background: var(--panel-bg);
+  border: 1px solid var(--phosphor);
+  border-radius: 4px;
+  padding: 16px;
+  min-width: 220px;
+  font-size: 12px;
+  line-height: 1.6;
+  box-shadow: 0 0 20px rgba(0, 204, 68, 0.1);
+}
+
+#aircraft-info.hidden {
+  display: none;
+}
+
+#info-close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--phosphor-dim);
+}
+
+#info-close:hover {
+  color: var(--phosphor-bright);
+}
+
+#info-callsign {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--phosphor-bright);
+  text-shadow: 0 0 10px var(--phosphor-dim);
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+#info-details {
+  color: var(--phosphor);
+}
+
+#info-details div {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--phosphor-faint);
+  padding: 2px 0;
+}
+
+#info-details .label {
+  color: var(--phosphor-dim);
+}
+
+/* Scanline overlay for extra CRT feel */
+#cesiumContainer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  z-index: 50;
+}
