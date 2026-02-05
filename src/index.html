@@ -53,7 +53,6 @@
       </label>
     </div>
     <div class="control-group">
-      <button id="btn-boston" class="scope-btn">BOS</button>
       <button id="btn-conus" class="scope-btn">CONUS</button>
       <button id="btn-2d" class="scope-btn active">2D</button>
       <button id="btn-3d" class="scope-btn">3D</button>
@@ -104,6 +103,32 @@
           <button class="color-swatch" data-color="#8888ff" style="background:#8888ff" title="Lavender"></button>
           <button class="color-swatch" data-color="#cccccc" style="background:#cccccc" title="White"></button>
           <input type="color" id="set-custom-color" value="#00cc44" title="Custom color">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">DEFAULT AIRPORT</div>
+        <div class="settings-row">
+          <input type="text" id="set-airport" class="scope-input" value="BOS"
+                 maxlength="4" placeholder="IATA code" spellcheck="false">
+          <span id="airport-name" class="settings-hint">Boston Logan International</span>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">OPENSKY NETWORK CREDENTIALS</div>
+        <div class="settings-hint" style="margin-bottom:8px">
+          Optional — leave blank for anonymous access (lower rate limits)
+        </div>
+        <div class="settings-row" style="margin-bottom:6px">
+          <span class="settings-field-label">USER</span>
+          <input type="text" id="set-opensky-user" class="scope-input wide"
+                 placeholder="username" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <span class="settings-field-label">PASS</span>
+          <input type="password" id="set-opensky-pass" class="scope-input wide"
+                 placeholder="password" autocomplete="off">
         </div>
       </div>
 
