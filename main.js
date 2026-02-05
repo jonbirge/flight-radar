@@ -152,11 +152,16 @@ app.on('window-all-closed', () => app.quit());
 function buildMenu() {
   const template = [
     { role: 'fileMenu' },
-    { role: 'editMenu' },
-    { role: 'viewMenu' },
     {
-      label: 'Settings',
+      role: 'editMenu',
       submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { type: 'separator' },
         {
           label: 'Preferences...',
           accelerator: 'CmdOrCtrl+,',
@@ -166,6 +171,7 @@ function buildMenu() {
         },
       ],
     },
+    { role: 'viewMenu' },
     {
       label: 'Help',
       submenu: [
