@@ -1,0 +1,18 @@
+{
+  "name": "flight-radar",
+  "version": "1.0.0",
+  "description": "Real-time US flight tracker with FAA radar center aesthetic",
+  "main": "main.js",
+  "author": "Jon",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "setup": "node scripts/fetch-cesium.js",
+    "pack": "npx @electron/packager . FlightRadar --platform=win32 --arch=x64 --out=dist --overwrite --ignore=\"(dist|scripts|\\.git)\"",
+    "dist": "npm run pack"
+  },
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "@electron/packager": "^19.0.2"
+  }
+}
