@@ -11,8 +11,11 @@ const http = require('http');
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 const DEFAULT_SETTINGS = {
   fontSize: 11,
-  theme: 'dark',        // 'dark' | 'light'
-  darkColor: '#00cc44', // phosphor color for dark mode
+  theme: 'dark',           // 'dark' | 'light'
+  darkColor: '#00cc44',    // phosphor color for dark mode
+  openskyUsername: '',      // OpenSky Network username (blank = anonymous)
+  openskyPassword: '',     // OpenSky Network password
+  defaultAirport: 'BOS',   // IATA code for startup view
 };
 
 function loadSettings() {
@@ -52,10 +55,21 @@ let lastTrackCall = 0;
 const STATES_MIN_INTERVAL = 10000;  // 10s minimum between state requests
 const TRACK_MIN_INTERVAL = 10000;   // 10s minimum between track requests
 
-function httpGet(url) {
+function httpGet(url, auth) {
   return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const opts = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      timeout: 15000,
+    };
+    if (auth) {
+      opts.headers = {
+        'Authorization': 'Basic ' + Buffer.from(`${auth.user}:${auth.pass}`).toString('base64'),
+      };
+    }
     const client = url.startsWith('https') ? https : http;
-    const req = client.get(url, { timeout: 15000 }, (res) => {
+    const req = client.get(opts, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -77,6 +91,15 @@ function httpGet(url) {
   });
 }
 
+// Build auth object from current settings (or null for anonymous)
+function getOpenSkyAuth() {
+  const s = loadSettings();
+  if (s.openskyUsername && s.openskyPassword) {
+    return { user: s.openskyUsername, pass: s.openskyPassword };
+  }
+  return null;
+}
+
 // IPC handler: get flight states within a bounding box
 ipcMain.handle('get-states', async (event, bounds) => {
   const now = Date.now();
@@ -89,7 +112,7 @@ ipcMain.handle('get-states', async (event, bounds) => {
     const { south, west, north, east } = bounds;
     const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
     console.log(`[OpenSky] Fetching states: ${south.toFixed(1)},${west.toFixed(1)} -> ${north.toFixed(1)},${east.toFixed(1)}`);
-    const data = await httpGet(url);
+    const data = await httpGet(url, getOpenSkyAuth());
     const count = data.states ? data.states.length : 0;
     console.log(`[OpenSky] Got ${count} aircraft`);
     return data;
@@ -110,7 +133,7 @@ ipcMain.handle('get-track', async (event, icao24) => {
   try {
     const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}&time=0`;
     console.log(`[OpenSky] Fetching track for ${icao24}`);
-    const data = await httpGet(url);
+    const data = await httpGet(url, getOpenSkyAuth());
     return data;
   } catch (err) {
     console.error(`[OpenSky] Track error for ${icao24}:`, err.message);

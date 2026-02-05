@@ -24,6 +24,7 @@ const CONFIG = {
   fontSize: 11,
   theme: 'dark',              // 'dark' | 'light'
   darkColor: '#00cc44',       // user-selected dark mode color
+  defaultAirport: 'BOS',     // IATA code for startup view
   phosphor: '#00cc44',
   phosphorBright: '#33ff66',
   phosphorDim: 'rgba(0, 204, 68, 0.35)',
@@ -69,6 +70,70 @@ function setLightColors() {
   CONFIG.phosphorDim = 'rgba(0, 0, 0, 0.45)';
   CONFIG.trailColor = [40, 40, 40];
   CONFIG.labelOutlineColor = Cesium.Color.WHITE;
+}
+
+// ============================================================
+// Airport Database (major US airports + select international)
+// ============================================================
+
+const AIRPORTS = {
+  // Northeast
+  BOS: { name: 'Boston Logan International',        lat: 42.3656, lon: -71.0096 },
+  JFK: { name: 'John F. Kennedy International',     lat: 40.6413, lon: -73.7781 },
+  LGA: { name: 'LaGuardia',                         lat: 40.7769, lon: -73.8740 },
+  EWR: { name: 'Newark Liberty International',      lat: 40.6895, lon: -74.1745 },
+  PHL: { name: 'Philadelphia International',        lat: 39.8721, lon: -75.2411 },
+  DCA: { name: 'Ronald Reagan Washington National', lat: 38.8512, lon: -77.0402 },
+  IAD: { name: 'Washington Dulles International',   lat: 38.9531, lon: -77.4565 },
+  BWI: { name: 'Baltimore/Washington International',lat: 39.1754, lon: -76.6684 },
+  PVD: { name: 'T.F. Green International',          lat: 41.7241, lon: -71.4283 },
+  BDL: { name: 'Bradley International',             lat: 41.9389, lon: -72.6832 },
+  // Southeast
+  ATL: { name: 'Hartsfield-Jackson Atlanta',        lat: 33.6407, lon: -84.4277 },
+  MIA: { name: 'Miami International',               lat: 25.7959, lon: -80.2870 },
+  FLL: { name: 'Fort Lauderdale-Hollywood',         lat: 26.0742, lon: -80.1506 },
+  MCO: { name: 'Orlando International',             lat: 28.4312, lon: -81.3081 },
+  TPA: { name: 'Tampa International',               lat: 27.9756, lon: -82.5333 },
+  CLT: { name: 'Charlotte Douglas International',   lat: 35.2140, lon: -80.9431 },
+  RDU: { name: 'Raleigh-Durham International',      lat: 35.8776, lon: -78.7875 },
+  BNA: { name: 'Nashville International',           lat: 36.1263, lon: -86.6774 },
+  // Midwest
+  ORD: { name: "O'Hare International",              lat: 41.9742, lon: -87.9073 },
+  MDW: { name: 'Chicago Midway',                    lat: 41.7868, lon: -87.7522 },
+  DTW: { name: 'Detroit Metropolitan',              lat: 42.2124, lon: -83.3534 },
+  MSP: { name: 'Minneapolis-Saint Paul',            lat: 44.8848, lon: -93.2223 },
+  STL: { name: 'St. Louis Lambert International',   lat: 38.7487, lon: -90.3700 },
+  CVG: { name: 'Cincinnati/Northern Kentucky',      lat: 39.0488, lon: -84.6678 },
+  CLE: { name: 'Cleveland Hopkins International',   lat: 41.4117, lon: -81.8498 },
+  MKE: { name: 'Milwaukee Mitchell International',  lat: 42.9472, lon: -87.8966 },
+  IND: { name: 'Indianapolis International',        lat: 39.7173, lon: -86.2944 },
+  // South/Central
+  DFW: { name: 'Dallas/Fort Worth International',   lat: 32.8998, lon: -97.0403 },
+  IAH: { name: 'George Bush Intercontinental',      lat: 29.9902, lon: -95.3368 },
+  HOU: { name: 'William P. Hobby',                  lat: 29.6454, lon: -95.2789 },
+  AUS: { name: 'Austin-Bergstrom International',    lat: 30.1975, lon: -97.6664 },
+  MSY: { name: 'Louis Armstrong New Orleans',       lat: 29.9934, lon: -90.2580 },
+  MEM: { name: 'Memphis International',             lat: 35.0424, lon: -89.9767 },
+  // West
+  LAX: { name: 'Los Angeles International',         lat: 33.9416, lon: -118.4085 },
+  SFO: { name: 'San Francisco International',       lat: 37.6213, lon: -122.3790 },
+  SJC: { name: 'San Jose International',            lat: 37.3639, lon: -121.9289 },
+  OAK: { name: 'Oakland International',             lat: 37.7213, lon: -122.2208 },
+  SEA: { name: 'Seattle-Tacoma International',      lat: 47.4502, lon: -122.3088 },
+  PDX: { name: 'Portland International',            lat: 45.5898, lon: -122.5951 },
+  DEN: { name: 'Denver International',              lat: 39.8561, lon: -104.6737 },
+  PHX: { name: 'Phoenix Sky Harbor',                lat: 33.4373, lon: -112.0078 },
+  LAS: { name: 'Harry Reid International',          lat: 36.0840, lon: -115.1537 },
+  SLC: { name: 'Salt Lake City International',      lat: 40.7899, lon: -111.9791 },
+  SAN: { name: 'San Diego International',           lat: 32.7338, lon: -117.1933 },
+  SNA: { name: 'John Wayne Airport',                lat: 33.6757, lon: -117.8678 },
+  // Hawaii / Alaska
+  HNL: { name: 'Daniel K. Inouye International',   lat: 21.3187, lon: -157.9225 },
+  ANC: { name: 'Ted Stevens Anchorage',             lat: 61.1743, lon: -149.9982 },
+};
+
+function lookupAirport(code) {
+  return AIRPORTS[(code || '').toUpperCase().trim()] || null;
 }
 
 // ============================================================
@@ -629,13 +694,6 @@ document.getElementById('trail-length').addEventListener('input', (e) => {
 });
 
 // View presets
-document.getElementById('btn-boston').addEventListener('click', () => {
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(-71.0096, 42.3656, 500000),
-    duration: 1.5,
-  });
-});
-
 document.getElementById('btn-conus').addEventListener('click', () => {
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(-98.5, 39.5, 6000000),
@@ -728,16 +786,22 @@ const btnThemeLight = document.getElementById('set-theme-light');
 const darkColorSection = document.getElementById('dark-color-section');
 const colorSwatches = document.querySelectorAll('.color-swatch');
 const customColorInput = document.getElementById('set-custom-color');
+const airportInput = document.getElementById('set-airport');
+const airportName = document.getElementById('airport-name');
+const openskyUserInput = document.getElementById('set-opensky-user');
+const openskyPassInput = document.getElementById('set-opensky-pass');
 
 // Temporary state while the settings panel is open
 let pendingSettings = {};
 
 function openSettings() {
-  // Snapshot current settings as pending
   pendingSettings = {
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
+    defaultAirport: CONFIG.defaultAirport,
+    openskyUsername: CONFIG.openskyUsername || '',
+    openskyPassword: CONFIG.openskyPassword || '',
   };
   syncSettingsUI();
   settingsOverlay.classList.remove('hidden');
@@ -760,6 +824,17 @@ function syncSettingsUI() {
     sw.classList.toggle('active', sw.dataset.color === pendingSettings.darkColor);
   });
   customColorInput.value = pendingSettings.darkColor;
+
+  airportInput.value = pendingSettings.defaultAirport;
+  updateAirportName(pendingSettings.defaultAirport);
+
+  openskyUserInput.value = pendingSettings.openskyUsername;
+  openskyPassInput.value = pendingSettings.openskyPassword;
+}
+
+function updateAirportName(code) {
+  const ap = lookupAirport(code);
+  airportName.textContent = ap ? ap.name : (code.length >= 3 ? 'Unknown airport' : '');
 }
 
 // Font size slider
@@ -793,17 +868,38 @@ customColorInput.addEventListener('input', (e) => {
   colorSwatches.forEach(sw => sw.classList.remove('active'));
 });
 
+// Airport input
+airportInput.addEventListener('input', (e) => {
+  const code = e.target.value.toUpperCase().trim();
+  pendingSettings.defaultAirport = code;
+  updateAirportName(code);
+});
+
+// OpenSky credentials
+openskyUserInput.addEventListener('input', (e) => {
+  pendingSettings.openskyUsername = e.target.value.trim();
+});
+openskyPassInput.addEventListener('input', (e) => {
+  pendingSettings.openskyPassword = e.target.value;
+});
+
 // Apply
 document.getElementById('settings-apply').addEventListener('click', async () => {
   CONFIG.fontSize = pendingSettings.fontSize;
   CONFIG.theme = pendingSettings.theme;
   CONFIG.darkColor = pendingSettings.darkColor;
+  CONFIG.defaultAirport = pendingSettings.defaultAirport;
+  CONFIG.openskyUsername = pendingSettings.openskyUsername;
+  CONFIG.openskyPassword = pendingSettings.openskyPassword;
   applyTheme();
   closeSettings();
   await window.flightAPI.saveSettings({
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
+    defaultAirport: CONFIG.defaultAirport,
+    openskyUsername: CONFIG.openskyUsername,
+    openskyPassword: CONFIG.openskyPassword,
   });
 });
 
@@ -831,13 +927,26 @@ async function init() {
       CONFIG.fontSize = saved.fontSize || 11;
       CONFIG.theme = saved.theme || 'dark';
       CONFIG.darkColor = saved.darkColor || '#00cc44';
+      CONFIG.defaultAirport = saved.defaultAirport || 'BOS';
+      CONFIG.openskyUsername = saved.openskyUsername || '';
+      CONFIG.openskyPassword = saved.openskyPassword || '';
       applyTheme();
     }
   } catch (err) {
     console.warn('[Settings] Could not load:', err);
   }
 
-  console.log('[FlightRadar] Starting — centered on BOS');
+  // Fly to default airport
+  const ap = lookupAirport(CONFIG.defaultAirport);
+  if (ap) {
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, CONFIG.startAlt),
+    });
+    console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
+  } else {
+    console.log('[FlightRadar] Starting — centered on BOS (default)');
+  }
+
   startPolling();
 }
 
