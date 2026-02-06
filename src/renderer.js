@@ -147,7 +147,7 @@ const trackFetchQueue = [];
 let pollTimer = null;
 let trackTimer = null;
 let viewer = null;
-let is2D = true;
+let is2D = false;
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -181,7 +181,7 @@ viewer = new Cesium.Viewer('cesiumContainer', {
   vrButton: false,
   creditContainer: document.createElement('div'), // hide credits
   scene3DOnly: false,
-  sceneMode: Cesium.SceneMode.SCENE2D,
+  sceneMode: Cesium.SceneMode.SCENE3D,
   mapProjection: new Cesium.WebMercatorProjection(),
   orderIndependentTranslucency: false,
 });
@@ -701,23 +701,41 @@ document.getElementById('btn-conus').addEventListener('click', () => {
   });
 });
 
-// 2D/3D toggle
-document.getElementById('btn-2d').addEventListener('click', () => {
-  if (!is2D) {
+// 2D/3D toggle — preserve camera view across morph
+function morphAndPreserveView(to3D) {
+  const carto = viewer.camera.positionCartographic;
+  const lon = Cesium.Math.toDegrees(carto.longitude);
+  const lat = Cesium.Math.toDegrees(carto.latitude);
+  const height = carto.height;
+
+  const onComplete = () => {
+    viewer.scene.morphComplete.removeEventListener(onComplete);
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+      duration: 0,
+    });
+  };
+  viewer.scene.morphComplete.addEventListener(onComplete);
+
+  if (to3D) {
+    viewer.scene.morphTo3D(1.0);
+    is2D = false;
+    document.getElementById('btn-3d').classList.add('active');
+    document.getElementById('btn-2d').classList.remove('active');
+  } else {
     viewer.scene.morphTo2D(1.0);
     is2D = true;
     document.getElementById('btn-2d').classList.add('active');
     document.getElementById('btn-3d').classList.remove('active');
   }
+}
+
+document.getElementById('btn-2d').addEventListener('click', () => {
+  if (!is2D) morphAndPreserveView(false);
 });
 
 document.getElementById('btn-3d').addEventListener('click', () => {
-  if (is2D) {
-    viewer.scene.morphTo3D(1.0);
-    is2D = false;
-    document.getElementById('btn-3d').classList.add('active');
-    document.getElementById('btn-2d').classList.remove('active');
-  }
+  if (is2D) morphAndPreserveView(true);
 });
 
 // ============================================================
