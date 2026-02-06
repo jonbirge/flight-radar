@@ -317,6 +317,19 @@ function createAircraftIcon(heading = 0, selected = false) {
   return canvas;
 }
 
+// Create a simple dot icon for zoomed-out LOD
+function createDotIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.fillStyle = CONFIG.phosphor;
+  ctx.fill();
+  return canvas;
+}
+
 // ============================================================
 // Data Block (label) generation
 // ============================================================
@@ -467,9 +480,25 @@ function updateAircraft(states) {
 }
 
 function renderAircraft() {
+  // LOD based on camera height
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height
+    : 0;
+  const useDot = camHeight > 2000000;
+  const showLabels = CONFIG.labelsEnabled && camHeight < 500000;
+  // Dot size: 8px at 2000km, linearly down to 3px at 10000km+
+  const dotSize = useDot
+    ? Math.round(Math.max(3, 8 - (camHeight - 2000000) / (10000000 - 2000000) * 5))
+    : 0;
+
   for (const [icao, ac] of aircraft) {
     const s = ac.state;
     const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
+
+    const iconImage = useDot
+      ? createDotIcon(dotSize)
+      : createAircraftIcon(s.heading || 0);
+    const iconSize = useDot ? dotSize : 18;
 
     // --- Aircraft symbol (billboard) ---
     if (!ac.entity) {
@@ -477,9 +506,9 @@ function renderAircraft() {
         id: `ac-${icao}`,
         position: pos,
         billboard: {
-          image: createAircraftIcon(s.heading || 0),
-          width: 18,
-          height: 18,
+          image: iconImage,
+          width: iconSize,
+          height: iconSize,
           pixelOffset: new Cesium.Cartesian2(0, 0),
           eyeOffset: new Cesium.Cartesian3(0, 0, -100),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
@@ -497,13 +526,16 @@ function renderAircraft() {
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
           showBackground: false,
           scale: 1.0,
+          show: showLabels,
         } : undefined,
         properties: { icao24: icao },
       });
     } else {
       // Update position and icon
       ac.entity.position = pos;
-      ac.entity.billboard.image = createAircraftIcon(s.heading || 0);
+      ac.entity.billboard.image = iconImage;
+      ac.entity.billboard.width = iconSize;
+      ac.entity.billboard.height = iconSize;
 
       if (CONFIG.labelsEnabled) {
         if (!ac.entity.label) {
@@ -521,6 +553,7 @@ function renderAircraft() {
           });
         }
         ac.entity.label.text = `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`;
+        ac.entity.label.show = showLabels;
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
       }
@@ -685,7 +718,8 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// Update center lat/lon display on camera move
+// Update center lat/lon display and LOD on camera move
+let lastLodLevel = -1;
 viewer.camera.changed.addEventListener(() => {
   const carto = viewer.camera.positionCartographic;
   if (carto) {
@@ -693,6 +727,14 @@ viewer.camera.changed.addEventListener(() => {
       Cesium.Math.toDegrees(carto.latitude).toFixed(2);
     document.getElementById('center-lon').textContent =
       Cesium.Math.toDegrees(carto.longitude).toFixed(2);
+
+    // Re-render aircraft when LOD level changes
+    const h = carto.height;
+    const lodLevel = h > 2000000 ? 2 : h > 500000 ? 1 : 0;
+    if (lodLevel !== lastLodLevel) {
+      lastLodLevel = lodLevel;
+      renderAircraft();
+    }
   }
 });
 viewer.camera.percentageChanged = 0.01;
