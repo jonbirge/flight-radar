@@ -202,7 +202,7 @@ viewer.scene.fog.enabled = false;
 // Initial view: look at default airport from 45-degree angle
 viewer.camera.lookAt(
   Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0),
-  new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), CONFIG.startAlt)
+  new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
 );
 // Unlock camera from the lookAt target so the user can freely navigate
 viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
@@ -515,10 +515,13 @@ function renderAircraft() {
     const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
     const isSelected = icao === selectedIcao;
 
+    const use3dDot = !is2D && !useDot; // in 3D, use dots instead of arrows
     const iconImage = useDot
       ? createDotIcon(dotSize)
-      : createAircraftIcon(s.heading || 0, isSelected);
-    const iconSize = useDot ? dotSize : 18;
+      : use3dDot
+        ? createDotIcon(8)
+        : createAircraftIcon(s.heading || 0, isSelected);
+    const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
     const labelColor = isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorBright)
       : Cesium.Color.fromCssColorString(CONFIG.phosphor);
@@ -808,7 +811,7 @@ document.getElementById('trail-length').addEventListener('input', (e) => {
 document.getElementById('btn-home').addEventListener('click', () => {
   const target = Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0);
   viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
-    offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), CONFIG.startAlt),
+    offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt),
     duration: 1.5,
   });
 });
@@ -1150,7 +1153,7 @@ async function init() {
   if (ap) {
     viewer.camera.lookAt(
       Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
-      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), CONFIG.startAlt)
+      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
     );
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
     console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
