@@ -46,7 +46,7 @@ npm run pack     # outputs to dist/FlightRadar-win32-x64/
 
 No credentials are required for basic use (anonymous access). For higher rate
 limits, create a free account at https://opensky-network.org, generate OAuth2
-client credentials, and enter the Client ID and Secret in Preferences
+client credentials, and enter the Client ID and Secret in Settings
 (`Ctrl+,` / `Cmd+,`).
 
 Rate limiting enforced by the app:
@@ -62,7 +62,7 @@ Rate limiting enforced by the app:
 | HI-RES TRAILS | Fetch granular waypoints from /tracks API |
 | POLL INTERVAL | 5–60 seconds between state updates |
 | TRAIL LENGTH | 1–10 minutes of trail history |
-| HOME | Fly to default airport (set in Preferences) |
+| HOME | Fly to default airport (set in Settings) |
 | CONUS | Snap to full CONUS view |
 | 2D / 3D | Switch scene mode (3D default) |
 | ROTATE | Orbit camera around current view center (3D only) |
@@ -85,9 +85,9 @@ highlighted with a brighter icon and label, gets a thicker trail, retains its
 full trail history, and receives priority hi-res track fetches (every 30s vs
 120s for unselected aircraft).
 
-## Preferences
+## Settings
 
-Open via `Ctrl+,` (`Cmd+,` on macOS) or Edit > Preferences.
+Open via `Ctrl+,` (`Cmd+,` on macOS) or Edit > Settings.
 
 | Setting | Description |
 |---------|-------------|
