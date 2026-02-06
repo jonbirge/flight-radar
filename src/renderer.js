@@ -148,6 +148,7 @@ let pollTimer = null;
 let trackTimer = null;
 let viewer = null;
 let is2D = false;
+let selectedIcao = null;
 let isRotating = false;
 let rotateHandler = null;
 
@@ -445,20 +446,28 @@ function updateAircraft(states) {
       ac.history.push({ lon: s.lon, lat: s.lat, alt, time: now });
     }
 
-    // Trim old history
-    ac.history = ac.history.filter(p => now - p.time < CONFIG.trailMaxAge);
+    // Trim old history (keep all history for selected aircraft)
+    if (s.icao24 !== selectedIcao) {
+      ac.history = ac.history.filter(p => now - p.time < CONFIG.trailMaxAge);
+    }
 
-    // Clear granular track if all its points have aged out
-    if (ac.granularTrack && ac.granularTrack.path) {
+    // Clear granular track if all its points have aged out (skip for selected)
+    if (s.icao24 !== selectedIcao && ac.granularTrack && ac.granularTrack.path) {
       const minTime = now - CONFIG.trailMaxAge;
       const hasValid = ac.granularTrack.path.some(wp => wp[0] >= minTime);
       if (!hasValid) ac.granularTrack = null;
     }
 
     // Queue for granular track fetch if enabled
-    if (CONFIG.granularTrails && now - ac.lastTrackFetch > 120) {
+    // Selected aircraft refreshes every 30s; others every 120s
+    const trackInterval = (s.icao24 === selectedIcao) ? 30 : 120;
+    if (CONFIG.granularTrails && now - ac.lastTrackFetch > trackInterval) {
       if (!trackFetchQueue.includes(s.icao24)) {
-        trackFetchQueue.push(s.icao24);
+        if (s.icao24 === selectedIcao) {
+          trackFetchQueue.unshift(s.icao24); // priority for selected
+        } else {
+          trackFetchQueue.push(s.icao24);
+        }
       }
     }
   }
@@ -477,6 +486,13 @@ function updateAircraft(states) {
 
   // Update visual entities
   renderAircraft();
+
+  // Live-update the info panel if a selected aircraft still exists
+  if (selectedIcao && aircraft.has(selectedIcao)) {
+    showAircraftInfo(selectedIcao);
+  } else if (selectedIcao && !aircraft.has(selectedIcao)) {
+    hideAircraftInfo();
+  }
 }
 
 function renderAircraft() {
@@ -494,11 +510,15 @@ function renderAircraft() {
   for (const [icao, ac] of aircraft) {
     const s = ac.state;
     const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
+    const isSelected = icao === selectedIcao;
 
     const iconImage = useDot
       ? createDotIcon(dotSize)
-      : createAircraftIcon(s.heading || 0);
+      : createAircraftIcon(s.heading || 0, isSelected);
     const iconSize = useDot ? dotSize : 18;
+    const labelColor = isSelected
+      ? Cesium.Color.fromCssColorString(CONFIG.phosphorBright)
+      : Cesium.Color.fromCssColorString(CONFIG.phosphor);
 
     // --- Aircraft symbol (billboard) ---
     if (!ac.entity) {
@@ -516,7 +536,7 @@ function renderAircraft() {
         label: CONFIG.labelsEnabled ? {
           text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
           font: `${CONFIG.fontSize}px Consolas, monospace`,
-          fillColor: Cesium.Color.fromCssColorString(CONFIG.phosphor),
+          fillColor: labelColor,
           outlineColor: CONFIG.labelOutlineColor,
           outlineWidth: 2,
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -542,7 +562,7 @@ function renderAircraft() {
           ac.entity.label = new Cesium.LabelGraphics({
             text: '',
             font: `${CONFIG.fontSize}px Consolas, monospace`,
-            fillColor: Cesium.Color.fromCssColorString(CONFIG.phosphor),
+            fillColor: labelColor,
             outlineColor: CONFIG.labelOutlineColor,
             outlineWidth: 2,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -553,6 +573,7 @@ function renderAircraft() {
           });
         }
         ac.entity.label.text = `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`;
+        ac.entity.label.fillColor = labelColor;
         ac.entity.label.show = showLabels;
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
@@ -562,28 +583,32 @@ function renderAircraft() {
     // --- Trail polyline ---
     if (CONFIG.trailEnabled) {
       // Merge granular track + polled history for the best trail
-      const trailPoints = buildTrailPositions(ac);
+      const trailPoints = buildTrailPositions(ac, isSelected);
 
       if (trailPoints.length >= 2) {
         const positions = trailPoints.map(p =>
           Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
         );
 
+        const trailAlpha = isSelected ? 255 : 160;
+        const trailRgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
+        const trailMaterial = Cesium.Color.fromBytes(trailRgb[0], trailRgb[1], trailRgb[2], trailAlpha);
+
         if (!ac.trailEntity) {
           ac.trailEntity = viewer.entities.add({
             id: `trail-${icao}`,
             polyline: {
               positions: positions,
-              width: 3,
-              material: Cesium.Color.fromBytes(
-                CONFIG.trailColor[0], CONFIG.trailColor[1], CONFIG.trailColor[2], 160
-              ),
+              width: isSelected ? 4 : 3,
+              material: trailMaterial,
               clampToGround: false,
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
           });
         } else {
           ac.trailEntity.polyline.positions = positions;
+          ac.trailEntity.polyline.width = isSelected ? 4 : 3;
+          ac.trailEntity.polyline.material = trailMaterial;
         }
       }
     } else if (ac.trailEntity) {
@@ -594,9 +619,9 @@ function renderAircraft() {
 }
 
 // Merge granular API track data with polled history
-function buildTrailPositions(ac) {
+function buildTrailPositions(ac, isSelected = false) {
   const now = Date.now() / 1000;
-  const minTime = now - CONFIG.trailMaxAge;
+  const minTime = isSelected ? 0 : now - CONFIG.trailMaxAge;
   const lastKnownAlt = ac.lastKnownAlt || 0;
 
   // Collect granular track points (tagged as granular for priority)
@@ -638,9 +663,10 @@ function buildTrailPositions(ac) {
   // Sort chronologically
   points.sort((a, b) => a.time - b.time);
 
-  // Remove points that create large time gaps (>90s) — trim to most recent
-  // contiguous segment to avoid jumps from stale positions
-  const MAX_GAP = 90;
+  // Remove points that create large time gaps — trim to most recent
+  // contiguous segment to avoid jumps from stale positions.
+  // Selected aircraft gets a much larger gap tolerance to preserve full history.
+  const MAX_GAP = isSelected ? 600 : 90;
   let segmentStart = 0;
   for (let i = 1; i < points.length; i++) {
     if (points[i].time - points[i - 1].time > MAX_GAP) {
@@ -883,6 +909,10 @@ handler.setInputAction((click) => {
 function showAircraftInfo(icao) {
   const ac = aircraft.get(icao);
   if (!ac) return;
+
+  const prevSelected = selectedIcao;
+  selectedIcao = icao;
+
   const s = ac.state;
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
@@ -910,10 +940,20 @@ function showAircraftInfo(icao) {
   if (CONFIG.granularTrails && !trackFetchQueue.includes(icao)) {
     trackFetchQueue.unshift(icao); // priority
   }
+
+  // Re-render to apply highlight to newly selected and dim previously selected
+  if (prevSelected !== icao) {
+    refreshAllEntities();
+  }
 }
 
 function hideAircraftInfo() {
+  const hadSelection = selectedIcao !== null;
+  selectedIcao = null;
   document.getElementById('aircraft-info').classList.add('hidden');
+  if (hadSelection) {
+    refreshAllEntities();
+  }
 }
 
 document.getElementById('info-close').addEventListener('click', hideAircraftInfo);
