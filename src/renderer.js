@@ -407,6 +407,7 @@ function updateAircraft(states) {
         history: [],         // accumulated from polling
         granularTrack: null,  // from /tracks API
         lastTrackFetch: 0,
+        lastKnownAlt: s.altitude || 0,
       };
       aircraft.set(s.icao24, ac);
     }
@@ -414,16 +415,27 @@ function updateAircraft(states) {
     // Update state
     ac.state = s;
 
-    // Append to history
-    ac.history.push({
-      lon: s.lon,
-      lat: s.lat,
-      alt: s.altitude || 0,
-      time: now,
-    });
+    // Append to history — skip if position hasn't moved meaningfully
+    const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
+    if (s.altitude != null) ac.lastKnownAlt = s.altitude;
+    const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+    const moved = !last
+      || Math.abs(s.lon - last.lon) > 0.0005
+      || Math.abs(s.lat - last.lat) > 0.0005
+      || Math.abs(alt - last.alt) > 30;
+    if (moved) {
+      ac.history.push({ lon: s.lon, lat: s.lat, alt, time: now });
+    }
 
     // Trim old history
     ac.history = ac.history.filter(p => now - p.time < CONFIG.trailMaxAge);
+
+    // Clear granular track if all its points have aged out
+    if (ac.granularTrack && ac.granularTrack.path) {
+      const minTime = now - CONFIG.trailMaxAge;
+      const hasValid = ac.granularTrack.path.some(wp => wp[0] >= minTime);
+      if (!hasValid) ac.granularTrack = null;
+    }
 
     // Queue for granular track fetch if enabled
     if (CONFIG.granularTrails && now - ac.lastTrackFetch > 120) {
@@ -516,7 +528,7 @@ function renderAircraft() {
 
       if (trailPoints.length >= 2) {
         const positions = trailPoints.map(p =>
-          Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt || 0)
+          Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
         );
 
         if (!ac.trailEntity) {
@@ -547,35 +559,61 @@ function renderAircraft() {
 function buildTrailPositions(ac) {
   const now = Date.now() / 1000;
   const minTime = now - CONFIG.trailMaxAge;
-  let points = [];
+  const lastKnownAlt = ac.lastKnownAlt || 0;
 
-  // Add granular track points if available
+  // Collect granular track points (tagged as granular for priority)
+  const granularPoints = [];
   if (ac.granularTrack && ac.granularTrack.path) {
     for (const wp of ac.granularTrack.path) {
       // wp: [time, lat, lon, baro_alt, heading, on_ground]
       if (wp[0] >= minTime && wp[1] != null && wp[2] != null) {
-        points.push({ lon: wp[2], lat: wp[1], alt: wp[3] || 0, time: wp[0] });
+        granularPoints.push({
+          lon: wp[2], lat: wp[1],
+          alt: wp[3] != null ? wp[3] : lastKnownAlt,
+          time: wp[0], granular: true,
+        });
       }
     }
   }
 
-  // Add polled history points
+  // Collect polled history points
+  const polledPoints = [];
   for (const p of ac.history) {
     if (p.time >= minTime) {
-      points.push(p);
+      polledPoints.push({ ...p, granular: false });
     }
   }
 
-  // Deduplicate by time (prefer granular data), sort chronologically
-  const byTime = new Map();
-  for (const p of points) {
-    const key = Math.round(p.time);
-    if (!byTime.has(key)) {
-      byTime.set(key, p);
-    }
+  // Merge: for any time window where granular data exists, skip polled points
+  // that fall within the granular time range (granular data is higher fidelity)
+  let points;
+  if (granularPoints.length > 0) {
+    const gMin = granularPoints[0].time;
+    const gMax = granularPoints[granularPoints.length - 1].time;
+    // Keep polled points only outside the granular range
+    const filteredPolled = polledPoints.filter(p => p.time < gMin || p.time > gMax);
+    points = [...granularPoints, ...filteredPolled];
+  } else {
+    points = polledPoints;
   }
 
-  return Array.from(byTime.values()).sort((a, b) => a.time - b.time);
+  // Sort chronologically
+  points.sort((a, b) => a.time - b.time);
+
+  // Remove points that create large time gaps (>90s) — trim to most recent
+  // contiguous segment to avoid jumps from stale positions
+  const MAX_GAP = 90;
+  let segmentStart = 0;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].time - points[i - 1].time > MAX_GAP) {
+      segmentStart = i;
+    }
+  }
+  if (segmentStart > 0) {
+    points = points.slice(segmentStart);
+  }
+
+  return points;
 }
 
 // ============================================================
