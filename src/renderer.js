@@ -733,6 +733,14 @@ document.getElementById('trail-length').addEventListener('input', (e) => {
 });
 
 // View presets
+document.getElementById('btn-home').addEventListener('click', () => {
+  const target = Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0);
+  viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
+    offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), CONFIG.startAlt),
+    duration: 1.5,
+  });
+});
+
 document.getElementById('btn-conus').addEventListener('click', () => {
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(-98.5, 39.5, 6000000),
