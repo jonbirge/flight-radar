@@ -28,7 +28,7 @@ Optional hi-res trails:
 ```bash
 cd flight-radar
 npm install
-npm run setup    # downloads CesiumJS 1.119 to vendor/cesium/ (first time only)
+npm run setup    # downloads CesiumJS vendor/cesium/ (first time only)
 npm start
 ```
 
@@ -97,6 +97,57 @@ Open via `Ctrl+,` (`Cmd+,` on macOS) or Edit > Settings.
 | Default airport | IATA code (35 major US airports built in) for HOME button and startup view |
 | OpenSky credentials | OAuth2 Client ID & Secret for authenticated API access |
 
+## Web Version
+
+A standalone web version lives in `web/` and runs entirely in the browser — no Electron required. It replaces the Electron IPC bridge with direct `fetch()` calls to the OpenSky API and uses `localStorage` for settings persistence.
+
+### Local Development
+
+Serve from the project root so that `vendor/cesium/` is accessible:
+
+```bash
+npm run setup          # download CesiumJS if not already done
+npx serve .            # or: python -m http.server 8080
+```
+
+Then open `http://localhost:8080/web/`.
+
+### Deploying to a Host
+
+The web version is fully static — just upload these paths to any static file host:
+
+```
+web/index.html
+web/styles.css
+web/app.js
+vendor/cesium/Build/Cesium/   (Cesium JS + CSS + workers)
+```
+
+Your host's directory structure should mirror the repo:
+
+```
+/
+├── web/
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
+└── vendor/
+    └── cesium/
+        └── Build/
+            └── Cesium/
+                ├── Cesium.js
+                ├── Widgets/widgets.css
+                └── Workers/  (+ Assets/, ThirdParty/)
+```
+
+Any static host works: **GitHub Pages**, **Netlify**, **Vercel**, **Cloudflare Pages**, **S3 + CloudFront**, or a simple Nginx/Apache server.
+
+**CORS note:** The OpenSky API may block browser-origin requests. If you hit CORS errors, you can either:
+1. Use a CORS proxy in front of the OpenSky API
+2. Run behind a reverse proxy that adds CORS headers
+3. Use anonymous access (no credentials) which may have different CORS behavior
+>>>>>>> df33cc9 (Add standalone web version and deployment docs)
+
 ## Notes
 
 - Ground traffic is filtered out for display clarity
@@ -108,3 +159,4 @@ Open via `Ctrl+,` (`Cmd+,` on macOS) or Edit > Settings.
 - CRT scanline overlay is pure CSS (can be removed in styles.css)
 - No Cesium Ion token required — uses CartoDB dark_matter / light_all tiles
 - HUD displays UTC clock, track count, last update time, and camera center coordinates
+
