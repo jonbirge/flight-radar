@@ -151,6 +151,7 @@ let is2D = false;
 let selectedIcao = null;
 let isRotating = false;
 let rotateHandler = null;
+let lastPollTime = null;
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -320,7 +321,7 @@ function createAircraftIcon(heading = 0, selected = false) {
 
 // Create a simple dot icon for zoomed-out LOD
 // Render at 4x resolution for clean anti-aliased circles at small display sizes
-function createDotIcon(size) {
+function createDotIcon(size, bright = false) {
   const scale = 4;
   const res = size * scale;
   const canvas = document.createElement('canvas');
@@ -329,7 +330,7 @@ function createDotIcon(size) {
   const ctx = canvas.getContext('2d');
   ctx.beginPath();
   ctx.arc(res / 2, res / 2, res / 2, 0, Math.PI * 2);
-  ctx.fillStyle = CONFIG.phosphor;
+  ctx.fillStyle = bright ? CONFIG.phosphorBright : CONFIG.phosphor;
   ctx.fill();
   return canvas;
 }
@@ -517,9 +518,9 @@ function renderAircraft() {
 
     const use3dDot = !is2D && !useDot; // in 3D, use dots instead of arrows
     const iconImage = useDot
-      ? createDotIcon(dotSize)
+      ? createDotIcon(dotSize, isSelected)
       : use3dDot
-        ? createDotIcon(8)
+        ? createDotIcon(8, isSelected)
         : createAircraftIcon(s.heading || 0, isSelected);
     const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
     const labelColor = isSelected
@@ -539,7 +540,7 @@ function renderAircraft() {
           eyeOffset: new Cesium.Cartesian3(0, 0, -100),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
-        label: CONFIG.labelsEnabled ? {
+        label: (CONFIG.labelsEnabled || isSelected) ? {
           text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
           font: `${CONFIG.fontSize}px Consolas, monospace`,
           fillColor: labelColor,
@@ -552,7 +553,7 @@ function renderAircraft() {
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
           showBackground: false,
           scale: 1.0,
-          show: showLabels,
+          show: isSelected || showLabels,
         } : undefined,
         properties: { icao24: icao },
       });
@@ -563,7 +564,7 @@ function renderAircraft() {
       ac.entity.billboard.width = iconSize;
       ac.entity.billboard.height = iconSize;
 
-      if (CONFIG.labelsEnabled) {
+      if (CONFIG.labelsEnabled || isSelected) {
         if (!ac.entity.label) {
           ac.entity.label = new Cesium.LabelGraphics({
             text: '',
@@ -580,7 +581,7 @@ function renderAircraft() {
         }
         ac.entity.label.text = `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`;
         ac.entity.label.fillColor = labelColor;
-        ac.entity.label.show = showLabels;
+        ac.entity.label.show = isSelected || showLabels;
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
       }
@@ -704,10 +705,10 @@ async function pollStates() {
   }
 
   // Update HUD
+  lastPollTime = new Date();
   document.getElementById('track-count').textContent = aircraft.size;
-  const now = new Date();
   document.getElementById('last-update').textContent =
-    now.toLocaleTimeString('en-US', { hour12: false });
+    lastPollTime.toLocaleTimeString('en-US', { hour12: false });
 }
 
 async function fetchNextTrack() {
@@ -961,6 +962,8 @@ function showAircraftInfo(icao) {
     <div><span class="label">LAT</span><span>${s.lat.toFixed(4)}</span></div>
     <div><span class="label">LON</span><span>${s.lon.toFixed(4)}</span></div>
     <div><span class="label">TRAIL PTS</span><span>${ac.history.length}${ac.granularTrack ? '+' + (ac.granularTrack.path || []).length : ''}</span></div>
+    <div><span class="label">LAST POLL</span><span>${lastPollTime ? lastPollTime.toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
+    <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
   `;
 
   // Immediately request granular track for selected aircraft
