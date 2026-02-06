@@ -319,13 +319,16 @@ function createAircraftIcon(heading = 0, selected = false) {
 }
 
 // Create a simple dot icon for zoomed-out LOD
+// Render at 4x resolution for clean anti-aliased circles at small display sizes
 function createDotIcon(size) {
+  const scale = 4;
+  const res = size * scale;
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = res;
+  canvas.height = res;
   const ctx = canvas.getContext('2d');
   ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.arc(res / 2, res / 2, res / 2, 0, Math.PI * 2);
   ctx.fillStyle = CONFIG.phosphor;
   ctx.fill();
   return canvas;
