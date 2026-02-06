@@ -771,6 +771,7 @@ viewer.camera.percentageChanged = 0.01;
 
 document.getElementById('toggle-trails').addEventListener('change', (e) => {
   CONFIG.trailEnabled = e.target.checked;
+  renderAircraft();
 });
 
 document.getElementById('toggle-labels').addEventListener('change', (e) => {
