@@ -148,6 +148,8 @@ let pollTimer = null;
 let trackTimer = null;
 let viewer = null;
 let is2D = false;
+let isRotating = false;
+let rotateHandler = null;
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -196,10 +198,13 @@ viewer.scene.globe.enableLighting = false;
 viewer.scene.skyAtmosphere && (viewer.scene.skyAtmosphere.show = false);
 viewer.scene.fog.enabled = false;
 
-// Fly to Boston Logan
-viewer.camera.setView({
-  destination: Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, CONFIG.startAlt),
-});
+// Initial view: look at default airport from 45-degree angle
+viewer.camera.lookAt(
+  Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0),
+  new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), CONFIG.startAlt)
+);
+// Unlock camera from the lookAt target so the user can freely navigate
+viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 
 // ============================================================
 // Theme Engine
@@ -757,6 +762,12 @@ function morphAndPreserveView(to3D) {
     document.getElementById('btn-3d').classList.add('active');
     document.getElementById('btn-2d').classList.remove('active');
   } else {
+    // Stop rotation when switching to 2D
+    if (isRotating) {
+      isRotating = false;
+      stopRotation();
+      document.getElementById('btn-rotate').classList.remove('active');
+    }
     viewer.scene.morphTo2D(1.0);
     is2D = true;
     document.getElementById('btn-2d').classList.add('active');
@@ -770,6 +781,38 @@ document.getElementById('btn-2d').addEventListener('click', () => {
 
 document.getElementById('btn-3d').addEventListener('click', () => {
   if (is2D) morphAndPreserveView(true);
+});
+
+// Rotate toggle — slowly orbit camera heading around the center of the view
+function startRotation() {
+  if (rotateHandler) return;
+  const RATE = Cesium.Math.toRadians(3); // degrees per second
+  let lastTime = Date.now();
+  rotateHandler = () => {
+    const now = Date.now();
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+    viewer.camera.rotateRight(RATE * dt);
+  };
+  viewer.clock.onTick.addEventListener(rotateHandler);
+}
+
+function stopRotation() {
+  if (rotateHandler) {
+    viewer.clock.onTick.removeEventListener(rotateHandler);
+    rotateHandler = null;
+  }
+}
+
+document.getElementById('btn-rotate').addEventListener('click', () => {
+  if (is2D) return; // rotation only works in 3D
+  isRotating = !isRotating;
+  document.getElementById('btn-rotate').classList.toggle('active', isRotating);
+  if (isRotating) {
+    startRotation();
+  } else {
+    stopRotation();
+  }
 });
 
 // ============================================================
