@@ -12,7 +12,7 @@
     "dist": "npm run pack"
   },
   "devDependencies": {
-    "electron": "^32.3.3",
+    "electron": "^35.7.5",
     "@electron/packager": "^19.0.2"
   }
 }
