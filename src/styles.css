@@ -176,6 +176,17 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 
+select {
+  background: var(--bg);
+  color: var(--phosphor);
+  border: 1px solid var(--phosphor-dim);
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
 .scope-btn {
   background: transparent;
   border: 1px solid var(--phosphor-dim);

@@ -524,13 +524,10 @@ function renderAircraft() {
             id: `trail-${icao}`,
             polyline: {
               positions: positions,
-              width: 1.5,
-              material: new Cesium.PolylineGlowMaterialProperty({
-                glowPower: 0.15,
-                color: Cesium.Color.fromBytes(
-                  CONFIG.trailColor[0], CONFIG.trailColor[1], CONFIG.trailColor[2], 120
-                ),
-              }),
+              width: 3,
+              material: Cesium.Color.fromBytes(
+                CONFIG.trailColor[0], CONFIG.trailColor[1], CONFIG.trailColor[2], 160
+              ),
               clampToGround: false,
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
@@ -678,9 +675,8 @@ document.getElementById('toggle-granular').addEventListener('change', (e) => {
   CONFIG.granularTrails = e.target.checked;
 });
 
-document.getElementById('poll-interval').addEventListener('input', (e) => {
+document.getElementById('poll-interval').addEventListener('change', (e) => {
   const val = parseInt(e.target.value);
-  document.getElementById('poll-value').textContent = `${val}s`;
   CONFIG.pollInterval = val * 1000;
   // Restart polling with new interval
   if (pollTimer) clearInterval(pollTimer);
