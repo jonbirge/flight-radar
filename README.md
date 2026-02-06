@@ -3,8 +3,6 @@
 Real-time US flight tracker using CesiumJS and OpenSky Network, styled after
 FAA radar center PVDs (Plan View Displays).
 
-![Green-on-dark phosphor aesthetic with flight trails]
-
 ## Architecture
 
 - **Electron** main process handles all OpenSky API calls (avoids CORS, manages rate limiting)
@@ -46,7 +44,7 @@ OpenSky Network anonymous access:
 - No API key required for basic use
 
 For higher rate limits, create a free account at https://opensky-network.org
-and add Basic Auth to the `httpGet()` calls in `main.js`.
+and add your credentials to the app in "Settings".
 
 ## Controls
 
@@ -57,7 +55,6 @@ and add Basic Auth to the `httpGet()` calls in `main.js`.
 | HI-RES TRAILS | Fetch granular waypoints from /tracks API |
 | POLL INTERVAL | 10–60 seconds between state updates |
 | TRAIL LENGTH | 1–10 minutes of trail history |
-| BOS | Snap to Boston Logan area |
 | CONUS | Snap to full CONUS view |
 | 2D / 3D | Switch scene mode |
 | Click aircraft | Show detailed info panel |
@@ -75,6 +72,6 @@ FL350↑ 425    ← flight level, vertical trend, groundspeed (kts)
 - Ground traffic is filtered out for display clarity
 - Trail rendering merges polled positions with granular API track data
   for sub-polling-interval resolution
-- Aircraft symbols are heading-oriented chevrons drawn on canvas
+- Aircraft symbols are heading-oriented chevrons when in 2D mode
 - CRT scanline overlay is pure CSS (can be removed in styles.css)
 - No Cesium Ion token required — uses CartoDB dark_matter tiles
