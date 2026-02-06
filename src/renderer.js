@@ -1128,9 +1128,11 @@ async function init() {
   // Fly to default airport
   const ap = lookupAirport(CONFIG.defaultAirport);
   if (ap) {
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, CONFIG.startAlt),
-    });
+    viewer.camera.lookAt(
+      Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
+      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), CONFIG.startAlt)
+    );
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
     console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
   } else {
     console.log('[FlightRadar] Starting — centered on BOS (default)');
