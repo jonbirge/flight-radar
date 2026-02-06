@@ -821,11 +821,40 @@ document.getElementById('trail-length').addEventListener('input', (e) => {
 
 // View presets
 document.getElementById('btn-home').addEventListener('click', () => {
-  const target = Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0);
-  viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
-    offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt),
-    duration: 1.5,
-  });
+  if (CONFIG.savedView) {
+    const sv = CONFIG.savedView;
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(sv.lon, sv.lat, sv.height),
+      orientation: { heading: sv.heading, pitch: sv.pitch, roll: 0 },
+      duration: 1.5,
+    });
+  } else {
+    const target = Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0);
+    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
+      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt),
+      duration: 1.5,
+    });
+  }
+});
+
+document.getElementById('btn-save-view').addEventListener('click', async () => {
+  const carto = viewer.camera.positionCartographic;
+  const savedView = {
+    lon: Cesium.Math.toDegrees(carto.longitude),
+    lat: Cesium.Math.toDegrees(carto.latitude),
+    height: carto.height,
+    heading: viewer.camera.heading,
+    pitch: viewer.camera.pitch,
+  };
+  const settings = await window.flightAPI.getSettings();
+  settings.savedView = savedView;
+  await window.flightAPI.saveSettings(settings);
+  // Update CONFIG so HOME button uses the new saved view immediately
+  CONFIG.savedView = savedView;
+  // Brief visual feedback
+  const btn = document.getElementById('btn-save-view');
+  btn.classList.add('active');
+  setTimeout(() => btn.classList.remove('active'), 600);
 });
 
 document.getElementById('btn-conus').addEventListener('click', () => {
@@ -1156,23 +1185,33 @@ async function init() {
       CONFIG.defaultAirport = saved.defaultAirport || 'BOS';
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
+      CONFIG.savedView = saved.savedView || null;
       applyTheme();
     }
   } catch (err) {
     console.warn('[Settings] Could not load:', err);
   }
 
-  // Fly to default airport
-  const ap = lookupAirport(CONFIG.defaultAirport);
-  if (ap) {
-    viewer.camera.lookAt(
-      Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
-      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
-    );
-    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-    console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
+  // Fly to saved view or default airport
+  if (CONFIG.savedView) {
+    const sv = CONFIG.savedView;
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(sv.lon, sv.lat, sv.height),
+      orientation: { heading: sv.heading, pitch: sv.pitch, roll: 0 },
+    });
+    console.log(`[FlightRadar] Starting — restored saved view (${sv.lat.toFixed(2)}, ${sv.lon.toFixed(2)})`);
   } else {
-    console.log('[FlightRadar] Starting — centered on BOS (default)');
+    const ap = lookupAirport(CONFIG.defaultAirport);
+    if (ap) {
+      viewer.camera.lookAt(
+        Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
+        new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
+      );
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+      console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
+    } else {
+      console.log('[FlightRadar] Starting — centered on BOS (default)');
+    }
   }
 
   startPolling();
