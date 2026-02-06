@@ -863,16 +863,34 @@ document.getElementById('btn-3d').addEventListener('click', () => {
   if (is2D) morphAndPreserveView(true);
 });
 
-// Rotate toggle — slowly orbit camera heading around the center of the view
+// Rotate toggle — orbit camera around the ground point we're looking at
 function startRotation() {
   if (rotateHandler) return;
   const RATE = Cesium.Math.toRadians(3); // degrees per second
+
+  // Determine the ground point, pitch, and range at the moment rotation starts
+  const ray = viewer.camera.getPickRay(new Cesium.Cartesian2(
+    viewer.canvas.clientWidth / 2, viewer.canvas.clientHeight / 2
+  ));
+  const groundPoint = viewer.scene.globe.pick(ray, viewer.scene);
+  if (!groundPoint) return; // can't determine ground target
+
+  const cameraPos = viewer.camera.positionCartographic;
+  const targetCarto = Cesium.Cartographic.fromCartesian(groundPoint);
+  const range = Cesium.Cartesian3.distance(viewer.camera.position, groundPoint);
+  const pitch = viewer.camera.pitch;
+  let currentHeading = viewer.camera.heading;
   let lastTime = Date.now();
+
   rotateHandler = () => {
     const now = Date.now();
     const dt = (now - lastTime) / 1000;
     lastTime = now;
-    viewer.camera.rotateRight(RATE * dt);
+    currentHeading = (currentHeading + RATE * dt) % Cesium.Math.TWO_PI;
+    viewer.camera.lookAt(
+      groundPoint,
+      new Cesium.HeadingPitchRange(currentHeading, pitch, range)
+    );
   };
   viewer.clock.onTick.addEventListener(rotateHandler);
 }
@@ -881,6 +899,8 @@ function stopRotation() {
   if (rotateHandler) {
     viewer.clock.onTick.removeEventListener(rotateHandler);
     rotateHandler = null;
+    // Unlock camera so user can freely navigate again
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
   }
 }
 
