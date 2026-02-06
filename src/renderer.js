@@ -27,6 +27,7 @@ const CONFIG = {
   defaultAirport: 'BOS',     // IATA code for startup view
   phosphor: '#00cc44',
   phosphorBright: '#33ff66',
+  phosphorSelect: '#99ffbb',
   phosphorDim: 'rgba(0, 204, 68, 0.35)',
   trailColor: [0, 204, 68],  // RGB for trail polylines
   labelOutlineColor: Cesium.Color.BLACK,
@@ -54,11 +55,20 @@ function withAlpha(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function lighten(hex, amount = 0.5) {
+  const [r, g, b] = hexToRgb(hex);
+  const lr = Math.round(r + (255 - r) * amount);
+  const lg = Math.round(g + (255 - g) * amount);
+  const lb = Math.round(b + (255 - b) * amount);
+  return `#${lr.toString(16).padStart(2,'0')}${lg.toString(16).padStart(2,'0')}${lb.toString(16).padStart(2,'0')}`;
+}
+
 // Derive all color properties from a single base hex color
 function setDarkColors(hex) {
   CONFIG.darkColor = hex;
   CONFIG.phosphor = hex;
   CONFIG.phosphorBright = brighten(hex, 1.4);
+  CONFIG.phosphorSelect = lighten(CONFIG.phosphorBright, 0.5);
   CONFIG.phosphorDim = withAlpha(hex, 0.35);
   CONFIG.trailColor = hexToRgb(hex);
 }
@@ -67,6 +77,7 @@ function setDarkColors(hex) {
 function setLightColors() {
   CONFIG.phosphor = '#1a1a1a';
   CONFIG.phosphorBright = '#000000';
+  CONFIG.phosphorSelect = '#000000';
   CONFIG.phosphorDim = 'rgba(0, 0, 0, 0.45)';
   CONFIG.trailColor = [40, 40, 40];
   CONFIG.labelOutlineColor = Cesium.Color.WHITE;
@@ -309,7 +320,7 @@ function createAircraftIcon(heading = 0, selected = false) {
   ctx.lineTo(-5, 5);     // left wing tip
   ctx.closePath();
 
-  const color = selected ? CONFIG.phosphorBright : CONFIG.phosphor;
+  const color = selected ? CONFIG.phosphorSelect : CONFIG.phosphor;
   ctx.fillStyle = color;
   ctx.fill();
   ctx.strokeStyle = color;
@@ -330,7 +341,7 @@ function createDotIcon(size, bright = false) {
   const ctx = canvas.getContext('2d');
   ctx.beginPath();
   ctx.arc(res / 2, res / 2, res / 2, 0, Math.PI * 2);
-  ctx.fillStyle = bright ? CONFIG.phosphorBright : CONFIG.phosphor;
+  ctx.fillStyle = bright ? CONFIG.phosphorSelect : CONFIG.phosphor;
   ctx.fill();
   return canvas;
 }
@@ -524,7 +535,7 @@ function renderAircraft() {
         : createAircraftIcon(s.heading || 0, isSelected);
     const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
     const labelColor = isSelected
-      ? Cesium.Color.fromCssColorString(CONFIG.phosphorBright)
+      ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
       : Cesium.Color.fromCssColorString(CONFIG.phosphor);
 
     // --- Aircraft symbol (billboard) ---

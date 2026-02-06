@@ -256,7 +256,7 @@ function buildMenu() {
         { role: 'paste' },
         { type: 'separator' },
         {
-          label: 'Preferences...',
+          label: 'Settings...',
           accelerator: 'CmdOrCtrl+,',
           click: () => {
             mainWindow.webContents.send('open-settings');
@@ -274,7 +274,7 @@ function buildMenu() {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About Flight Radar',
-              message: 'Flight Radar — FAA Scope Display',
+              message: 'Flight Radar',
               detail: [
                 'Version 1.0.0',
                 '',
