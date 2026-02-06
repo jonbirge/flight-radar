@@ -788,8 +788,8 @@ const colorSwatches = document.querySelectorAll('.color-swatch');
 const customColorInput = document.getElementById('set-custom-color');
 const airportInput = document.getElementById('set-airport');
 const airportName = document.getElementById('airport-name');
-const openskyUserInput = document.getElementById('set-opensky-user');
-const openskyPassInput = document.getElementById('set-opensky-pass');
+const openskyClientIdInput = document.getElementById('set-opensky-client-id');
+const openskyClientSecretInput = document.getElementById('set-opensky-client-secret');
 
 // Temporary state while the settings panel is open
 let pendingSettings = {};
@@ -800,8 +800,8 @@ function openSettings() {
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
     defaultAirport: CONFIG.defaultAirport,
-    openskyUsername: CONFIG.openskyUsername || '',
-    openskyPassword: CONFIG.openskyPassword || '',
+    openskyClientId: CONFIG.openskyClientId || '',
+    openskyClientSecret: CONFIG.openskyClientSecret || '',
   };
   syncSettingsUI();
   settingsOverlay.classList.remove('hidden');
@@ -828,8 +828,8 @@ function syncSettingsUI() {
   airportInput.value = pendingSettings.defaultAirport;
   updateAirportName(pendingSettings.defaultAirport);
 
-  openskyUserInput.value = pendingSettings.openskyUsername;
-  openskyPassInput.value = pendingSettings.openskyPassword;
+  openskyClientIdInput.value = pendingSettings.openskyClientId;
+  openskyClientSecretInput.value = pendingSettings.openskyClientSecret;
 }
 
 function updateAirportName(code) {
@@ -876,11 +876,11 @@ airportInput.addEventListener('input', (e) => {
 });
 
 // OpenSky credentials
-openskyUserInput.addEventListener('input', (e) => {
-  pendingSettings.openskyUsername = e.target.value.trim();
+openskyClientIdInput.addEventListener('input', (e) => {
+  pendingSettings.openskyClientId = e.target.value.trim();
 });
-openskyPassInput.addEventListener('input', (e) => {
-  pendingSettings.openskyPassword = e.target.value;
+openskyClientSecretInput.addEventListener('input', (e) => {
+  pendingSettings.openskyClientSecret = e.target.value;
 });
 
 // Apply
@@ -889,8 +889,8 @@ document.getElementById('settings-apply').addEventListener('click', async () => 
   CONFIG.theme = pendingSettings.theme;
   CONFIG.darkColor = pendingSettings.darkColor;
   CONFIG.defaultAirport = pendingSettings.defaultAirport;
-  CONFIG.openskyUsername = pendingSettings.openskyUsername;
-  CONFIG.openskyPassword = pendingSettings.openskyPassword;
+  CONFIG.openskyClientId = pendingSettings.openskyClientId;
+  CONFIG.openskyClientSecret = pendingSettings.openskyClientSecret;
   applyTheme();
   closeSettings();
   await window.flightAPI.saveSettings({
@@ -898,8 +898,8 @@ document.getElementById('settings-apply').addEventListener('click', async () => 
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
     defaultAirport: CONFIG.defaultAirport,
-    openskyUsername: CONFIG.openskyUsername,
-    openskyPassword: CONFIG.openskyPassword,
+    openskyClientId: CONFIG.openskyClientId,
+    openskyClientSecret: CONFIG.openskyClientSecret,
   });
 });
 
@@ -928,8 +928,8 @@ async function init() {
       CONFIG.theme = saved.theme || 'dark';
       CONFIG.darkColor = saved.darkColor || '#00cc44';
       CONFIG.defaultAirport = saved.defaultAirport || 'BOS';
-      CONFIG.openskyUsername = saved.openskyUsername || '';
-      CONFIG.openskyPassword = saved.openskyPassword || '';
+      CONFIG.openskyClientId = saved.openskyClientId || '';
+      CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       applyTheme();
     }
   } catch (err) {

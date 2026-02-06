@@ -13,9 +13,9 @@ const DEFAULT_SETTINGS = {
   fontSize: 11,
   theme: 'dark',           // 'dark' | 'light'
   darkColor: '#00cc44',    // phosphor color for dark mode
-  openskyUsername: '',      // OpenSky Network username (blank = anonymous)
-  openskyPassword: '',     // OpenSky Network password
-  defaultAirport: 'BOS',   // IATA code for startup view
+  openskyClientId: '',     // OpenSky API client ID (blank = anonymous)
+  openskyClientSecret: '', // OpenSky API client secret
+  defaultAirport: 'BOS',  // IATA code for startup view
 };
 
 function loadSettings() {
@@ -48,6 +48,7 @@ ipcMain.handle('save-settings', (event, settings) => {
 
 // --- OpenSky Network API ---
 const OPENSKY_BASE = 'https://opensky-network.org/api';
+const OPENSKY_TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 
 // Rate limiting state
 let lastStatesCall = 0;
@@ -55,18 +56,21 @@ let lastTrackCall = 0;
 const STATES_MIN_INTERVAL = 10000;  // 10s minimum between state requests
 const TRACK_MIN_INTERVAL = 10000;   // 10s minimum between track requests
 
-function httpGet(url, auth) {
+// OAuth2 token cache
+let cachedToken = null;
+let tokenExpiresAt = 0;
+
+function httpGet(url, bearerToken) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const opts = {
       hostname: parsed.hostname,
       path: parsed.pathname + parsed.search,
       timeout: 15000,
+      headers: {},
     };
-    if (auth) {
-      opts.headers = {
-        'Authorization': 'Basic ' + Buffer.from(`${auth.user}:${auth.pass}`).toString('base64'),
-      };
+    if (bearerToken) {
+      opts.headers['Authorization'] = `Bearer ${bearerToken}`;
     }
     const client = url.startsWith('https') ? https : http;
     const req = client.get(opts, (res) => {
@@ -91,13 +95,77 @@ function httpGet(url, auth) {
   });
 }
 
-// Build auth object from current settings (or null for anonymous)
-function getOpenSkyAuth() {
+// OAuth2 client credentials token fetch
+function fetchToken(clientId, clientSecret) {
+  return new Promise((resolve, reject) => {
+    const body = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }).toString();
+
+    const opts = {
+      hostname: 'auth.opensky-network.org',
+      path: '/auth/realms/opensky-network/protocol/openid-connect/token',
+      method: 'POST',
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          try {
+            const json = JSON.parse(data);
+            resolve(json);
+          } catch (e) {
+            reject(new Error(`Token JSON parse error: ${e.message}`));
+          }
+        } else {
+          reject(new Error(`Token request failed: HTTP ${res.statusCode}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Token request timeout')); });
+    req.write(body);
+    req.end();
+  });
+}
+
+// Get a valid bearer token, refreshing if expired. Returns null for anonymous.
+async function getOpenSkyToken() {
   const s = loadSettings();
-  if (s.openskyUsername && s.openskyPassword) {
-    return { user: s.openskyUsername, pass: s.openskyPassword };
+  if (!s.openskyClientId || !s.openskyClientSecret) {
+    return null;
   }
-  return null;
+
+  const now = Date.now();
+  // Refresh if token expires within 60 seconds
+  if (cachedToken && tokenExpiresAt > now + 60000) {
+    return cachedToken;
+  }
+
+  try {
+    console.log('[OpenSky] Refreshing OAuth2 token...');
+    const resp = await fetchToken(s.openskyClientId, s.openskyClientSecret);
+    cachedToken = resp.access_token;
+    // expires_in is in seconds; default to 25 min if missing
+    tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
+    console.log(`[OpenSky] Token acquired, expires in ${resp.expires_in || 1500}s`);
+    return cachedToken;
+  } catch (err) {
+    console.error('[OpenSky] Token refresh failed:', err.message);
+    // Fall back to anonymous
+    cachedToken = null;
+    tokenExpiresAt = 0;
+    return null;
+  }
 }
 
 // IPC handler: get flight states within a bounding box
@@ -112,7 +180,8 @@ ipcMain.handle('get-states', async (event, bounds) => {
     const { south, west, north, east } = bounds;
     const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
     console.log(`[OpenSky] Fetching states: ${south.toFixed(1)},${west.toFixed(1)} -> ${north.toFixed(1)},${east.toFixed(1)}`);
-    const data = await httpGet(url, getOpenSkyAuth());
+    const token = await getOpenSkyToken();
+    const data = await httpGet(url, token);
     const count = data.states ? data.states.length : 0;
     console.log(`[OpenSky] Got ${count} aircraft`);
     return data;
@@ -133,7 +202,8 @@ ipcMain.handle('get-track', async (event, icao24) => {
   try {
     const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}&time=0`;
     console.log(`[OpenSky] Fetching track for ${icao24}`);
-    const data = await httpGet(url, getOpenSkyAuth());
+    const token = await getOpenSkyToken();
+    const data = await httpGet(url, token);
     return data;
   } catch (err) {
     console.error(`[OpenSky] Track error for ${icao24}:`, err.message);
