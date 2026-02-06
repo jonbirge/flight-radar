@@ -43,8 +43,13 @@
     <div class="control-group">
       <label class="range-label">
         POLL INTERVAL
-        <input type="range" id="poll-interval" min="10" max="60" value="15" step="5">
-        <span id="poll-value">15s</span>
+        <select id="poll-interval">
+          <option value="5">5s</option>
+          <option value="10">10s</option>
+          <option value="15" selected>15s</option>
+          <option value="30">30s</option>
+          <option value="60">60s</option>
+        </select>
       </label>
       <label class="range-label">
         TRAIL LENGTH
