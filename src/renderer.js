@@ -24,7 +24,6 @@ const CONFIG = {
   fontSize: 11,
   theme: 'dark',              // 'dark' | 'light'
   darkColor: '#00cc44',       // user-selected dark mode color
-  defaultAirport: 'BOS',     // IATA code for startup view
   phosphor: '#00cc44',
   phosphorBright: '#33ff66',
   phosphorSelect: '#99ffbb',
@@ -1061,8 +1060,6 @@ const btnThemeLight = document.getElementById('set-theme-light');
 const darkColorSection = document.getElementById('dark-color-section');
 const colorSwatches = document.querySelectorAll('.color-swatch');
 const customColorInput = document.getElementById('set-custom-color');
-const airportInput = document.getElementById('set-airport');
-const airportName = document.getElementById('airport-name');
 const openskyClientIdInput = document.getElementById('set-opensky-client-id');
 const openskyClientSecretInput = document.getElementById('set-opensky-client-secret');
 
@@ -1074,7 +1071,6 @@ function openSettings() {
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
-    defaultAirport: CONFIG.defaultAirport,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
   };
@@ -1100,16 +1096,8 @@ function syncSettingsUI() {
   });
   customColorInput.value = pendingSettings.darkColor;
 
-  airportInput.value = pendingSettings.defaultAirport;
-  updateAirportName(pendingSettings.defaultAirport);
-
   openskyClientIdInput.value = pendingSettings.openskyClientId;
   openskyClientSecretInput.value = pendingSettings.openskyClientSecret;
-}
-
-function updateAirportName(code) {
-  const ap = lookupAirport(code);
-  airportName.textContent = ap ? ap.name : (code.length >= 3 ? 'Unknown airport' : '');
 }
 
 // Font size slider
@@ -1143,13 +1131,6 @@ customColorInput.addEventListener('input', (e) => {
   colorSwatches.forEach(sw => sw.classList.remove('active'));
 });
 
-// Airport input
-airportInput.addEventListener('input', (e) => {
-  const code = e.target.value.toUpperCase().trim();
-  pendingSettings.defaultAirport = code;
-  updateAirportName(code);
-});
-
 // OpenSky credentials
 openskyClientIdInput.addEventListener('input', (e) => {
   pendingSettings.openskyClientId = e.target.value.trim();
@@ -1163,7 +1144,6 @@ document.getElementById('settings-apply').addEventListener('click', async () => 
   CONFIG.fontSize = pendingSettings.fontSize;
   CONFIG.theme = pendingSettings.theme;
   CONFIG.darkColor = pendingSettings.darkColor;
-  CONFIG.defaultAirport = pendingSettings.defaultAirport;
   CONFIG.openskyClientId = pendingSettings.openskyClientId;
   CONFIG.openskyClientSecret = pendingSettings.openskyClientSecret;
   applyTheme();
@@ -1172,7 +1152,6 @@ document.getElementById('settings-apply').addEventListener('click', async () => 
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
-    defaultAirport: CONFIG.defaultAirport,
     openskyClientId: CONFIG.openskyClientId,
     openskyClientSecret: CONFIG.openskyClientSecret,
   });
@@ -1202,7 +1181,6 @@ async function init() {
       CONFIG.fontSize = saved.fontSize || 11;
       CONFIG.theme = saved.theme || 'dark';
       CONFIG.darkColor = saved.darkColor || '#00cc44';
-      CONFIG.defaultAirport = saved.defaultAirport || 'BOS';
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;
@@ -1221,17 +1199,13 @@ async function init() {
     });
     console.log(`[FlightRadar] Starting — restored saved view (${sv.lat.toFixed(2)}, ${sv.lon.toFixed(2)})`);
   } else {
-    const ap = lookupAirport(CONFIG.defaultAirport);
-    if (ap) {
-      viewer.camera.lookAt(
-        Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
-        new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
-      );
-      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-      console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
-    } else {
-      console.log('[FlightRadar] Starting — centered on BOS (default)');
-    }
+    const ap = lookupAirport('BOS');
+    viewer.camera.lookAt(
+      Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
+      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
+    );
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    console.log('[FlightRadar] Starting — centered on BOS (default)');
   }
 
   startPolling();
