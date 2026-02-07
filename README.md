@@ -146,7 +146,6 @@ Any static host works: **GitHub Pages**, **Netlify**, **Vercel**, **Cloudflare P
 1. Use a CORS proxy in front of the OpenSky API
 2. Run behind a reverse proxy that adds CORS headers
 3. Use anonymous access (no credentials) which may have different CORS behavior
->>>>>>> df33cc9 (Add standalone web version and deployment docs)
 
 ## Notes
 
