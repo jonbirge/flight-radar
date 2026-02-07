@@ -190,6 +190,7 @@ let is2D = false;
 let selectedIcao = null;
 let isRotating = false;
 let rotateHandler = null;
+let frozenBounds = null; // locked viewport bounds during rotation
 let lastPollTime = null;
 
 // ============================================================
@@ -799,7 +800,7 @@ function buildTrailPositions(ac, isSelected = false) {
 // ============================================================
 
 async function pollStates() {
-  const bounds = getViewBounds();
+  const bounds = frozenBounds || getViewBounds();
   const data = await window.flightAPI.getStates(bounds);
 
   if (data.error) {
@@ -1008,6 +1009,7 @@ document.getElementById('btn-3d').addEventListener('click', () => {
 // Rotate toggle — orbit camera around the ground point we're looking at
 function startRotation() {
   if (rotateHandler) return;
+  frozenBounds = getViewBounds();
   const RATE = Cesium.Math.toRadians(3); // degrees per second
 
   // Determine the ground point, pitch, and range at the moment rotation starts
@@ -1048,6 +1050,7 @@ function stopRotation() {
     // Unlock camera so user can freely navigate again
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
   }
+  frozenBounds = null;
 }
 
 document.getElementById('btn-rotate').addEventListener('click', () => {
