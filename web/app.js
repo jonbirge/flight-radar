@@ -9,12 +9,13 @@
 
 const SETTINGS_STORAGE_KEY = 'flightRadar_settings';
 const DEFAULT_SETTINGS = {
-  fontSize: 11,
+  fontSize: 12,
   theme: 'dark',
   darkColor: '#00cc44',
   openskyClientId: '',
   openskyClientSecret: '',
   defaultAirport: 'BOS',
+  savedView: null,
 };
 
 function loadSettings() {
@@ -218,6 +219,7 @@ const CONFIG = {
   defaultAirport: 'BOS',     // IATA code for startup view
   phosphor: '#00cc44',
   phosphorBright: '#33ff66',
+  phosphorSelect: '#99ffbb',
   phosphorDim: 'rgba(0, 204, 68, 0.35)',
   trailColor: [0, 204, 68],  // RGB for trail polylines
   labelOutlineColor: Cesium.Color.BLACK,
@@ -245,11 +247,20 @@ function withAlpha(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function lighten(hex, amount = 0.5) {
+  const [r, g, b] = hexToRgb(hex);
+  const lr = Math.round(r + (255 - r) * amount);
+  const lg = Math.round(g + (255 - g) * amount);
+  const lb = Math.round(b + (255 - b) * amount);
+  return `#${lr.toString(16).padStart(2,'0')}${lg.toString(16).padStart(2,'0')}${lb.toString(16).padStart(2,'0')}`;
+}
+
 // Derive all color properties from a single base hex color
 function setDarkColors(hex) {
   CONFIG.darkColor = hex;
   CONFIG.phosphor = hex;
   CONFIG.phosphorBright = brighten(hex, 1.4);
+  CONFIG.phosphorSelect = lighten(CONFIG.phosphorBright, 0.5);
   CONFIG.phosphorDim = withAlpha(hex, 0.35);
   CONFIG.trailColor = hexToRgb(hex);
 }
@@ -258,6 +269,7 @@ function setDarkColors(hex) {
 function setLightColors() {
   CONFIG.phosphor = '#1a1a1a';
   CONFIG.phosphorBright = '#000000';
+  CONFIG.phosphorSelect = '#000000';
   CONFIG.phosphorDim = 'rgba(0, 0, 0, 0.45)';
   CONFIG.trailColor = [40, 40, 40];
   CONFIG.labelOutlineColor = Cesium.Color.WHITE;
@@ -500,7 +512,7 @@ function createAircraftIcon(heading = 0, selected = false) {
   ctx.lineTo(-5, 5);     // left wing tip
   ctx.closePath();
 
-  const color = selected ? CONFIG.phosphorBright : CONFIG.phosphor;
+  const color = selected ? CONFIG.phosphorSelect : CONFIG.phosphor;
   ctx.fillStyle = color;
   ctx.fill();
   ctx.strokeStyle = color;
@@ -521,7 +533,7 @@ function createDotIcon(size, bright = false) {
   const ctx = canvas.getContext('2d');
   ctx.beginPath();
   ctx.arc(res / 2, res / 2, res / 2, 0, Math.PI * 2);
-  ctx.fillStyle = bright ? CONFIG.phosphorBright : CONFIG.phosphor;
+  ctx.fillStyle = bright ? CONFIG.phosphorSelect : CONFIG.phosphor;
   ctx.fill();
   return canvas;
 }
@@ -715,7 +727,7 @@ function renderAircraft() {
         : createAircraftIcon(s.heading || 0, isSelected);
     const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
     const labelColor = isSelected
-      ? Cesium.Color.fromCssColorString(CONFIG.phosphorBright)
+      ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
       : Cesium.Color.fromCssColorString(CONFIG.phosphor);
 
     // --- Aircraft symbol (billboard) ---
@@ -1001,11 +1013,40 @@ document.getElementById('trail-length').addEventListener('input', (e) => {
 
 // View presets
 document.getElementById('btn-home').addEventListener('click', () => {
-  const target = Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0);
-  viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
-    offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt),
-    duration: 1.5,
-  });
+  if (CONFIG.savedView) {
+    const sv = CONFIG.savedView;
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(sv.lon, sv.lat, sv.height),
+      orientation: { heading: sv.heading, pitch: sv.pitch, roll: 0 },
+      duration: 1.5,
+    });
+  } else {
+    const target = Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0);
+    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
+      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt),
+      duration: 1.5,
+    });
+  }
+});
+
+document.getElementById('btn-save-view').addEventListener('click', async () => {
+  const carto = viewer.camera.positionCartographic;
+  const savedView = {
+    lon: Cesium.Math.toDegrees(carto.longitude),
+    lat: Cesium.Math.toDegrees(carto.latitude),
+    height: carto.height,
+    heading: viewer.camera.heading,
+    pitch: viewer.camera.pitch,
+  };
+  const settings = await window.flightAPI.getSettings();
+  settings.savedView = savedView;
+  await window.flightAPI.saveSettings(settings);
+  // Update CONFIG so HOME button uses the new saved view immediately
+  CONFIG.savedView = savedView;
+  // Brief visual feedback
+  const btn = document.getElementById('btn-save-view');
+  btn.classList.add('active');
+  setTimeout(() => btn.classList.remove('active'), 600);
 });
 
 document.getElementById('btn-conus').addEventListener('click', () => {
@@ -1336,23 +1377,33 @@ async function init() {
       CONFIG.defaultAirport = saved.defaultAirport || 'BOS';
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
+      CONFIG.savedView = saved.savedView || null;
       applyTheme();
     }
   } catch (err) {
     console.warn('[Settings] Could not load:', err);
   }
 
-  // Fly to default airport
-  const ap = lookupAirport(CONFIG.defaultAirport);
-  if (ap) {
-    viewer.camera.lookAt(
-      Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
-      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
-    );
-    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-    console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
+  // Fly to saved view or default airport
+  if (CONFIG.savedView) {
+    const sv = CONFIG.savedView;
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(sv.lon, sv.lat, sv.height),
+      orientation: { heading: sv.heading, pitch: sv.pitch, roll: 0 },
+    });
+    console.log(`[FlightRadar] Starting — restored saved view (${sv.lat.toFixed(2)}, ${sv.lon.toFixed(2)})`);
   } else {
-    console.log('[FlightRadar] Starting — centered on BOS (default)');
+    const ap = lookupAirport(CONFIG.defaultAirport);
+    if (ap) {
+      viewer.camera.lookAt(
+        Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 0),
+        new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
+      );
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+      console.log(`[FlightRadar] Starting — centered on ${CONFIG.defaultAirport} (${ap.name})`);
+    } else {
+      console.log('[FlightRadar] Starting — centered on BOS (default)');
+    }
   }
 
   startPolling();
