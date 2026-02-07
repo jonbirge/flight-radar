@@ -54,10 +54,14 @@ async function main() {
 
   console.log('Extracting...');
   fs.mkdirSync(OUT_DIR, { recursive: true });
-  execSync(
-    `powershell -Command "Expand-Archive -Path '${ZIP_PATH}' -DestinationPath '${OUT_DIR}' -Force"`,
-    { stdio: 'inherit' }
-  );
+  if (process.platform === 'win32') {
+    execSync(
+      `powershell -Command "Expand-Archive -Path '${ZIP_PATH}' -DestinationPath '${OUT_DIR}' -Force"`,
+      { stdio: 'inherit' }
+    );
+  } else {
+    execSync(`unzip -o "${ZIP_PATH}" -d "${OUT_DIR}"`, { stdio: 'inherit' });
+  }
   fs.unlinkSync(ZIP_PATH);
 
   const cesiumJs = path.join(OUT_DIR, 'Build', 'Cesium', 'Cesium.js');
