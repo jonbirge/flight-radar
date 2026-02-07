@@ -16,6 +16,8 @@ const DEFAULT_SETTINGS = {
   openskyClientId: '',     // OpenSky API client ID (blank = anonymous)
   openskyClientSecret: '', // OpenSky API client secret
   savedView: null,         // saved camera view {lon, lat, height, heading, pitch}
+  colorByAltitude: false,
+  thickTrailsByAltitude: false,
 };
 
 function loadSettings() {
