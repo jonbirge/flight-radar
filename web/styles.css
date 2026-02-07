@@ -93,6 +93,18 @@ body {
   letter-spacing: 1px;
 }
 
+#throttle-warning {
+  background: rgba(204, 136, 0, 0.9);
+  color: #000;
+  text-align: center;
+  padding: 4px 16px;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+#throttle-warning.hidden { display: none; }
+
 /* Controls Panel */
 #controls {
   position: absolute;
