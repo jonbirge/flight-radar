@@ -15,7 +15,6 @@ const DEFAULT_SETTINGS = {
   darkColor: '#00cc44',    // phosphor color for dark mode
   openskyClientId: '',     // OpenSky API client ID (blank = anonymous)
   openskyClientSecret: '', // OpenSky API client secret
-  defaultAirport: 'BOS',  // IATA code for startup view
   savedView: null,         // saved camera view {lon, lat, height, heading, pitch}
 };
 
