@@ -1049,13 +1049,6 @@ document.getElementById('btn-save-view').addEventListener('click', async () => {
   setTimeout(() => btn.classList.remove('active'), 600);
 });
 
-document.getElementById('btn-conus').addEventListener('click', () => {
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(-98.5, 39.5, 6000000),
-    duration: 1.5,
-  });
-});
-
 // 2D/3D toggle — preserve camera view across morph
 function morphAndPreserveView(to3D) {
   const carto = viewer.camera.positionCartographic;
