@@ -314,6 +314,7 @@ select {
   border-radius: 6px;
   width: 380px;
   box-shadow: 0 0 40px rgba(0, 204, 68, 0.15);
+  font-size: 11px;
 }
 
 #settings-header {
