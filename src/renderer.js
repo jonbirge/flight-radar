@@ -30,6 +30,8 @@ const CONFIG = {
   phosphorDim: 'rgba(0, 204, 68, 0.35)',
   trailColor: [0, 204, 68],  // RGB for trail polylines
   labelOutlineColor: Cesium.Color.BLACK,
+  colorByAltitude: false,
+  thickTrailsByAltitude: false,
 };
 
 // ============================================================
@@ -80,6 +82,33 @@ function setLightColors() {
   CONFIG.phosphorDim = 'rgba(0, 0, 0, 0.45)';
   CONFIG.trailColor = [40, 40, 40];
   CONFIG.labelOutlineColor = Cesium.Color.WHITE;
+}
+
+// Altitude-to-color: hue 0-300 (red→magenta), s=100%, l=50%
+function altitudeToRgb(altMeters) {
+  const altFeet = (altMeters || 0) * 3.28084;
+  const clamped = Math.max(0, Math.min(45000, altFeet));
+  const hue = (clamped / 45000) * 300;
+  // HSL to RGB (s=1, l=0.5 → chroma=1)
+  const c = 1, x = 1 - Math.abs((hue / 60) % 2 - 1), m = 0;
+  let r1, g1, b1;
+  if (hue < 60)       { r1 = c; g1 = x; b1 = 0; }
+  else if (hue < 120) { r1 = x; g1 = c; b1 = 0; }
+  else if (hue < 180) { r1 = 0; g1 = c; b1 = x; }
+  else if (hue < 240) { r1 = 0; g1 = x; b1 = c; }
+  else                { r1 = x; g1 = 0; b1 = c; }
+  return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
+}
+
+function altitudeToSelectedRgb(altMeters) {
+  const rgb = altitudeToRgb(altMeters);
+  return rgb.map(v => Math.round(v + (255 - v) * 0.4));
+}
+
+function altitudeToTrailWidth(altMeters) {
+  const altFeet = (altMeters || 0) * 3.28084;
+  const clamped = Math.max(0, Math.min(45000, altFeet));
+  return 1 + (clamped / 45000) * 5; // 1px at ground, 6px at FL450
 }
 
 // ============================================================
@@ -288,10 +317,15 @@ function applyTheme() {
 }
 
 // Destroy and re-create all aircraft entities to pick up new theme
+function removeTrailEntities(ac) {
+  for (const e of ac.trailEntities) viewer.entities.remove(e);
+  ac.trailEntities = [];
+}
+
 function refreshAllEntities() {
   for (const [icao, ac] of aircraft) {
     if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
-    if (ac.trailEntity) { viewer.entities.remove(ac.trailEntity); ac.trailEntity = null; }
+    removeTrailEntities(ac);
   }
   renderAircraft();
 }
@@ -301,7 +335,7 @@ function refreshAllEntities() {
 // ============================================================
 
 // Create a canvas-based aircraft symbol (small chevron/arrow)
-function createAircraftIcon(heading = 0, selected = false) {
+function createAircraftIcon(heading = 0, selected = false, colorOverride = null) {
   const size = 20;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -319,7 +353,7 @@ function createAircraftIcon(heading = 0, selected = false) {
   ctx.lineTo(-5, 5);     // left wing tip
   ctx.closePath();
 
-  const color = selected ? CONFIG.phosphorSelect : CONFIG.phosphor;
+  const color = colorOverride || (selected ? CONFIG.phosphorSelect : CONFIG.phosphor);
   ctx.fillStyle = color;
   ctx.fill();
   ctx.strokeStyle = color;
@@ -331,7 +365,7 @@ function createAircraftIcon(heading = 0, selected = false) {
 
 // Create a simple dot icon for zoomed-out LOD
 // Render at 4x resolution for clean anti-aliased circles at small display sizes
-function createDotIcon(size, bright = false) {
+function createDotIcon(size, bright = false, colorOverride = null) {
   const scale = 4;
   const res = size * scale;
   const canvas = document.createElement('canvas');
@@ -340,7 +374,7 @@ function createDotIcon(size, bright = false) {
   const ctx = canvas.getContext('2d');
   ctx.beginPath();
   ctx.arc(res / 2, res / 2, res / 2, 0, Math.PI * 2);
-  ctx.fillStyle = bright ? CONFIG.phosphorSelect : CONFIG.phosphor;
+  ctx.fillStyle = colorOverride || (bright ? CONFIG.phosphorSelect : CONFIG.phosphor);
   ctx.fill();
   return canvas;
 }
@@ -456,7 +490,7 @@ function updateAircraft(states) {
       ac = {
         state: s,
         entity: null,
-        trailEntity: null,
+        trailEntities: [],
         history: [],         // accumulated from polling
         granularTrack: null,  // from /tracks API
         lastTrackFetch: 0,
@@ -512,7 +546,7 @@ function updateAircraft(states) {
       const age = now - (ac.state.lastContact || 0);
       if (age > CONFIG.staleThreshold) {
         if (ac.entity) viewer.entities.remove(ac.entity);
-        if (ac.trailEntity) viewer.entities.remove(ac.trailEntity);
+        removeTrailEntities(ac);
         aircraft.delete(icao);
       }
     }
@@ -546,16 +580,25 @@ function renderAircraft() {
     const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
     const isSelected = icao === selectedIcao;
 
+    // Altitude-based color computation
+    let altColor = null;
+    let altCesiumColor = null;
+    if (CONFIG.colorByAltitude) {
+      const altRgb = isSelected ? altitudeToSelectedRgb(s.altitude) : altitudeToRgb(s.altitude);
+      altColor = `rgb(${altRgb[0]},${altRgb[1]},${altRgb[2]})`;
+      altCesiumColor = Cesium.Color.fromBytes(altRgb[0], altRgb[1], altRgb[2], 255);
+    }
+
     const use3dDot = !is2D && !useDot; // in 3D, use dots instead of arrows
     const iconImage = useDot
-      ? createDotIcon(dotSize, isSelected)
+      ? createDotIcon(dotSize, isSelected, altColor)
       : use3dDot
-        ? createDotIcon(8, isSelected)
-        : createAircraftIcon(s.heading || 0, isSelected);
+        ? createDotIcon(8, isSelected, altColor)
+        : createAircraftIcon(s.heading || 0, isSelected, altColor);
     const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
-    const labelColor = isSelected
+    const labelColor = altCesiumColor || (isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
-      : Cesium.Color.fromCssColorString(CONFIG.phosphor);
+      : Cesium.Color.fromCssColorString(CONFIG.phosphor));
 
     // --- Aircraft symbol (billboard) ---
     if (!ac.entity) {
@@ -619,38 +662,72 @@ function renderAircraft() {
 
     // --- Trail polyline ---
     if (CONFIG.trailEnabled) {
-      // Merge granular track + polled history for the best trail
       const trailPoints = buildTrailPositions(ac, isSelected);
 
       if (trailPoints.length >= 2) {
-        const positions = trailPoints.map(p =>
-          Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
-        );
+        // Determine base trail width
+        let trailWidth;
+        if (CONFIG.thickTrailsByAltitude) {
+          trailWidth = altitudeToTrailWidth(s.altitude);
+          if (isSelected) trailWidth = Math.min(trailWidth + 1, 8);
+        } else {
+          trailWidth = isSelected ? 4 : 3;
+        }
 
-        const trailAlpha = isSelected ? 255 : 160;
-        const trailRgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
-        const trailMaterial = Cesium.Color.fromBytes(trailRgb[0], trailRgb[1], trailRgb[2], trailAlpha);
+        // Teardown previous trail entities
+        removeTrailEntities(ac);
 
-        if (!ac.trailEntity) {
-          ac.trailEntity = viewer.entities.add({
-            id: `trail-${icao}`,
+        if (CONFIG.colorByAltitude) {
+          // Group trail points into runs by altitude color bucket
+          const bucketOf = (alt) => Math.floor(((alt || 0) * 3.28084) / 1500);
+          let runStart = 0;
+          let currentBucket = bucketOf(trailPoints[0].alt);
+
+          for (let i = 1; i <= trailPoints.length; i++) {
+            const bucket = i < trailPoints.length ? bucketOf(trailPoints[i].alt) : -1;
+            if (bucket !== currentBucket || i === trailPoints.length) {
+              // End of run: runStart..i-1 (inclusive)
+              const end = Math.min(i, trailPoints.length - 1);
+              const runPoints = trailPoints.slice(runStart, end + 1);
+              if (runPoints.length >= 2) {
+                const midAlt = ((currentBucket + 0.5) * 1500) / 3.28084; // bucket midpoint in meters
+                const rgb = isSelected ? altitudeToSelectedRgb(midAlt) : altitudeToRgb(midAlt);
+                const trailAlpha = isSelected ? 255 : 160;
+                const material = Cesium.Color.fromBytes(rgb[0], rgb[1], rgb[2], trailAlpha);
+                const positions = runPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+                ac.trailEntities.push(viewer.entities.add({
+                  polyline: {
+                    positions: positions,
+                    width: trailWidth,
+                    material: material,
+                    clampToGround: false,
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                  },
+                }));
+              }
+              runStart = i;
+              currentBucket = bucket;
+            }
+          }
+        } else {
+          // Single-color trail
+          const trailAlpha = isSelected ? 255 : 160;
+          const trailRgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
+          const trailMaterial = Cesium.Color.fromBytes(trailRgb[0], trailRgb[1], trailRgb[2], trailAlpha);
+          const positions = trailPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+          ac.trailEntities.push(viewer.entities.add({
             polyline: {
               positions: positions,
-              width: isSelected ? 4 : 3,
+              width: trailWidth,
               material: trailMaterial,
               clampToGround: false,
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
-          });
-        } else {
-          ac.trailEntity.polyline.positions = positions;
-          ac.trailEntity.polyline.width = isSelected ? 4 : 3;
-          ac.trailEntity.polyline.material = trailMaterial;
+          }));
         }
       }
-    } else if (ac.trailEntity) {
-      viewer.entities.remove(ac.trailEntity);
-      ac.trailEntity = null;
+    } else {
+      removeTrailEntities(ac);
     }
   }
 }
@@ -1066,6 +1143,8 @@ const btnThemeLight = document.getElementById('set-theme-light');
 const darkColorSection = document.getElementById('dark-color-section');
 const colorSwatches = document.querySelectorAll('.color-swatch');
 const customColorInput = document.getElementById('set-custom-color');
+const colorByAltCheckbox = document.getElementById('set-color-by-alt');
+const thickTrailsCheckbox = document.getElementById('set-thick-trails');
 const openskyClientIdInput = document.getElementById('set-opensky-client-id');
 const openskyClientSecretInput = document.getElementById('set-opensky-client-secret');
 
@@ -1077,6 +1156,8 @@ function openSettings() {
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
+    colorByAltitude: CONFIG.colorByAltitude,
+    thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
   };
@@ -1095,12 +1176,20 @@ function syncSettingsUI() {
 
   btnThemeDark.classList.toggle('active', pendingSettings.theme === 'dark');
   btnThemeLight.classList.toggle('active', pendingSettings.theme === 'light');
-  darkColorSection.style.display = pendingSettings.theme === 'dark' ? '' : 'none';
+
+  const isDarkTheme = pendingSettings.theme === 'dark';
+  const colorDisabled = isDarkTheme && pendingSettings.colorByAltitude;
+  darkColorSection.style.display = isDarkTheme ? '' : 'none';
+  darkColorSection.style.opacity = colorDisabled ? '0.3' : '';
+  darkColorSection.style.pointerEvents = colorDisabled ? 'none' : '';
 
   colorSwatches.forEach(sw => {
     sw.classList.toggle('active', sw.dataset.color === pendingSettings.darkColor);
   });
   customColorInput.value = pendingSettings.darkColor;
+
+  colorByAltCheckbox.checked = pendingSettings.colorByAltitude;
+  thickTrailsCheckbox.checked = pendingSettings.thickTrailsByAltitude;
 
   openskyClientIdInput.value = pendingSettings.openskyClientId;
   openskyClientSecretInput.value = pendingSettings.openskyClientSecret;
@@ -1137,6 +1226,15 @@ customColorInput.addEventListener('input', (e) => {
   colorSwatches.forEach(sw => sw.classList.remove('active'));
 });
 
+// Altitude visualization checkboxes
+colorByAltCheckbox.addEventListener('change', (e) => {
+  pendingSettings.colorByAltitude = e.target.checked;
+  syncSettingsUI();
+});
+thickTrailsCheckbox.addEventListener('change', (e) => {
+  pendingSettings.thickTrailsByAltitude = e.target.checked;
+});
+
 // OpenSky credentials
 openskyClientIdInput.addEventListener('input', (e) => {
   pendingSettings.openskyClientId = e.target.value.trim();
@@ -1150,6 +1248,8 @@ document.getElementById('settings-apply').addEventListener('click', async () => 
   CONFIG.fontSize = pendingSettings.fontSize;
   CONFIG.theme = pendingSettings.theme;
   CONFIG.darkColor = pendingSettings.darkColor;
+  CONFIG.colorByAltitude = pendingSettings.colorByAltitude;
+  CONFIG.thickTrailsByAltitude = pendingSettings.thickTrailsByAltitude;
   CONFIG.openskyClientId = pendingSettings.openskyClientId;
   CONFIG.openskyClientSecret = pendingSettings.openskyClientSecret;
   applyTheme();
@@ -1158,6 +1258,8 @@ document.getElementById('settings-apply').addEventListener('click', async () => 
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
+    colorByAltitude: CONFIG.colorByAltitude,
+    thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     openskyClientId: CONFIG.openskyClientId,
     openskyClientSecret: CONFIG.openskyClientSecret,
   });
@@ -1187,6 +1289,8 @@ async function init() {
       CONFIG.fontSize = saved.fontSize || 11;
       CONFIG.theme = saved.theme || 'dark';
       CONFIG.darkColor = saved.darkColor || '#00cc44';
+      CONFIG.colorByAltitude = saved.colorByAltitude || false;
+      CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;
