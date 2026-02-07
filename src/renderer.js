@@ -30,7 +30,7 @@ const CONFIG = {
   phosphorDim: 'rgba(0, 204, 68, 0.35)',
   trailColor: [0, 204, 68],  // RGB for trail polylines
   labelOutlineColor: Cesium.Color.BLACK,
-  colorByAltitude: false,
+  colorByAltitude: true,
   thickTrailsByAltitude: false,
 };
 
@@ -1298,7 +1298,7 @@ async function init() {
       CONFIG.fontSize = saved.fontSize || 11;
       CONFIG.theme = saved.theme || 'dark';
       CONFIG.darkColor = saved.darkColor || '#00cc44';
-      CONFIG.colorByAltitude = saved.colorByAltitude || false;
+      CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
       CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
