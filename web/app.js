@@ -1187,10 +1187,14 @@ function startRotation() {
   const groundPoint = viewer.scene.globe.pick(ray, viewer.scene);
   if (!groundPoint) return; // can't determine ground target
 
-  const cameraPos = viewer.camera.positionCartographic;
-  const targetCarto = Cesium.Cartographic.fromCartesian(groundPoint);
   const range = Cesium.Cartesian3.distance(viewer.camera.position, groundPoint);
-  const pitch = viewer.camera.pitch;
+  // Compute pitch relative to the target's local frame (not the camera's).
+  // camera.pitch is relative to the horizon at the camera, but HeadingPitchRange
+  // needs the pitch relative to the horizon at the ground target.
+  const direction = Cesium.Cartesian3.subtract(viewer.camera.position, groundPoint, new Cesium.Cartesian3());
+  const dirNormalized = Cesium.Cartesian3.normalize(direction, new Cesium.Cartesian3());
+  const targetNormal = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(groundPoint, new Cesium.Cartesian3());
+  const pitch = -Math.asin(Cesium.Cartesian3.dot(dirNormalized, targetNormal));
   let currentHeading = viewer.camera.heading;
   let lastTime = Date.now();
 
