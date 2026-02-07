@@ -594,9 +594,29 @@ function parseState(s) {
 // ============================================================
 
 function getViewBounds() {
+  // computeViewRectangle doesn't work in 2D mode (returns undefined).
+  // Use pickEllipsoid on screen corners as a reliable fallback.
   const rect = viewer.camera.computeViewRectangle();
   if (!rect) {
-    // Fallback: large CONUS area
+    const canvas = viewer.scene.canvas;
+    const topLeft = viewer.camera.pickEllipsoid(
+      new Cesium.Cartesian2(0, 0), Cesium.Ellipsoid.WGS84
+    );
+    const bottomRight = viewer.camera.pickEllipsoid(
+      new Cesium.Cartesian2(canvas.clientWidth, canvas.clientHeight), Cesium.Ellipsoid.WGS84
+    );
+    if (topLeft && bottomRight) {
+      const tl = Cesium.Cartographic.fromCartesian(topLeft);
+      const br = Cesium.Cartographic.fromCartesian(bottomRight);
+      const deg = Cesium.Math.toDegrees;
+      return {
+        south: Math.max(deg(br.latitude), -90),
+        west: Math.max(deg(tl.longitude), -180),
+        north: Math.min(deg(tl.latitude), 90),
+        east: Math.min(deg(br.longitude), 180),
+      };
+    }
+    // Final fallback: CONUS area
     return { south: 24, west: -125, north: 50, east: -66 };
   }
   const deg = Cesium.Math.toDegrees;
