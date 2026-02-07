@@ -1058,11 +1058,17 @@ function buildTrailPositions(ac, isSelected = false) {
 async function pollStates() {
   const bounds = frozenBounds || getViewBounds();
   const data = await window.flightAPI.getStates(bounds);
+  const warningEl = document.getElementById('throttle-warning');
 
   if (data.error) {
     console.warn('[Poll] Error:', data.error);
+    if (/rate.?limit/i.test(data.error) || /429/.test(data.error)) {
+      warningEl.classList.remove('hidden');
+    }
     return;
   }
+
+  warningEl.classList.add('hidden');
 
   if (data.states && data.states.length > 0) {
     updateAircraft(data.states);
