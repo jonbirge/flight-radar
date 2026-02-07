@@ -51,9 +51,50 @@ let lastTrackCall = 0;
 const STATES_MIN_INTERVAL = 10000;
 const TRACK_MIN_INTERVAL = 10000;
 
+// Server-side token proxy
+async function loadServerCredentials() {
+  console.log('[OpenSky] Checking server token proxy (cred.php)...');
+  try {
+    const resp = await fetch('cred.php');
+    if (!resp.ok) {
+      console.warn(`[OpenSky] cred.php returned HTTP ${resp.status}`);
+      return;
+    }
+    const data = await resp.json();
+    if (data.error) {
+      console.warn('[OpenSky] cred.php error:', data.error, data.detail || '');
+      return;
+    }
+    if (data.access_token) {
+      cachedToken = data.access_token;
+      tokenExpiresAt = Date.now() + ((data.expires_in || 1500) * 1000);
+      console.log(`[OpenSky] Token acquired via server proxy, expires in ${data.expires_in || 1500}s`);
+    } else {
+      console.warn('[OpenSky] cred.php response missing access_token:', JSON.stringify(data));
+    }
+  } catch (err) {
+    console.warn('[OpenSky] cred.php fetch failed:', err.message);
+  }
+}
+
 // OAuth2 token cache
 let cachedToken = null;
 let tokenExpiresAt = 0;
+
+async function fetchTokenViaProxy() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const resp = await fetch('cred.php', { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) throw new Error(`Token proxy failed: HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
+}
 
 async function fetchToken(clientId, clientSecret) {
   const body = new URLSearchParams({
@@ -82,29 +123,51 @@ async function fetchToken(clientId, clientSecret) {
 }
 
 async function getOpenSkyToken() {
-  const s = loadSettings();
-  if (!s.openskyClientId || !s.openskyClientSecret) {
-    return null;
-  }
-
   const now = Date.now();
   if (cachedToken && tokenExpiresAt > now + 60000) {
     return cachedToken;
   }
 
-  try {
-    console.log('[OpenSky] Refreshing OAuth2 token...');
-    const resp = await fetchToken(s.openskyClientId, s.openskyClientSecret);
-    cachedToken = resp.access_token;
-    tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-    console.log(`[OpenSky] Token acquired, expires in ${resp.expires_in || 1500}s`);
-    return cachedToken;
-  } catch (err) {
-    console.error('[OpenSky] Token refresh failed:', err.message);
-    cachedToken = null;
-    tokenExpiresAt = 0;
-    return null;
+  // Priority 1: User-entered credentials (direct token fetch)
+  const s = loadSettings();
+  if (s.openskyClientId && s.openskyClientSecret) {
+    console.log('[OpenSky] Attempting token fetch with user credentials...');
+    try {
+      const resp = await fetchToken(s.openskyClientId, s.openskyClientSecret);
+      cachedToken = resp.access_token;
+      tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
+      console.log(`[OpenSky] Token acquired (user credentials), expires in ${resp.expires_in || 1500}s`);
+      return cachedToken;
+    } catch (err) {
+      console.error('[OpenSky] Token fetch failed (user credentials):', err.message);
+    }
+  } else {
+    console.log('[OpenSky] No user credentials in localStorage');
   }
+
+  // Priority 2: Server-side proxy (cred.php)
+  console.log('[OpenSky] Attempting token fetch via server proxy (cred.php)...');
+  try {
+    const resp = await fetchTokenViaProxy();
+    if (resp.access_token) {
+      cachedToken = resp.access_token;
+      tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
+      console.log(`[OpenSky] Token acquired (server proxy), expires in ${resp.expires_in || 1500}s`);
+      return cachedToken;
+    } else if (resp.error) {
+      console.warn('[OpenSky] Server proxy error:', resp.error, resp.detail || '');
+    } else {
+      console.warn('[OpenSky] Server proxy returned no token:', JSON.stringify(resp));
+    }
+  } catch (err) {
+    console.warn('[OpenSky] Server proxy unavailable:', err.message);
+  }
+
+  // Priority 3: Anonymous access
+  console.log('[OpenSky] Falling back to anonymous access (no token)');
+  cachedToken = null;
+  tokenExpiresAt = 0;
+  return null;
 }
 
 async function apiGetStates(bounds) {
@@ -1360,6 +1423,9 @@ document.getElementById('btn-settings').addEventListener('click', () => openSett
 // ============================================================
 
 async function init() {
+  // Try to load server-side credentials from cred.json
+  await loadServerCredentials();
+
   // Load persisted settings
   try {
     const saved = await window.flightAPI.getSettings();
