@@ -1088,6 +1088,7 @@ function morphAndPreserveView(to3D) {
     is2D = false;
     document.getElementById('btn-3d').classList.add('active');
     document.getElementById('btn-2d').classList.remove('active');
+    document.getElementById('btn-rotate').disabled = false;
   } else {
     // Stop rotation when switching to 2D
     if (isRotating) {
@@ -1099,6 +1100,7 @@ function morphAndPreserveView(to3D) {
     is2D = true;
     document.getElementById('btn-2d').classList.add('active');
     document.getElementById('btn-3d').classList.remove('active');
+    document.getElementById('btn-rotate').disabled = true;
   }
 }
 
