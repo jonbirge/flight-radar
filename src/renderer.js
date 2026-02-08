@@ -1107,9 +1107,10 @@ function showAircraftInfo(icao) {
     <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
   `;
 
-  // Immediately request track history for selected aircraft
+  // Immediately fetch track history for selected aircraft
   if (!trackFetchQueue.includes(icao)) {
     trackFetchQueue.unshift(icao);
+    fetchNextTrack();
   }
 
   // Re-render to apply highlight to newly selected and dim previously selected
