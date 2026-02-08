@@ -1089,9 +1089,12 @@ async function pollStates() {
   const warningEl = document.getElementById('throttle-warning');
 
   if (data.error) {
-    console.warn('[Poll] Error:', data.error);
-    if (/rate.?limit/i.test(data.error) || /429/.test(data.error)) {
-      warningEl.classList.remove('hidden');
+    // Silently ignore our own client-side rate limiting (has retryIn field)
+    if (!data.retryIn) {
+      console.warn('[Poll] Error:', data.error);
+      if (/429/.test(data.error) || /rate.?limit/i.test(data.error)) {
+        warningEl.classList.remove('hidden');
+      }
     }
     return;
   }
