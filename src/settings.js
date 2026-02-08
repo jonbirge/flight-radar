@@ -117,12 +117,7 @@ thickTrailsCheckbox.addEventListener('change', broadcastSettings);
 clientIdInput.addEventListener('change', broadcastSettings);
 clientSecretInput.addEventListener('change', broadcastSettings);
 
-// Done — just close the window
-document.getElementById('btn-done').addEventListener('click', () => {
-  window.settingsAPI.close();
-});
-
-// Prevent form submission (no Apply button anymore)
+// Prevent form submission
 document.getElementById('settings-form').addEventListener('submit', (e) => {
   e.preventDefault();
 });

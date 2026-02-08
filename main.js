@@ -215,7 +215,7 @@ function openSettingsWindow() {
   }
   settingsWindow = new BrowserWindow({
     width: 440,
-    height: 580,
+    height: 540,
     resizable: false,
     parent: mainWindow,
     modal: false,
@@ -240,13 +240,6 @@ ipcMain.handle('update-settings', (event, settings) => {
     mainWindow.webContents.send('settings-changed');
   }
   return true;
-});
-
-// IPC: close settings window (Done)
-ipcMain.on('close-settings-window', () => {
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.close();
-  }
 });
 
 // --- Window Creation ---
@@ -307,6 +300,7 @@ function buildMenu() {
         {
           label: 'About Flight Radar',
           click: () => {
+            const cesiumVersion = require(path.join(__dirname, 'vendor', 'cesium', 'package.json')).version;
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About Flight Radar',
@@ -317,7 +311,8 @@ function buildMenu() {
                 'Real-time flight tracking with CesiumJS',
                 'Data: OpenSky Network (ADS-B)',
                 '',
-                'Electron + CesiumJS 1.119',
+                `Electron ${process.versions.electron}`,
+                `CesiumJS ${cesiumVersion}`,
               ].join('\n'),
               buttons: ['OK'],
             });
