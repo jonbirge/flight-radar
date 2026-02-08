@@ -1153,6 +1153,8 @@ updateClock();
 
 // Update center lat/lon display and LOD on camera move
 let lastIconSize = -1;
+let lastCamHeight = 0;
+let zoomOutPollDebounce = null;
 viewer.camera.changed.addEventListener(() => {
   const carto = viewer.camera.positionCartographic;
   if (carto) {
@@ -1175,6 +1177,16 @@ viewer.camera.changed.addEventListener(() => {
     if (newPollInterval !== CONFIG.pollInterval) {
       setPollInterval(newPollInterval);
     }
+
+    // Trigger a poll after zooming out so new aircraft in the wider viewport appear
+    if (h > lastCamHeight * 1.05) {
+      if (zoomOutPollDebounce) clearTimeout(zoomOutPollDebounce);
+      zoomOutPollDebounce = setTimeout(() => {
+        zoomOutPollDebounce = null;
+        pollStates();
+      }, 1500);
+    }
+    lastCamHeight = h;
   }
 });
 viewer.camera.percentageChanged = 0.01;
