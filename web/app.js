@@ -587,6 +587,31 @@ function refreshAllEntities() {
 }
 
 // ============================================================
+// Zoom-Based Scaling
+// ============================================================
+
+const CITY_HEIGHT = 100000;     // ~100km camera height = city scale
+const CONUS_HEIGHT = 6000000;   // ~6000km camera height = CONUS scale
+
+function getZoomFraction(camHeight) {
+  // Returns 0 at city zoom, 1 at CONUS zoom (logarithmic)
+  if (camHeight <= CITY_HEIGHT) return 0;
+  if (camHeight >= CONUS_HEIGHT) return 1;
+  return (Math.log(camHeight) - Math.log(CITY_HEIGHT)) / (Math.log(CONUS_HEIGHT) - Math.log(CITY_HEIGHT));
+}
+
+function computeIconSize(camHeight, baseSize) {
+  const MIN_SIZE = 2;
+  const t = getZoomFraction(camHeight);
+  return Math.max(MIN_SIZE, Math.round(baseSize * (1 - t) + MIN_SIZE * t));
+}
+
+function computePollInterval(camHeight) {
+  const t = getZoomFraction(camHeight);
+  return Math.round(10000 + t * 50000); // 10s at city, 60s at CONUS
+}
+
+// ============================================================
 // Aircraft Symbol Generator
 // ============================================================
 
@@ -820,10 +845,6 @@ function renderAircraft() {
     : 0;
   const useDot = camHeight > 2000000;
   const showLabels = CONFIG.labelsEnabled && camHeight < 500000;
-  // Dot size: 8px at 2000km, linearly down to 3px at 10000km+
-  const dotSize = useDot
-    ? Math.round(Math.max(3, 8 - (camHeight - 2000000) / (10000000 - 2000000) * 5))
-    : 0;
 
   for (const [icao, ac] of aircraft) {
     const s = ac.state;
@@ -840,12 +861,14 @@ function renderAircraft() {
     }
 
     const use3dDot = !is2D && !useDot; // in 3D, use dots instead of arrows
+    const baseSize = useDot ? 8 : (use3dDot ? 8 : 18);
+    const scaledSize = computeIconSize(camHeight, baseSize);
     const iconImage = useDot
-      ? createDotIcon(dotSize, isSelected, altColor)
+      ? createDotIcon(scaledSize, isSelected, altColor)
       : use3dDot
-        ? createDotIcon(8, isSelected, altColor)
+        ? createDotIcon(scaledSize, isSelected, altColor)
         : createAircraftIcon(s.heading || 0, isSelected, altColor);
-    const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
+    const iconSize = scaledSize;
     const labelColor = altCesiumColor || (isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
       : Cesium.Color.fromCssColorString(CONFIG.phosphor));
@@ -1090,6 +1113,14 @@ async function fetchNextTrack() {
 }
 
 function startPolling() {
+  // Set initial poll interval based on current zoom level
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height
+    : CONFIG.startAlt;
+  CONFIG.pollInterval = computePollInterval(camHeight);
+  const pollDisplay = document.getElementById('poll-interval-display');
+  if (pollDisplay) pollDisplay.textContent = `${Math.round(CONFIG.pollInterval / 1000)}s`;
+
   // Initial fetch
   pollStates();
 
@@ -1115,7 +1146,8 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // Update center lat/lon display and LOD on camera move
-let lastLodLevel = -1;
+let lastIconSize = -1;
+let pollIntervalDebounce = null;
 viewer.camera.changed.addEventListener(() => {
   const carto = viewer.camera.positionCartographic;
   if (carto) {
@@ -1124,12 +1156,27 @@ viewer.camera.changed.addEventListener(() => {
     document.getElementById('center-lon').textContent =
       Cesium.Math.toDegrees(carto.longitude).toFixed(2);
 
-    // Re-render aircraft when LOD level changes
     const h = carto.height;
-    const lodLevel = h > 2000000 ? 2 : h > 500000 ? 1 : 0;
-    if (lodLevel !== lastLodLevel) {
-      lastLodLevel = lodLevel;
+
+    // Re-render aircraft when icon size changes (continuous LOD)
+    const newIconSize = computeIconSize(h, 18);
+    if (newIconSize !== lastIconSize) {
+      lastIconSize = newIconSize;
       renderAircraft();
+    }
+
+    // Adjust poll interval based on zoom level
+    const newPollInterval = computePollInterval(h);
+    if (newPollInterval !== CONFIG.pollInterval) {
+      CONFIG.pollInterval = newPollInterval;
+      const pollDisplay = document.getElementById('poll-interval-display');
+      if (pollDisplay) pollDisplay.textContent = `${Math.round(CONFIG.pollInterval / 1000)}s`;
+      if (pollIntervalDebounce) clearTimeout(pollIntervalDebounce);
+      pollIntervalDebounce = setTimeout(() => {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(pollStates, CONFIG.pollInterval);
+        pollIntervalDebounce = null;
+      }, 1000);
     }
   }
 });
@@ -1151,14 +1198,6 @@ document.getElementById('toggle-labels').addEventListener('change', (e) => {
       ac.entity.label.show = e.target.checked;
     }
   }
-});
-
-document.getElementById('poll-interval').addEventListener('change', (e) => {
-  const val = parseInt(e.target.value);
-  CONFIG.pollInterval = val * 1000;
-  // Restart polling with new interval
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(pollStates, CONFIG.pollInterval);
 });
 
 document.getElementById('trail-length').addEventListener('input', (e) => {
