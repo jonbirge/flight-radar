@@ -288,7 +288,44 @@ const CONFIG = {
   labelOutlineColor: Cesium.Color.BLACK,
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+
+  // Zoom-adaptive tuning
+  cityZoomHeight: 500000,
+  conusZoomHeight: 10000000,
+  cityPollInterval: 10000,
+  conusPollInterval: 60000,
 };
+
+let adaptivePollingEnabled = true;
+
+function clamp01(v) {
+  return Math.max(0, Math.min(1, v));
+}
+
+function zoomBlend(camHeight) {
+  const span = CONFIG.conusZoomHeight - CONFIG.cityZoomHeight;
+  if (span <= 0) return 0;
+  return clamp01((camHeight - CONFIG.cityZoomHeight) / span);
+}
+
+function computePollIntervalMs(camHeight) {
+  const t = zoomBlend(camHeight);
+  return Math.round(CONFIG.cityPollInterval + (CONFIG.conusPollInterval - CONFIG.cityPollInterval) * t);
+}
+
+function computeIconSizes(camHeight, useDot, use3dDot) {
+  const tCityToConus = zoomBlend(camHeight);
+  const tDotRange = clamp01((camHeight - 2000000) / (CONFIG.conusZoomHeight - 2000000));
+
+  // Keep current city-scale sizes and taper down as altitude increases.
+  const arrowSize = Math.round(18 - (18 - 8) * tCityToConus);
+  const dotSize = Math.round(8 - (8 - 2) * tDotRange);
+  const near3dDotSize = Math.round(8 - (8 - 6) * tCityToConus);
+
+  if (useDot) return dotSize;
+  if (use3dDot) return near3dDotSize;
+  return arrowSize;
+}
 
 // ============================================================
 // Color Utilities
@@ -827,10 +864,6 @@ function renderAircraft() {
     : 0;
   const useDot = camHeight > 2000000;
   const showLabels = CONFIG.labelsEnabled && camHeight < 500000;
-  // Dot size: 8px at 2000km, linearly down to 3px at 10000km+
-  const dotSize = useDot
-    ? Math.round(Math.max(3, 8 - (camHeight - 2000000) / (10000000 - 2000000) * 5))
-    : 0;
 
   for (const [icao, ac] of aircraft) {
     const s = ac.state;
@@ -847,12 +880,12 @@ function renderAircraft() {
     }
 
     const use3dDot = !is2D && !useDot; // in 3D, use dots instead of arrows
+    const iconSize = computeIconSizes(camHeight, useDot, use3dDot);
     const iconImage = useDot
-      ? createDotIcon(dotSize, isSelected, altColor)
+      ? createDotIcon(iconSize, isSelected, altColor)
       : use3dDot
-        ? createDotIcon(8, isSelected, altColor)
+        ? createDotIcon(iconSize, isSelected, altColor)
         : createAircraftIcon(s.heading || 0, isSelected, altColor);
-    const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
     const labelColor = altCesiumColor || (isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
       : Cesium.Color.fromCssColorString(CONFIG.phosphor));
@@ -1096,7 +1129,34 @@ async function fetchNextTrack() {
   }
 }
 
+function syncAdaptivePolling(forceRestart = false) {
+  if (!adaptivePollingEnabled) return;
+
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height
+    : CONFIG.cityZoomHeight;
+  const nextInterval = computePollIntervalMs(camHeight);
+
+  if (!forceRestart && Math.abs(nextInterval - CONFIG.pollInterval) < 1000) return;
+
+  CONFIG.pollInterval = nextInterval;
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollStates, CONFIG.pollInterval);
+
+  const pollSelect = document.getElementById('poll-interval');
+  if (pollSelect) {
+    const roundedSeconds = Math.round(CONFIG.pollInterval / 1000);
+    const options = Array.from(pollSelect.options).map(o => parseInt(o.value, 10));
+    const nearest = options.reduce((best, v) => (
+      Math.abs(v - roundedSeconds) < Math.abs(best - roundedSeconds) ? v : best
+    ), options[0]);
+    pollSelect.value = String(nearest);
+  }
+}
+
 function startPolling() {
+  syncAdaptivePolling(true);
+
   // Initial fetch
   pollStates();
 
@@ -1138,6 +1198,8 @@ viewer.camera.changed.addEventListener(() => {
       lastLodLevel = lodLevel;
       renderAircraft();
     }
+
+    syncAdaptivePolling();
   }
 });
 viewer.camera.percentageChanged = 0.01;
@@ -1166,6 +1228,7 @@ document.getElementById('toggle-granular').addEventListener('change', (e) => {
 
 document.getElementById('poll-interval').addEventListener('change', (e) => {
   const val = parseInt(e.target.value);
+  adaptivePollingEnabled = false;
   CONFIG.pollInterval = val * 1000;
   // Restart polling with new interval
   if (pollTimer) clearInterval(pollTimer);
