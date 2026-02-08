@@ -101,6 +101,18 @@ label {
   font-size: 12px;
 }
 
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.actions button {
+  padding: 5px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 #dark-color-section.hidden {
   display: none;
 }
