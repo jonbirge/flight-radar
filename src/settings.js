@@ -67,26 +67,8 @@ function updateDarkColorVisibility() {
   darkColorSection.classList.toggle('hidden', !isDark);
 }
 
-// Font size preview
-fontSizeSlider.addEventListener('input', () => {
-  fontSizeVal.textContent = `${fontSizeSlider.value}px`;
-  fontPreview.style.fontSize = `${fontSizeSlider.value}px`;
-});
-
-// Theme change toggles dark color section visibility
-document.querySelectorAll('input[name="theme"]').forEach(r => {
-  r.addEventListener('change', updateDarkColorVisibility);
-});
-
-// When custom color picker changes, auto-select the custom radio
-customColorInput.addEventListener('input', () => {
-  const customRadio = document.querySelector('input[name="darkColor"][value="custom"]');
-  if (customRadio) customRadio.checked = true;
-});
-
-// Apply
-document.getElementById('settings-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
+// Gather current form state and push to main process
+function broadcastSettings() {
   const settings = {
     ...originalSettings,
     fontSize: parseInt(fontSizeSlider.value),
@@ -97,12 +79,52 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
     openskyClientId: clientIdInput.value.trim(),
     openskyClientSecret: clientSecretInput.value,
   };
-  await window.settingsAPI.applySettings(settings);
+  window.settingsAPI.updateSettings(settings);
+}
+
+// Font size preview + live broadcast
+fontSizeSlider.addEventListener('input', () => {
+  fontSizeVal.textContent = `${fontSizeSlider.value}px`;
+  fontPreview.style.fontSize = `${fontSizeSlider.value}px`;
+  broadcastSettings();
 });
 
-// Cancel
-document.getElementById('btn-cancel').addEventListener('click', () => {
-  window.settingsAPI.cancel();
+// Theme change toggles dark color section visibility + live broadcast
+document.querySelectorAll('input[name="theme"]').forEach(r => {
+  r.addEventListener('change', () => {
+    updateDarkColorVisibility();
+    broadcastSettings();
+  });
+});
+
+// Dark color changes
+document.querySelectorAll('input[name="darkColor"]').forEach(r => {
+  r.addEventListener('change', broadcastSettings);
+});
+
+// When custom color picker changes, auto-select the custom radio + broadcast
+customColorInput.addEventListener('input', () => {
+  const customRadio = document.querySelector('input[name="darkColor"][value="custom"]');
+  if (customRadio) customRadio.checked = true;
+  broadcastSettings();
+});
+
+// Altitude viz checkboxes
+colorByAltCheckbox.addEventListener('change', broadcastSettings);
+thickTrailsCheckbox.addEventListener('change', broadcastSettings);
+
+// Credentials — broadcast on blur/change (not every keystroke)
+clientIdInput.addEventListener('change', broadcastSettings);
+clientSecretInput.addEventListener('change', broadcastSettings);
+
+// Done — just close the window
+document.getElementById('btn-done').addEventListener('click', () => {
+  window.settingsAPI.close();
+});
+
+// Prevent form submission (no Apply button anymore)
+document.getElementById('settings-form').addEventListener('submit', (e) => {
+  e.preventDefault();
 });
 
 loadSettings();
