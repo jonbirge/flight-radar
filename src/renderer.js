@@ -347,7 +347,7 @@ function getZoomFraction(camHeight) {
 function computeIconSize(camHeight, baseSize) {
   const MIN_SIZE = 2;
   const t = getZoomFraction(camHeight);
-  return Math.max(MIN_SIZE, Math.round(baseSize * (1 - t) + MIN_SIZE * t));
+  return Math.max(MIN_SIZE, Math.round(baseSize * (1 - t) + MIN_SIZE * t) + 1);
 }
 
 const POLL_STEPS = [10, 20, 30, 60]; // seconds
