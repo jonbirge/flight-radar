@@ -54,9 +54,7 @@ const OPENSKY_TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-
 
 // Rate limiting state
 let lastStatesCall = 0;
-let lastTrackCall = 0;
 const STATES_MIN_INTERVAL = 10000;  // 10s minimum between state requests
-const TRACK_MIN_INTERVAL = 10000;   // 10s minimum between track requests
 
 // OAuth2 token cache
 let cachedToken = null;
@@ -195,12 +193,6 @@ ipcMain.handle('get-states', async (event, bounds) => {
 
 // IPC handler: get track/trajectory for a specific aircraft
 ipcMain.handle('get-track', async (event, icao24) => {
-  const now = Date.now();
-  if (now - lastTrackCall < TRACK_MIN_INTERVAL) {
-    return { error: 'Rate limited', retryIn: TRACK_MIN_INTERVAL - (now - lastTrackCall) };
-  }
-  lastTrackCall = now;
-
   try {
     const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}&time=0`;
     console.log(`[OpenSky] Fetching track for ${icao24}`);
