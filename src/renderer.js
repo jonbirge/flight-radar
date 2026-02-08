@@ -350,7 +350,7 @@ function computeIconSize(camHeight, baseSize) {
   return Math.max(MIN_SIZE, Math.round(baseSize * (1 - t) + MIN_SIZE * t));
 }
 
-const POLL_STEPS = [5, 10, 20, 30, 60]; // seconds
+const POLL_STEPS = [10, 20, 30, 60]; // seconds
 
 function computePollInterval(camHeight) {
   const t = getZoomFraction(camHeight);
@@ -849,6 +849,7 @@ async function pollStates() {
 
   // Update HUD
   lastPollTime = new Date();
+  lastPollBounds = bounds;
   document.getElementById('track-count').textContent = aircraft.size;
   document.getElementById('last-update').textContent =
     lastPollTime.toLocaleTimeString('en-US', { hour12: false });
@@ -898,8 +899,27 @@ updateClock();
 
 // Update center lat/lon display and LOD on camera move
 let lastIconSize = -1;
-let lastCamHeight = 0;
-let zoomOutPollDebounce = null;
+let lastPollBounds = null;
+let viewChangePollDebounce = null;
+const RATE_LIMIT_MS = 10000; // must match main process STATES_MIN_INTERVAL
+
+function boundsContain(outer, inner) {
+  if (!outer || !inner) return false;
+  return inner.south >= outer.south && inner.north <= outer.north
+      && inner.west >= outer.west && inner.east <= outer.east;
+}
+
+function scheduleViewportPoll() {
+  if (viewChangePollDebounce) clearTimeout(viewChangePollDebounce);
+  // Wait at least until the rate limit window has passed
+  const elapsed = lastPollTime ? Date.now() - lastPollTime.getTime() : Infinity;
+  const delay = Math.max(1500, RATE_LIMIT_MS - elapsed + 500);
+  viewChangePollDebounce = setTimeout(() => {
+    viewChangePollDebounce = null;
+    pollStates();
+  }, delay);
+}
+
 viewer.camera.changed.addEventListener(() => {
   const carto = viewer.camera.positionCartographic;
   if (carto) {
@@ -923,15 +943,11 @@ viewer.camera.changed.addEventListener(() => {
       setPollInterval(newPollInterval);
     }
 
-    // Trigger a poll after zooming out so new aircraft in the wider viewport appear
-    if (h > lastCamHeight * 1.05) {
-      if (zoomOutPollDebounce) clearTimeout(zoomOutPollDebounce);
-      zoomOutPollDebounce = setTimeout(() => {
-        zoomOutPollDebounce = null;
-        pollStates();
-      }, 1500);
+    // Poll when viewport shows area we haven't fetched yet
+    const currentBounds = getViewBounds();
+    if (!boundsContain(lastPollBounds, currentBounds)) {
+      scheduleViewportPoll();
     }
-    lastCamHeight = h;
   }
 });
 viewer.camera.percentageChanged = 0.01;
