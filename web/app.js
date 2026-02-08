@@ -273,7 +273,6 @@ const CONFIG = {
   trailMaxAge: 300,           // seconds of trail to keep
   trailEnabled: true,
   labelsEnabled: true,
-  granularTrails: true,       // fetch hi-res track data from API
   staleThreshold: 60,         // seconds before marking aircraft stale
 
   // Visual (dynamically updated by theme system)
@@ -783,16 +782,10 @@ function updateAircraft(states) {
       if (!hasValid) ac.granularTrack = null;
     }
 
-    // Queue for granular track fetch if enabled
-    // Selected aircraft refreshes every 30s; others every 120s
-    const trackInterval = (s.icao24 === selectedIcao) ? 30 : 120;
-    if (CONFIG.granularTrails && now - ac.lastTrackFetch > trackInterval) {
+    // Queue selected aircraft for periodic track refresh (every 30s)
+    if (s.icao24 === selectedIcao && now - ac.lastTrackFetch > 30) {
       if (!trackFetchQueue.includes(s.icao24)) {
-        if (s.icao24 === selectedIcao) {
-          trackFetchQueue.unshift(s.icao24); // priority for selected
-        } else {
-          trackFetchQueue.push(s.icao24);
-        }
+        trackFetchQueue.unshift(s.icao24);
       }
     }
   }
@@ -1082,7 +1075,7 @@ async function pollStates() {
 }
 
 async function fetchNextTrack() {
-  if (!CONFIG.granularTrails || trackFetchQueue.length === 0) return;
+  if (trackFetchQueue.length === 0) return;
 
   const icao24 = trackFetchQueue.shift();
   const ac = aircraft.get(icao24);
@@ -1158,10 +1151,6 @@ document.getElementById('toggle-labels').addEventListener('change', (e) => {
       ac.entity.label.show = e.target.checked;
     }
   }
-});
-
-document.getElementById('toggle-granular').addEventListener('change', (e) => {
-  CONFIG.granularTrails = e.target.checked;
 });
 
 document.getElementById('poll-interval').addEventListener('change', (e) => {
@@ -1366,9 +1355,9 @@ function showAircraftInfo(icao) {
     <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
   `;
 
-  // Immediately request granular track for selected aircraft
-  if (CONFIG.granularTrails && !trackFetchQueue.includes(icao)) {
-    trackFetchQueue.unshift(icao); // priority
+  // Immediately request track history for selected aircraft
+  if (!trackFetchQueue.includes(icao)) {
+    trackFetchQueue.unshift(icao);
   }
 
   // Re-render to apply highlight to newly selected and dim previously selected
