@@ -39,6 +39,8 @@ Camera viewport bounds are sent to the main process every 15s, which queries Ope
 
 `src/index.html` contains the DOM structure including the settings modal. `src/styles.css` handles the phosphor-green FAA aesthetic with CRT scanline overlay (pure CSS). The renderer manages all UI state and Cesium interaction in a single `init()` entry point.
 
-### Web version differences (`web/`)
+### Web version (`web/`)
+
+This repo maintains parallel Electron and web implementations. Changes to shared functionality (renderer logic, styles, UI) should be applied to both `src/` (Electron) and `web/` (web) unless the change is platform-specific.
 
 The web version intentionally omits the CONUS button (present in the Electron version) since zooming out to the full continental US scope is impractical for a public web deployment. This difference should be preserved.
