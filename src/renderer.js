@@ -1023,7 +1023,7 @@ document.getElementById('btn-save-view').addEventListener('click', async () => {
 
 document.getElementById('btn-conus').addEventListener('click', () => {
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(-98.5, 39.5, 6000000),
+    destination: Cesium.Cartesian3.fromDegrees(-98.5, 39.5, 5400000),
     duration: 1.5,
   });
 });
