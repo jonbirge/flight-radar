@@ -3,6 +3,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('settingsAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
-  applySettings: (settings) => ipcRenderer.invoke('apply-settings', settings),
-  cancel: () => ipcRenderer.send('close-settings-window'),
+  updateSettings: (settings) => ipcRenderer.invoke('update-settings', settings),
+  close: () => ipcRenderer.send('close-settings-window'),
 });

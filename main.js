@@ -233,19 +233,16 @@ function openSettingsWindow() {
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
-// IPC: apply settings from settings window → save, notify renderer, close
-ipcMain.handle('apply-settings', (event, settings) => {
+// IPC: update settings live — save and notify renderer, but keep window open
+ipcMain.handle('update-settings', (event, settings) => {
   saveSettings(settings);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('settings-changed');
   }
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.close();
-  }
   return true;
 });
 
-// IPC: close settings window (cancel)
+// IPC: close settings window (Done)
 ipcMain.on('close-settings-window', () => {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.close();
