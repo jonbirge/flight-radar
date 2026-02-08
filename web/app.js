@@ -856,7 +856,7 @@ function renderAircraft() {
     ? viewer.camera.positionCartographic.height
     : 0;
   const useDot = camHeight > 2000000;
-  const showLabels = CONFIG.labelsEnabled && camHeight < 500000;
+  const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
 
   for (const [icao, ac] of aircraft) {
     const s = ac.state;
