@@ -606,9 +606,21 @@ function computeIconSize(camHeight, baseSize) {
   return Math.max(MIN_SIZE, Math.round(baseSize * (1 - t) + MIN_SIZE * t));
 }
 
+const POLL_STEPS = [5, 10, 20, 30, 60]; // seconds
+
 function computePollInterval(camHeight) {
   const t = getZoomFraction(camHeight);
-  return Math.round(10000 + t * 50000); // 10s at city, 60s at CONUS
+  // Map 0..1 to index in POLL_STEPS (0=city→5s, 1=CONUS→60s)
+  const idx = Math.min(POLL_STEPS.length - 1, Math.round(t * (POLL_STEPS.length - 1)));
+  return POLL_STEPS[idx] * 1000;
+}
+
+function setPollInterval(ms) {
+  CONFIG.pollInterval = ms;
+  const sel = document.getElementById('poll-interval');
+  if (sel) sel.value = String(ms / 1000);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollStates, CONFIG.pollInterval);
 }
 
 // ============================================================
@@ -1117,16 +1129,10 @@ function startPolling() {
   const camHeight = viewer.camera.positionCartographic
     ? viewer.camera.positionCartographic.height
     : CONFIG.startAlt;
-  CONFIG.pollInterval = computePollInterval(camHeight);
-  const pollDisplay = document.getElementById('poll-interval-display');
-  if (pollDisplay) pollDisplay.textContent = `${Math.round(CONFIG.pollInterval / 1000)}s`;
+  setPollInterval(computePollInterval(camHeight));
 
   // Initial fetch
   pollStates();
-
-  // Periodic state polling
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(pollStates, CONFIG.pollInterval);
 
   // Periodic track fetching (one aircraft per 12s to stay within rate limits)
   if (trackTimer) clearInterval(trackTimer);
@@ -1147,7 +1153,6 @@ updateClock();
 
 // Update center lat/lon display and LOD on camera move
 let lastIconSize = -1;
-let pollIntervalDebounce = null;
 viewer.camera.changed.addEventListener(() => {
   const carto = viewer.camera.positionCartographic;
   if (carto) {
@@ -1168,15 +1173,7 @@ viewer.camera.changed.addEventListener(() => {
     // Adjust poll interval based on zoom level
     const newPollInterval = computePollInterval(h);
     if (newPollInterval !== CONFIG.pollInterval) {
-      CONFIG.pollInterval = newPollInterval;
-      const pollDisplay = document.getElementById('poll-interval-display');
-      if (pollDisplay) pollDisplay.textContent = `${Math.round(CONFIG.pollInterval / 1000)}s`;
-      if (pollIntervalDebounce) clearTimeout(pollIntervalDebounce);
-      pollIntervalDebounce = setTimeout(() => {
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = setInterval(pollStates, CONFIG.pollInterval);
-        pollIntervalDebounce = null;
-      }, 1000);
+      setPollInterval(newPollInterval);
     }
   }
 });
@@ -1198,6 +1195,10 @@ document.getElementById('toggle-labels').addEventListener('change', (e) => {
       ac.entity.label.show = e.target.checked;
     }
   }
+});
+
+document.getElementById('poll-interval').addEventListener('change', (e) => {
+  setPollInterval(parseInt(e.target.value) * 1000);
 });
 
 document.getElementById('trail-length').addEventListener('input', (e) => {
