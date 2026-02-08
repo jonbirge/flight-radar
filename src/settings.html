@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Preferences</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <form id="settings-form">
+
+    <fieldset>
+      <legend>Data Block Font Size</legend>
+      <div class="row">
+        <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1">
+        <output id="set-fontsize-val" for="set-fontsize">11px</output>
+      </div>
+      <div id="fontsize-preview" class="preview">
+        UAL1234<br>FL350&#x2191; 425
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Display Mode</legend>
+      <label><input type="radio" name="theme" value="dark" checked> Dark</label>
+      <label><input type="radio" name="theme" value="light"> Light</label>
+    </fieldset>
+
+    <fieldset id="dark-color-section">
+      <legend>Dark Mode Color</legend>
+      <div class="color-row">
+        <label><input type="radio" name="darkColor" value="#00cc44" checked> <span class="swatch" style="background:#00cc44"></span> Phosphor Green</label>
+        <label><input type="radio" name="darkColor" value="#00cccc"> <span class="swatch" style="background:#00cccc"></span> Cyan</label>
+        <label><input type="radio" name="darkColor" value="#cc8800"> <span class="swatch" style="background:#cc8800"></span> Amber</label>
+        <label><input type="radio" name="darkColor" value="#cc4444"> <span class="swatch" style="background:#cc4444"></span> Red</label>
+        <label><input type="radio" name="darkColor" value="#8888ff"> <span class="swatch" style="background:#8888ff"></span> Lavender</label>
+        <label><input type="radio" name="darkColor" value="#cccccc"> <span class="swatch" style="background:#cccccc"></span> White</label>
+        <label><input type="radio" name="darkColor" value="custom"> <input type="color" id="custom-color" value="#00cc44"> Custom</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Altitude Visualization</legend>
+      <label><input type="checkbox" id="set-color-by-alt"> Color by altitude</label>
+      <label><input type="checkbox" id="set-thick-trails"> Thick trails by altitude</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>OpenSky Network Credentials</legend>
+      <p class="hint">OAuth2 Client ID &amp; Secret from your OpenSky account. Leave blank for anonymous access (lower rate limits).</p>
+      <div class="field">
+        <label for="set-client-id">Client ID</label>
+        <input type="text" id="set-client-id" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="set-client-secret">Secret</label>
+        <input type="password" id="set-client-secret" autocomplete="off">
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="button" id="btn-cancel">Cancel</button>
+      <button type="submit">Apply</button>
+    </div>
+
+  </form>
+
+  <script src="settings.js"></script>
+</body>
+</html>

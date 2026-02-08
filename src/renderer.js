@@ -1202,151 +1202,27 @@ function hideAircraftInfo() {
 document.getElementById('info-close').addEventListener('click', hideAircraftInfo);
 
 // ============================================================
-// Settings Panel
+// Settings Changed (from external settings window)
 // ============================================================
 
-const settingsOverlay = document.getElementById('settings-overlay');
-const fontSizeSlider = document.getElementById('set-fontsize');
-const fontSizeVal = document.getElementById('set-fontsize-val');
-const fontPreview = document.getElementById('fontsize-preview');
-const btnThemeDark = document.getElementById('set-theme-dark');
-const btnThemeLight = document.getElementById('set-theme-light');
-const darkColorSection = document.getElementById('dark-color-section');
-const colorSwatches = document.querySelectorAll('.color-swatch');
-const customColorInput = document.getElementById('set-custom-color');
-const colorByAltCheckbox = document.getElementById('set-color-by-alt');
-const thickTrailsCheckbox = document.getElementById('set-thick-trails');
-const openskyClientIdInput = document.getElementById('set-opensky-client-id');
-const openskyClientSecretInput = document.getElementById('set-opensky-client-secret');
-
-// Temporary state while the settings panel is open
-let pendingSettings = {};
-
-function openSettings() {
-  pendingSettings = {
-    fontSize: CONFIG.fontSize,
-    theme: CONFIG.theme,
-    darkColor: CONFIG.darkColor,
-    colorByAltitude: CONFIG.colorByAltitude,
-    thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
-    openskyClientId: CONFIG.openskyClientId || '',
-    openskyClientSecret: CONFIG.openskyClientSecret || '',
-  };
-  syncSettingsUI();
-  settingsOverlay.classList.remove('hidden');
-}
-
-function closeSettings() {
-  settingsOverlay.classList.add('hidden');
-}
-
-function syncSettingsUI() {
-  fontSizeSlider.value = pendingSettings.fontSize;
-  fontSizeVal.textContent = `${pendingSettings.fontSize}px`;
-  fontPreview.style.fontSize = `${pendingSettings.fontSize}px`;
-
-  btnThemeDark.classList.toggle('active', pendingSettings.theme === 'dark');
-  btnThemeLight.classList.toggle('active', pendingSettings.theme === 'light');
-
-  const isDarkTheme = pendingSettings.theme === 'dark';
-  const colorDisabled = isDarkTheme && pendingSettings.colorByAltitude;
-  darkColorSection.style.display = isDarkTheme ? '' : 'none';
-  darkColorSection.style.opacity = colorDisabled ? '0.3' : '';
-  darkColorSection.style.pointerEvents = colorDisabled ? 'none' : '';
-
-  colorSwatches.forEach(sw => {
-    sw.classList.toggle('active', sw.dataset.color === pendingSettings.darkColor);
-  });
-  customColorInput.value = pendingSettings.darkColor;
-
-  colorByAltCheckbox.checked = pendingSettings.colorByAltitude;
-  thickTrailsCheckbox.checked = pendingSettings.thickTrailsByAltitude;
-
-  openskyClientIdInput.value = pendingSettings.openskyClientId;
-  openskyClientSecretInput.value = pendingSettings.openskyClientSecret;
-}
-
-// Font size slider
-fontSizeSlider.addEventListener('input', (e) => {
-  pendingSettings.fontSize = parseInt(e.target.value);
-  fontSizeVal.textContent = `${pendingSettings.fontSize}px`;
-  fontPreview.style.fontSize = `${pendingSettings.fontSize}px`;
+window.flightAPI.onSettingsChanged(async () => {
+  try {
+    const saved = await window.flightAPI.getSettings();
+    if (saved) {
+      CONFIG.fontSize = saved.fontSize || 11;
+      CONFIG.theme = saved.theme || 'dark';
+      CONFIG.darkColor = saved.darkColor || '#00cc44';
+      CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
+      CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
+      CONFIG.openskyClientId = saved.openskyClientId || '';
+      CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
+      CONFIG.savedView = saved.savedView || null;
+      applyTheme();
+    }
+  } catch (err) {
+    console.warn('[Settings] Could not reload:', err);
+  }
 });
-
-// Theme toggle
-btnThemeDark.addEventListener('click', () => {
-  pendingSettings.theme = 'dark';
-  syncSettingsUI();
-});
-btnThemeLight.addEventListener('click', () => {
-  pendingSettings.theme = 'light';
-  syncSettingsUI();
-});
-
-// Color swatches
-colorSwatches.forEach(sw => {
-  sw.addEventListener('click', () => {
-    pendingSettings.darkColor = sw.dataset.color;
-    syncSettingsUI();
-  });
-});
-
-// Custom color picker
-customColorInput.addEventListener('input', (e) => {
-  pendingSettings.darkColor = e.target.value;
-  colorSwatches.forEach(sw => sw.classList.remove('active'));
-});
-
-// Altitude visualization checkboxes
-colorByAltCheckbox.addEventListener('change', (e) => {
-  pendingSettings.colorByAltitude = e.target.checked;
-  syncSettingsUI();
-});
-thickTrailsCheckbox.addEventListener('change', (e) => {
-  pendingSettings.thickTrailsByAltitude = e.target.checked;
-});
-
-// OpenSky credentials
-openskyClientIdInput.addEventListener('input', (e) => {
-  pendingSettings.openskyClientId = e.target.value.trim();
-});
-openskyClientSecretInput.addEventListener('input', (e) => {
-  pendingSettings.openskyClientSecret = e.target.value;
-});
-
-// Apply
-document.getElementById('settings-apply').addEventListener('click', async () => {
-  CONFIG.fontSize = pendingSettings.fontSize;
-  CONFIG.theme = pendingSettings.theme;
-  CONFIG.darkColor = pendingSettings.darkColor;
-  CONFIG.colorByAltitude = pendingSettings.colorByAltitude;
-  CONFIG.thickTrailsByAltitude = pendingSettings.thickTrailsByAltitude;
-  CONFIG.openskyClientId = pendingSettings.openskyClientId;
-  CONFIG.openskyClientSecret = pendingSettings.openskyClientSecret;
-  applyTheme();
-  closeSettings();
-  await window.flightAPI.saveSettings({
-    fontSize: CONFIG.fontSize,
-    theme: CONFIG.theme,
-    darkColor: CONFIG.darkColor,
-    colorByAltitude: CONFIG.colorByAltitude,
-    thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
-    openskyClientId: CONFIG.openskyClientId,
-    openskyClientSecret: CONFIG.openskyClientSecret,
-  });
-});
-
-// Cancel
-document.getElementById('settings-cancel').addEventListener('click', closeSettings);
-document.getElementById('settings-close').addEventListener('click', closeSettings);
-
-// Close on overlay click (outside panel)
-settingsOverlay.addEventListener('click', (e) => {
-  if (e.target === settingsOverlay) closeSettings();
-});
-
-// Listen for menu-triggered open
-window.flightAPI.onOpenSettings(() => openSettings());
 
 // ============================================================
 // Start

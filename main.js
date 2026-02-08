@@ -213,6 +213,53 @@ ipcMain.handle('get-track', async (event, icao24) => {
   }
 });
 
+// --- Settings Window ---
+let settingsWindow = null;
+
+function openSettingsWindow() {
+  if (settingsWindow) {
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 440,
+    height: 580,
+    resizable: false,
+    parent: mainWindow,
+    modal: false,
+    show: false,
+    backgroundColor: '#f0f0f0',
+    webPreferences: {
+      preload: path.join(__dirname, 'settings-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  settingsWindow.setMenu(null);
+  settingsWindow.loadFile(path.join(__dirname, 'src', 'settings.html'));
+  settingsWindow.once('ready-to-show', () => settingsWindow.show());
+  settingsWindow.on('closed', () => { settingsWindow = null; });
+}
+
+// IPC: apply settings from settings window → save, notify renderer, close
+ipcMain.handle('apply-settings', (event, settings) => {
+  saveSettings(settings);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('settings-changed');
+  }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+  }
+  return true;
+});
+
+// IPC: close settings window (cancel)
+ipcMain.on('close-settings-window', () => {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+  }
+});
+
 // --- Window Creation ---
 let mainWindow;
 
@@ -260,9 +307,7 @@ function buildMenu() {
         {
           label: 'Settings...',
           accelerator: 'CmdOrCtrl+,',
-          click: () => {
-            mainWindow.webContents.send('open-settings');
-          },
+          click: () => openSettingsWindow(),
         },
       ],
     },
