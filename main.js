@@ -216,6 +216,7 @@ function openSettingsWindow() {
   settingsWindow = new BrowserWindow({
     width: 440,
     height: 540,
+    useContentSize: true,
     resizable: false,
     parent: mainWindow,
     modal: false,
@@ -229,7 +230,16 @@ function openSettingsWindow() {
   });
   settingsWindow.setMenu(null);
   settingsWindow.loadFile(path.join(__dirname, 'src', 'settings.html'));
-  settingsWindow.once('ready-to-show', () => settingsWindow.show());
+  settingsWindow.once('ready-to-show', () => {
+    // Auto-resize to fit content
+    settingsWindow.webContents.executeJavaScript(
+      'JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight })'
+    ).then(json => {
+      const { width, height } = JSON.parse(json);
+      settingsWindow.setContentSize(Math.max(width, 440), height);
+      settingsWindow.show();
+    }).catch(() => settingsWindow.show());
+  });
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
@@ -240,6 +250,13 @@ ipcMain.handle('update-settings', (event, settings) => {
     mainWindow.webContents.send('settings-changed');
   }
   return true;
+});
+
+// IPC: close settings window (Done)
+ipcMain.on('close-settings-window', () => {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+  }
 });
 
 // --- Window Creation ---

@@ -870,6 +870,7 @@ async function fetchNextTrack() {
     ac.granularTrack = data;
     ac.lastTrackFetch = Date.now() / 1000;
     console.log(`[Track] Got ${data.path.length} waypoints for ${icao24}`);
+    renderAircraft();
   }
 }
 
