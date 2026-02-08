@@ -290,6 +290,15 @@ const CONFIG = {
   thickTrailsByAltitude: false,
 };
 
+const ZOOM_SCALING = {
+  cityHeight: 500000,
+  conusHeight: 6000000,
+  cityIconSize: 18,
+  conusIconSize: 2,
+  cityPollSeconds: 10,
+  conusPollSeconds: 60,
+};
+
 // ============================================================
 // Color Utilities
 // ============================================================
@@ -827,10 +836,16 @@ function renderAircraft() {
     : 0;
   const useDot = camHeight > 2000000;
   const showLabels = CONFIG.labelsEnabled && camHeight < 500000;
-  // Dot size: 8px at 2000km, linearly down to 3px at 10000km+
-  const dotSize = useDot
-    ? Math.round(Math.max(3, 8 - (camHeight - 2000000) / (10000000 - 2000000) * 5))
-    : 0;
+
+  const iconScale = Math.min(1, Math.max(0,
+    (camHeight - ZOOM_SCALING.cityHeight)
+      / (ZOOM_SCALING.conusHeight - ZOOM_SCALING.cityHeight)
+  ));
+  const scaledIconSize = Math.round(
+    ZOOM_SCALING.cityIconSize
+      + (ZOOM_SCALING.conusIconSize - ZOOM_SCALING.cityIconSize) * iconScale
+  );
+  const dotSize = useDot ? scaledIconSize : 0;
 
   for (const [icao, ac] of aircraft) {
     const s = ac.state;
@@ -852,7 +867,7 @@ function renderAircraft() {
       : use3dDot
         ? createDotIcon(8, isSelected, altColor)
         : createAircraftIcon(s.heading || 0, isSelected, altColor);
-    const iconSize = useDot ? dotSize : use3dDot ? 8 : 18;
+    const iconSize = useDot ? dotSize : use3dDot ? 8 : scaledIconSize;
     const labelColor = altCesiumColor || (isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
       : Cesium.Color.fromCssColorString(CONFIG.phosphor));
@@ -1109,6 +1124,43 @@ function startPolling() {
   trackTimer = setInterval(fetchNextTrack, 12000);
 }
 
+function updatePollIntervalForZoom() {
+  const carto = viewer.camera.positionCartographic;
+  if (!carto) return;
+
+  const camHeight = carto.height;
+  const intervalScale = Math.min(1, Math.max(0,
+    (camHeight - ZOOM_SCALING.cityHeight)
+      / (ZOOM_SCALING.conusHeight - ZOOM_SCALING.cityHeight)
+  ));
+  const pollSeconds = Math.round(
+    ZOOM_SCALING.cityPollSeconds
+      + (ZOOM_SCALING.conusPollSeconds - ZOOM_SCALING.cityPollSeconds) * intervalScale
+  );
+  const nextPollInterval = pollSeconds * 1000;
+
+  if (nextPollInterval === CONFIG.pollInterval) return;
+
+  CONFIG.pollInterval = nextPollInterval;
+
+  const pollSelect = document.getElementById('poll-interval');
+  if (pollSelect) {
+    const val = String(pollSeconds);
+    let option = pollSelect.querySelector(`option[value="${val}"]`);
+    if (!option) {
+      option = document.createElement('option');
+      option.value = val;
+      option.textContent = `${pollSeconds}s`;
+      option.dataset.zoomDynamic = 'true';
+      pollSelect.appendChild(option);
+    }
+    pollSelect.value = val;
+  }
+
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollStates, CONFIG.pollInterval);
+}
+
 // ============================================================
 // HUD Clock
 // ============================================================
@@ -1138,6 +1190,8 @@ viewer.camera.changed.addEventListener(() => {
       lastLodLevel = lodLevel;
       renderAircraft();
     }
+
+    updatePollIntervalForZoom();
   }
 });
 viewer.camera.percentageChanged = 0.01;
@@ -1165,9 +1219,9 @@ document.getElementById('toggle-granular').addEventListener('change', (e) => {
 });
 
 document.getElementById('poll-interval').addEventListener('change', (e) => {
-  const val = parseInt(e.target.value);
+  const val = parseInt(e.target.value, 10);
+  if (Number.isNaN(val)) return;
   CONFIG.pollInterval = val * 1000;
-  // Restart polling with new interval
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(pollStates, CONFIG.pollInterval);
 });
