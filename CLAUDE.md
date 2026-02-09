@@ -18,9 +18,9 @@ There are no tests or linting configured.
 
 Electron desktop app with three layers:
 
-- **Main process** (`main.js`): OpenSky Network API calls (OAuth2 client credentials), rate limiting (10s minimum between calls), settings persistence (`settings.json` in userData dir), and window/menu management.
+- **Main process** (`main.js`): OpenSky Network API calls (OAuth2 client credentials), rate limiting (10s minimum between calls), settings persistence (`settings.json` in userData dir), and window/menu management. OpenSky credentials (`openskyClientId`, `openskyClientSecret`) are configured via the Settings window and stored in `settings.json`. Blank credentials = anonymous access (lower rate limits).
 - **Preload bridge** (`preload.js`): Context-isolated IPC bridge exposing `window.flightAPI` with five methods: `getStates`, `getTrack`, `getSettings`, `saveSettings`, `onSettingsChanged`.
-- **Renderer** (`src/renderer.js`, ~1,270 lines): CesiumJS viewer, aircraft state management, trail rendering, UI controls, and theme system. All in one file — no framework, no build step.
+- **Renderer** (`src/renderer.js`): Large single-file module — CesiumJS viewer, aircraft state management, trail rendering, UI controls, and theme system. No framework, no build step.
 - **Settings window** (`src/settings.html`, `src/settings.css`, `src/settings.js`, `settings-preload.js`): Separate Electron window for app settings.
 
 ### Data flow
@@ -29,7 +29,7 @@ Camera viewport bounds are sent to the main process every 15s, which queries Ope
 
 ### Key patterns
 
-- **No build step**: Plain JS loaded directly. CesiumJS runtime files (~5 MB) are fetched from jsDelivr CDN via `scripts/fetch-cesium.js`.
+- **No build step**: Plain JS loaded directly. CesiumJS runtime files (~5 MB) are fetched from jsDelivr CDN via `scripts/fetch-cesium.js` into `vendor/cesium/` (gitignored). `npm run setup` must be run before the app will work.
 - **Cesium without Ion**: Uses CartoDB dark_matter/light tiles, no Cesium Ion token needed.
 - **Canvas aircraft icons**: Chevrons drawn and rotated on canvas per heading, used as Cesium billboards.
 - **Theme system**: Single hex color (dark mode) → derives all CSS variables and Cesium entity colors. Light mode uses a separate fixed palette.
@@ -45,3 +45,10 @@ Camera viewport bounds are sent to the main process every 15s, which queries Ope
 This repo maintains parallel Electron and web implementations. Changes to shared functionality (renderer logic, styles, UI) should be applied to both `src/` (Electron) and `web/` (web) unless the change is platform-specific.
 
 The web version intentionally omits the CONUS button (present in the Electron version) since zooming out to the full continental US scope is impractical for a public web deployment. This difference should be preserved.
+
+To run the web version locally, serve from the project root so `vendor/cesium/` is accessible:
+
+```bash
+npx serve .
+# then open http://localhost:8080/web/
+```
