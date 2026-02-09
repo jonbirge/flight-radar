@@ -37,10 +37,39 @@ For dev mode (opens DevTools):
 npm run dev
 ```
 
-To package for Windows x64:
+## Packaging & Distribution
+
+The app uses `@electron/packager` to create standalone distributions. The
+packaged output includes Electron, the app code, and all dependencies — no
+separate install is needed on the target machine.
+
+### Windows (x64)
+
 ```bash
 npm run pack     # outputs to dist/FlightRadar-win32-x64/
 ```
+
+Run `FlightRadar.exe` from the output directory.
+
+### Linux (x64)
+
+```bash
+npx @electron/packager . FlightRadar --platform=linux --arch=x64 --out=dist --overwrite --ignore="(dist|scripts|\.git)"
+```
+
+This produces `dist/FlightRadar-linux-x64/`. Run the `FlightRadar` binary:
+
+```bash
+./dist/FlightRadar-linux-x64/FlightRadar
+```
+
+### Cross-platform notes
+
+- You can package for any platform from any host OS — Electron Packager handles
+  cross-compilation automatically.
+- To target a different architecture (e.g. `arm64`), change the `--arch` flag.
+- The `--ignore` pattern excludes `dist/`, `scripts/`, and `.git/` from the
+  packaged output to reduce bundle size.
 
 ## OpenSky Network API
 
