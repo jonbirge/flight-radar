@@ -323,7 +323,7 @@ function buildMenu() {
         {
           label: 'About Flight Radar',
           click: () => {
-            const cesiumVersion = require(path.join(__dirname, 'package.json')).devDependencies.cesium;
+            const cesiumVersion = require(path.join(__dirname, 'package.json')).cesiumVersion;
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About Flight Radar',
