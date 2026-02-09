@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('flightAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
 
+  // Open the settings window from the renderer
+  openSettings: () => ipcRenderer.invoke('open-settings-window'),
+
   // Listen for settings changes applied from the settings window
   onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', callback),
 });

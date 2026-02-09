@@ -243,6 +243,12 @@ function openSettingsWindow() {
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
+// IPC: open settings window from renderer
+ipcMain.handle('open-settings-window', () => {
+  openSettingsWindow();
+  return true;
+});
+
 // IPC: update settings live — save and notify renderer, but keep window open
 ipcMain.handle('update-settings', (event, settings) => {
   saveSettings(settings);

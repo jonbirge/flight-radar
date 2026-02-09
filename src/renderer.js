@@ -1132,6 +1132,11 @@ document.getElementById('btn-rotate').addEventListener('click', () => {
   }
 });
 
+// SETTINGS button
+document.getElementById('btn-settings').addEventListener('click', () => {
+  window.flightAPI.openSettings();
+});
+
 // ============================================================
 // Aircraft Selection (click to inspect)
 // ============================================================
