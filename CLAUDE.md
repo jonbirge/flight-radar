@@ -29,7 +29,7 @@ Camera viewport bounds are sent to the main process every 15s, which queries Ope
 
 ### Key patterns
 
-- **No build step**: Plain JS loaded directly. CesiumJS is vendored from a GitHub release via `scripts/fetch-cesium.js`.
+- **No build step**: Plain JS loaded directly. CesiumJS runtime files (~5 MB) are fetched from jsDelivr CDN via `scripts/fetch-cesium.js`.
 - **Cesium without Ion**: Uses CartoDB dark_matter/light tiles, no Cesium Ion token needed.
 - **Canvas aircraft icons**: Chevrons drawn and rotated on canvas per heading, used as Cesium billboards.
 - **Theme system**: Single hex color (dark mode) → derives all CSS variables and Cesium entity colors. Light mode uses a separate fixed palette.

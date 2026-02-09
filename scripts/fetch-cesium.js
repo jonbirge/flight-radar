@@ -1,31 +1,34 @@
 // scripts/fetch-cesium.js
-// Downloads CesiumJS release and extracts to vendor/cesium/
+// Downloads only the CesiumJS runtime files needed by this app.
 // Run once: node scripts/fetch-cesium.js
 
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const CESIUM_VERSION = '1.119';
-const URL = `https://github.com/CesiumGS/cesium/releases/download/${CESIUM_VERSION}/Cesium-${CESIUM_VERSION}.zip`;
+const CDN_BASE = `https://cdn.jsdelivr.net/npm/cesium@${CESIUM_VERSION}/Build/Cesium`;
 const VENDOR_DIR = path.join(__dirname, '..', 'vendor');
-const ZIP_PATH = path.join(VENDOR_DIR, 'cesium.zip');
-const OUT_DIR = path.join(VENDOR_DIR, 'cesium');
+const OUT_DIR = path.join(VENDOR_DIR, 'cesium', 'Build', 'Cesium');
+
+const FILES = [
+  { remote: 'Cesium.js',           local: 'Cesium.js' },
+  { remote: 'Widgets/widgets.css', local: path.join('Widgets', 'widgets.css') },
+];
 
 function download(url, dest) {
   return new Promise((resolve, reject) => {
-    console.log(`Downloading Cesium ${CESIUM_VERSION}...`);
     const follow = (url) => {
       https.get(url, (res) => {
         if (res.statusCode === 302 || res.statusCode === 301) {
           return follow(res.headers.location);
         }
         if (res.statusCode !== 200) {
-          return reject(new Error(`HTTP ${res.statusCode}`));
+          return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
         }
         const total = parseInt(res.headers['content-length'], 10) || 0;
         let downloaded = 0;
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
         const file = fs.createWriteStream(dest);
         res.on('data', (chunk) => {
           downloaded += chunk.length;
@@ -35,7 +38,7 @@ function download(url, dest) {
           }
         });
         res.pipe(file);
-        file.on('finish', () => { file.close(); console.log('\n  Download complete.'); resolve(); });
+        file.on('finish', () => { file.close(); resolve(downloaded); });
         file.on('error', reject);
       }).on('error', reject);
     };
@@ -44,33 +47,25 @@ function download(url, dest) {
 }
 
 async function main() {
-  if (fs.existsSync(path.join(OUT_DIR, 'Build', 'Cesium', 'Cesium.js'))) {
+  const cesiumJs = path.join(OUT_DIR, 'Cesium.js');
+  if (fs.existsSync(cesiumJs)) {
     console.log('Cesium already present in vendor/cesium/. Delete it to re-download.');
     return;
   }
 
-  fs.mkdirSync(VENDOR_DIR, { recursive: true });
-  await download(URL, ZIP_PATH);
+  console.log(`Downloading CesiumJS ${CESIUM_VERSION} runtime files...`);
+  let totalBytes = 0;
 
-  console.log('Extracting...');
-  fs.mkdirSync(OUT_DIR, { recursive: true });
-  if (process.platform === 'win32') {
-    execSync(
-      `powershell -Command "Expand-Archive -Path '${ZIP_PATH}' -DestinationPath '${OUT_DIR}' -Force"`,
-      { stdio: 'inherit' }
-    );
-  } else {
-    execSync(`unzip -o "${ZIP_PATH}" -d "${OUT_DIR}"`, { stdio: 'inherit' });
+  for (const { remote, local } of FILES) {
+    const url = `${CDN_BASE}/${remote}`;
+    const dest = path.join(OUT_DIR, local);
+    process.stdout.write(`  ${remote}...`);
+    const bytes = await download(url, dest);
+    totalBytes += bytes;
+    console.log(` ${(bytes / 1e6).toFixed(1)} MB`);
   }
-  fs.unlinkSync(ZIP_PATH);
 
-  const cesiumJs = path.join(OUT_DIR, 'Build', 'Cesium', 'Cesium.js');
-  if (fs.existsSync(cesiumJs)) {
-    const sizeMB = (fs.statSync(cesiumJs).size / 1e6).toFixed(1);
-    console.log(`Done. Cesium.js = ${sizeMB} MB`);
-  } else {
-    console.error('ERROR: Cesium.js not found. Check vendor/cesium/ contents.');
-  }
+  console.log(`Done. Total download: ${(totalBytes / 1e6).toFixed(1)} MB`);
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

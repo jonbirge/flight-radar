@@ -1,4 +1,4 @@
-# Flight Radar — FAA Scope Display
+# Flight Radar
 
 Real-time US flight tracker using CesiumJS and OpenSky Network, styled after
 FAA radar center PVDs (Plan View Displays).
@@ -149,7 +149,7 @@ The web version is fully static — just upload these paths to any static file h
 web/index.html
 web/styles.css
 web/app.js
-vendor/cesium/Build/Cesium/   (Cesium JS + CSS + workers)
+vendor/cesium/Build/Cesium/   (Cesium.js + widgets.css only)
 ```
 
 Your host's directory structure should mirror the repo:
@@ -165,8 +165,7 @@ Your host's directory structure should mirror the repo:
         └── Build/
             └── Cesium/
                 ├── Cesium.js
-                ├── Widgets/widgets.css
-                └── Workers/  (+ Assets/, ThirdParty/)
+                └── Widgets/widgets.css
 ```
 
 Any static host works: **GitHub Pages**, **Netlify**, **Vercel**, **Cloudflare Pages**, **S3 + CloudFront**, or a simple Nginx/Apache server.
