@@ -24,6 +24,7 @@
       "settings-preload.js",
       "package.json",
       "src/**/*",
+      "shared/**/*",
       "vendor/**/*",
       "assets/icon.ico"
     ],
