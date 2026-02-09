@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Flight Radar - FAA Scope</title>
+  <title>Flight Radar</title>
   <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css">
   <link rel="stylesheet" href="styles.css">
   <script src="../vendor/cesium/Build/Cesium/Cesium.js"></script>
@@ -13,7 +13,7 @@
   <!-- HUD overlay - FAA scope aesthetic -->
   <div id="hud">
     <div id="hud-top">
-      <span id="scope-title">FAA FLIGHT RADAR</span>
+      <span id="scope-title">FLIGHT RADAR</span>
       <span id="clock"></span>
     </div>
     <div id="hud-stats">
@@ -23,6 +23,11 @@
       <span>LON: <span id="center-lon">--</span></span>
     </div>
     <div id="throttle-warning" class="hidden">API RATE LIMITED — DISPLAYING LAST KNOWN POSITIONS</div>
+  </div>
+
+  <div id="hud-instructions">
+    <div>Hold down the control key and drag to change the perspective.</div>
+    <div>Scroll to zoom and drag to pan.</div>
   </div>
 
   <!-- Controls panel -->
