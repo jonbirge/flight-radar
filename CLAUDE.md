@@ -5,8 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm install              # Install dependencies
-npm run setup            # Download CesiumJS 1.119 to vendor/cesium/ (required first time)
+npm install              # Install dependencies + copy CesiumJS runtime to vendor/
 npm start                # Launch the app
 npm run dev              # Launch with DevTools open
 npm run pack             # Package for Windows x64 → dist/FlightRadar-win32-x64/
@@ -29,7 +28,7 @@ Camera viewport bounds are sent to the main process every 15s, which queries Ope
 
 ### Key patterns
 
-- **No build step**: Plain JS loaded directly. CesiumJS runtime files (~5 MB) are fetched from jsDelivr CDN via `scripts/fetch-cesium.js`.
+- **No build step**: Plain JS loaded directly. CesiumJS is an npm devDependency; a postinstall script copies only `Build/Cesium/` (~20 MB runtime) to `vendor/cesium/`.
 - **Cesium without Ion**: Uses CartoDB dark_matter/light tiles, no Cesium Ion token needed.
 - **Canvas aircraft icons**: Chevrons drawn and rotated on canvas per heading, used as Cesium billboards.
 - **Theme system**: Single hex color (dark mode) → derives all CSS variables and Cesium entity colors. Light mode uses a separate fixed palette.
