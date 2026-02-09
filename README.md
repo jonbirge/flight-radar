@@ -27,8 +27,7 @@ Optional hi-res trails:
 
 ```bash
 cd flight-radar
-npm install
-npm run setup    # downloads CesiumJS vendor/cesium/ (first time only)
+npm install      # also copies CesiumJS runtime to vendor/
 npm start
 ```
 
@@ -135,7 +134,7 @@ A standalone web version lives in `web/` and runs entirely in the browser — no
 Serve from the project root so that `vendor/cesium/` is accessible:
 
 ```bash
-npm run setup          # download CesiumJS if not already done
+npm install            # install deps + copy CesiumJS runtime
 npx serve .            # or: python -m http.server 8080
 ```
 
