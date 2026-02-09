@@ -17,15 +17,18 @@
     "appId": "com.jon.flight-radar",
     "productName": "FlightRadar",
     "asar": false,
+    "icon": "assets/icon.ico",
     "files": [
       "main.js",
       "preload.js",
       "settings-preload.js",
       "package.json",
       "src/**/*",
-      "vendor/**/*"
+      "vendor/**/*",
+      "assets/icon.ico"
     ],
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         "nsis",
         "dir"

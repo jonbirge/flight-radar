@@ -274,6 +274,7 @@ function createWindow() {
     height: 1000,
     backgroundColor: '#000000',
     title: 'Flight Radar - FAA Scope',
+    icon: path.join(__dirname, 'assets', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

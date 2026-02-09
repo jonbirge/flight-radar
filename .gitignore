@@ -3,3 +3,5 @@ vendor/
 dist/
 .claude/
 cred.json
+nul
+assets/*.png
