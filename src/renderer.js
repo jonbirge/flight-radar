@@ -498,12 +498,22 @@ function getViewBounds() {
     return { south: 24, west: -125, north: 50, east: -66 };
   }
   const deg = Cesium.Math.toDegrees;
-  return {
+  const bounds = {
     south: Math.max(deg(rect.south), -90),
     west: Math.max(deg(rect.west), -180),
     north: Math.min(deg(rect.north), 90),
     east: Math.min(deg(rect.east), 180),
   };
+  // When zoomed out far enough that the viewport spans more than 180° of
+  // longitude (or nearly pole-to-pole in latitude), the bounding box wraps
+  // past the visible hemisphere and causes the API to return flights from
+  // the far side of the globe.  Fall back to CONUS in that case.
+  const lonSpan = bounds.east - bounds.west;
+  const latSpan = bounds.north - bounds.south;
+  if (lonSpan > 180 || latSpan > 140) {
+    return { south: 24, west: -125, north: 50, east: -66 };
+  }
+  return bounds;
 }
 
 // ============================================================
@@ -641,7 +651,6 @@ function renderAircraft() {
           height: iconSize,
           pixelOffset: new Cesium.Cartesian2(0, 0),
           eyeOffset: new Cesium.Cartesian3(0, 0, -100),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: (CONFIG.labelsEnabled || isSelected) ? {
           text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
@@ -653,7 +662,6 @@ function renderAircraft() {
           pixelOffset: new Cesium.Cartesian2(14, -8),
           horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
           verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
           showBackground: false,
           scale: 1.0,
           show: isSelected || showLabels,
@@ -679,7 +687,6 @@ function renderAircraft() {
             pixelOffset: new Cesium.Cartesian2(14, -8),
             horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
           });
         }
         ac.entity.label.text = `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`;
@@ -731,7 +738,6 @@ function renderAircraft() {
                     width: trailWidth,
                     material: material,
                     clampToGround: false,
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
                   },
                 }));
               }
@@ -1024,7 +1030,7 @@ document.getElementById('btn-save-view').addEventListener('click', async () => {
 
 document.getElementById('btn-conus').addEventListener('click', () => {
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(-98.5, 39.5, 5400000),
+    destination: Cesium.Cartesian3.fromDegrees(-98.5, 39.5, 4860000),
     duration: 1.5,
   });
 });
