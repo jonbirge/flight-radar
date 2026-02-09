@@ -1,5 +1,5 @@
-/* FAA Radar Scope Aesthetic */
-/* Dark background, phosphor green, monospace everything */
+/* FAA Radar Scope Aesthetic — Shared styles */
+/* Used by both Electron and web versions */
 
 :root {
   --phosphor: #00cc44;
