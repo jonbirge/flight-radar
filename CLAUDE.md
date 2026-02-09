@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install              # Install dependencies + copy CesiumJS runtime to vendor/
 npm start                # Launch the app
 npm run dev              # Launch with DevTools open
-npm run pack             # Package for Windows x64 → dist/FlightRadar-win32-x64/
+npm run pack             # Portable folder → dist/win-unpacked/FlightRadar.exe
+npm run dist             # NSIS installer → dist/Flight Radar Setup 1.0.0.exe
 ```
 
 There are no tests or linting configured.
