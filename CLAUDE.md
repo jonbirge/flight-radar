@@ -19,8 +19,9 @@ There are no tests or linting configured.
 Electron desktop app with three layers:
 
 - **Main process** (`main.js`): OpenSky Network API calls (OAuth2 client credentials), rate limiting (10s minimum between calls), settings persistence (`settings.json` in userData dir), and window/menu management.
-- **Preload bridge** (`preload.js`): Context-isolated IPC bridge exposing `window.flightAPI` with five methods: `getStates`, `getTrack`, `getSettings`, `saveSettings`, `onOpenSettings`.
-- **Renderer** (`src/renderer.js`, ~950 lines): CesiumJS viewer, aircraft state management, trail rendering, UI controls, theme system, and settings modal. All in one file — no framework, no build step.
+- **Preload bridge** (`preload.js`): Context-isolated IPC bridge exposing `window.flightAPI` with five methods: `getStates`, `getTrack`, `getSettings`, `saveSettings`, `onSettingsChanged`.
+- **Renderer** (`src/renderer.js`, ~1,270 lines): CesiumJS viewer, aircraft state management, trail rendering, UI controls, and theme system. All in one file — no framework, no build step.
+- **Settings window** (`src/settings.html`, `src/settings.css`, `src/settings.js`, `settings-preload.js`): Separate Electron window for app settings.
 
 ### Data flow
 
@@ -37,7 +38,7 @@ Camera viewport bounds are sent to the main process every 15s, which queries Ope
 
 ### UI structure
 
-`src/index.html` contains the DOM structure including the settings modal. `src/styles.css` handles the phosphor-green FAA aesthetic with CRT scanline overlay (pure CSS). The renderer manages all UI state and Cesium interaction in a single `init()` entry point.
+`src/index.html` contains the DOM structure. `src/styles.css` handles the phosphor-green FAA aesthetic with CRT scanline overlay (pure CSS). The renderer manages all UI state and Cesium interaction in a single `init()` entry point. Settings are handled in a separate Electron window (`src/settings.html`) rather than an in-page modal.
 
 ### Web version (`web/`)
 
