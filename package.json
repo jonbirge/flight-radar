@@ -4,17 +4,48 @@
   "description": "Real-time US flight tracker with FAA radar center aesthetic",
   "main": "main.js",
   "author": "Jon",
+  "cesiumVersion": "1.119.0",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
     "postinstall": "node scripts/copy-cesium.js",
     "setup": "node scripts/copy-cesium.js",
-    "pack": "npx @electron/packager . FlightRadar --platform=win32 --arch=x64 --out=dist --overwrite --ignore=\"(dist|scripts|\\.git)\"",
-    "dist": "npm run pack"
+    "pack": "electron-builder --win dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.jon.flight-radar",
+    "productName": "FlightRadar",
+    "asar": false,
+    "files": [
+      "main.js",
+      "preload.js",
+      "settings-preload.js",
+      "package.json",
+      "src/**/*",
+      "vendor/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "dir"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Flight Radar"
+    },
+    "directories": {
+      "output": "dist"
+    }
   },
   "devDependencies": {
+    "cesium": "1.119.0",
     "electron": "^35.7.5",
-    "@electron/packager": "^19.0.2",
-    "cesium": "1.119.0"
+    "electron-builder": "^26.7.0"
   }
 }
