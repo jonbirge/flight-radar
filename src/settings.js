@@ -4,7 +4,6 @@
 
 const fontSizeSlider = document.getElementById('set-fontsize');
 const fontSizeVal = document.getElementById('set-fontsize-val');
-const fontPreview = document.getElementById('fontsize-preview');
 const darkColorSection = document.getElementById('dark-color-section');
 const customColorInput = document.getElementById('custom-color');
 const colorByAltCheckbox = document.getElementById('set-color-by-alt');
@@ -21,8 +20,6 @@ async function loadSettings() {
 
   fontSizeSlider.value = s.fontSize || 11;
   fontSizeVal.textContent = `${fontSizeSlider.value}px`;
-  fontPreview.style.fontSize = `${fontSizeSlider.value}px`;
-
   // Theme
   const themeRadio = document.querySelector(`input[name="theme"][value="${s.theme || 'dark'}"]`);
   if (themeRadio) themeRadio.checked = true;
@@ -82,10 +79,9 @@ function broadcastSettings() {
   window.settingsAPI.updateSettings(settings);
 }
 
-// Font size preview + live broadcast
+// Font size — live broadcast
 fontSizeSlider.addEventListener('input', () => {
   fontSizeVal.textContent = `${fontSizeSlider.value}px`;
-  fontPreview.style.fontSize = `${fontSizeSlider.value}px`;
   broadcastSettings();
 });
 

@@ -41,16 +41,6 @@ label {
   gap: 8px;
 }
 
-.preview {
-  font-family: 'Consolas', 'Courier New', monospace;
-  margin-top: 6px;
-  padding: 4px 8px;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  line-height: 1.4;
-}
-
 .color-row {
   display: flex;
   flex-direction: column;
