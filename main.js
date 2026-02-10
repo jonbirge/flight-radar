@@ -322,7 +322,7 @@ function buildMenu() {
       label: 'Help',
       submenu: [
         {
-          label: 'About Flight Radar',
+          label: 'About Flight Radar...',
           click: () => {
             const cesiumVersion = require(path.join(__dirname, 'package.json')).cesiumVersion;
             dialog.showMessageBox(mainWindow, {
@@ -330,10 +330,10 @@ function buildMenu() {
               title: 'About Flight Radar',
               message: 'Flight Radar',
               detail: [
-                'Version 1.0.0',
+                'Version 0.2',
                 '',
-                'Real-time flight tracking with CesiumJS',
-                'Data: OpenSky Network (ADS-B)',
+                'Real-time flight tracking with data from',
+                'OpenSky Network (ADS-B)',
                 '',
                 `Electron ${process.versions.electron}`,
                 `CesiumJS ${cesiumVersion}`,
