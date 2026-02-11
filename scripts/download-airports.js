@@ -10,7 +10,7 @@ const path = require('path');
 
 const CSV_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv';
 const OUT_DIR = path.join(__dirname, '..', 'data');
-const OUT_FILE = path.join(OUT_DIR, 'airports-db.js');
+const OUT_FILE = path.join(OUT_DIR, 'airports.json');
 
 function fetch(url) {
   return new Promise((resolve, reject) => {
@@ -115,12 +115,7 @@ async function main() {
   // Write output
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const jsLines = airports.map((a) => {
-    const name = a.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `  {icao:"${a.icao}",iata:"${a.iata}",name:"${name}",lat:${a.lat},lon:${a.lon},type:"${a.type}"}`;
-  });
-
-  const content = `// Auto-generated — do not edit. Run: npm run download-data\nvar AIRPORT_DB = [\n${jsLines.join(',\n')}\n];\n`;
+  const content = JSON.stringify(airports);
   fs.writeFileSync(OUT_FILE, content, 'utf8');
 
   console.log(`Wrote ${airports.length} airports to ${OUT_FILE}`);

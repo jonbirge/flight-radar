@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const OUT_DIR = path.join(__dirname, '..', 'data');
-const OUT_FILE = path.join(OUT_DIR, 'airspace-db.js');
+const OUT_FILE = path.join(OUT_DIR, 'airspace.json');
 
 const CLASSES = ['B', 'C', 'D'];
 const REQUEST_TIMEOUT = 20000; // 20s per request
@@ -216,17 +216,7 @@ async function main() {
   // Write output
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const jsLines = allEntries.map((e) => {
-    const name = e.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    const coordStr = JSON.stringify(e.coords);
-    const ceil = e.ceil != null ? e.ceil : 'null';
-    const floor = e.floor != null ? e.floor : 'null';
-    const ceilRef = e.ceilRef ? `"${e.ceilRef}"` : 'null';
-    const floorRef = e.floorRef ? `"${e.floorRef}"` : 'null';
-    return `  {name:"${name}",cls:"${e.cls}",ceil:${ceil},floor:${floor},ceilRef:${ceilRef},floorRef:${floorRef},coords:${coordStr}}`;
-  });
-
-  const content = `// Auto-generated — do not edit. Run: npm run download-airspace\nvar AIRSPACE_DB = [\n${jsLines.join(',\n')}\n];\n`;
+  const content = JSON.stringify(allEntries);
   fs.writeFileSync(OUT_FILE, content, 'utf8');
 
   console.log(`\nSource: ${source}`);
