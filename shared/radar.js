@@ -339,7 +339,7 @@ function renderAircraft() {
       : use3dDot
         ? createDotIcon(scaledSize, isSelected, altColor)
         : createAircraftIcon(s.heading || 0, isSelected, altColor);
-    const iconSize = scaledSize;
+    const iconSize = computeDisplaySize(camHeight);
     const labelColor = altCesiumColor || (isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
       : Cesium.Color.fromCssColorString(CONFIG.phosphor));
@@ -662,7 +662,7 @@ viewer.camera.changed.addEventListener(() => {
     const h = carto.height;
 
     // Re-render aircraft when icon size changes (continuous LOD)
-    const newIconSize = computeIconSize(h, 18);
+    const newIconSize = computeDisplaySize(h);
     if (newIconSize !== lastIconSize) {
       lastIconSize = newIconSize;
       renderAircraft();
