@@ -473,6 +473,25 @@ function renderAircraft() {
 }
 
 // Merge granular API track data with polled history
+function smoothTrailPositions(points) {
+  if (points.length < 3) return points;
+  const smoothed = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    smoothed.push({
+      lon: prev.lon * 0.25 + curr.lon * 0.5 + next.lon * 0.25,
+      lat: prev.lat * 0.25 + curr.lat * 0.5 + next.lat * 0.25,
+      alt: curr.alt,
+      time: curr.time,
+      granular: curr.granular,
+    });
+  }
+  smoothed.push(points[points.length - 1]);
+  return smoothed;
+}
+
 function buildTrailPositions(ac, isSelected = false) {
   const now = Date.now() / 1000;
   const minTime = isSelected ? 0 : now - CONFIG.trailMaxAge;
@@ -531,7 +550,7 @@ function buildTrailPositions(ac, isSelected = false) {
     points = points.slice(segmentStart);
   }
 
-  return points;
+  return smoothTrailPositions(points);
 }
 
 // ============================================================
