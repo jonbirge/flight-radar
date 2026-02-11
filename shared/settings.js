@@ -10,7 +10,7 @@
 
 const SETTINGS_DEFAULTS = {
   fontSize: 12,
-  theme: 'dark',
+  theme: 'light',
   darkColor: '#00cc44',
   colorByAltitude: true,
   thickTrailsByAltitude: false,
@@ -183,8 +183,8 @@ function createSettingsFormHTML() {
     <div class="settings-section">
       <div class="settings-label">DISPLAY MODE</div>
       <div class="settings-row">
-        <button class="settings-theme-btn active" id="set-theme-dark" type="button">DARK</button>
-        <button class="settings-theme-btn" id="set-theme-light" type="button">LIGHT</button>
+        <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
+        <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
       </div>
     </div>
 

@@ -21,7 +21,7 @@ const CONFIG = {
 
   // Visual (dynamically updated by theme system)
   fontSize: 11,
-  theme: 'dark',              // 'dark' | 'light'
+  theme: 'light',             // 'dark' | 'light'
   darkColor: '#00cc44',       // user-selected dark mode color
   phosphor: '#00cc44',
   phosphorBright: '#33ff66',
@@ -83,24 +83,41 @@ function setLightColors() {
   CONFIG.labelOutlineColor = Cesium.Color.WHITE;
 }
 
-// Altitude-to-color: hue 0-300 (red→magenta), s=100%, l=50%
+// HSL to RGB helper (h in degrees, s and l in 0-1)
+function hslToRgb(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r1, g1, b1;
+  if (h < 60)       { r1 = c; g1 = x; b1 = 0; }
+  else if (h < 120) { r1 = x; g1 = c; b1 = 0; }
+  else if (h < 180) { r1 = 0; g1 = c; b1 = x; }
+  else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
+  else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
+  else              { r1 = c; g1 = 0; b1 = x; }
+  return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
+}
+
+// Altitude-to-color: hue 0-300 (red→magenta)
+// Dark mode:  s=100%, l=50% — vivid, glowing on dark background
+// Light mode: s=55%,  l=38% — muted, ink-like on white background
 function altitudeToRgb(altMeters) {
   const altFeet = (altMeters || 0) * 3.28084;
   const clamped = Math.max(0, Math.min(45000, altFeet));
   const hue = (clamped / 45000) * 300;
-  // HSL to RGB (s=1, l=0.5 → chroma=1)
-  const c = 1, x = 1 - Math.abs((hue / 60) % 2 - 1), m = 0;
-  let r1, g1, b1;
-  if (hue < 60)       { r1 = c; g1 = x; b1 = 0; }
-  else if (hue < 120) { r1 = x; g1 = c; b1 = 0; }
-  else if (hue < 180) { r1 = 0; g1 = c; b1 = x; }
-  else if (hue < 240) { r1 = 0; g1 = x; b1 = c; }
-  else                { r1 = x; g1 = 0; b1 = c; }
-  return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
+  if (CONFIG.theme === 'light') {
+    return hslToRgb(hue, 0.55, 0.38);
+  }
+  return hslToRgb(hue, 1.0, 0.5);
 }
 
 function altitudeToSelectedRgb(altMeters) {
   const rgb = altitudeToRgb(altMeters);
+  if (CONFIG.theme === 'light') {
+    // Darken for selection on white background (more contrast)
+    return rgb.map(v => Math.round(v * 0.65));
+  }
+  // Lighten for selection on dark background
   return rgb.map(v => Math.round(v + (255 - v) * 0.4));
 }
 
