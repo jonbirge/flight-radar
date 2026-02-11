@@ -251,6 +251,8 @@ function updateAirportColors() {
 // Airspace Boundaries (Class B / C / D)
 // ============================================================
 
+const FT_TO_M = 0.3048;
+
 const AIRSPACE_COLORS = {
   B: { fill: new Cesium.Color(0.53, 0.81, 0.98, 0.15), outline: new Cesium.Color(0.53, 0.81, 0.98, 1.0) },  // light blue
   C: { fill: new Cesium.Color(1.0, 0.0, 1.0, 0.15),    outline: new Cesium.Color(1.0, 0.0, 1.0, 1.0) },     // magenta
@@ -263,29 +265,56 @@ function initAirspace() {
     return;
   }
 
+  const use3D = CONFIG.airspace3D;
+
   for (const entry of AIRSPACE_DB) {
     const colors = AIRSPACE_COLORS[entry.cls];
     if (!colors || !entry.coords || entry.coords.length < 3) continue;
 
     const positions = entry.coords.map(([lon, lat]) => Cesium.Cartesian3.fromDegrees(lon, lat));
 
+    // Compute floor/ceiling in meters for 3D extrusion
+    const hasAltData = entry.ceil != null && entry.floor != null;
+    const floorM = hasAltData ? entry.floor * FT_TO_M : 0;
+    const ceilM = hasAltData ? entry.ceil * FT_TO_M : 0;
+
+    const polygonOpts = use3D && hasAltData
+      ? {
+          hierarchy: new Cesium.PolygonHierarchy(positions),
+          material: colors.fill,
+          outline: true,
+          outlineColor: colors.outline,
+          outlineWidth: 1,
+          height: floorM,
+          extrudedHeight: ceilM,
+        }
+      : {
+          hierarchy: new Cesium.PolygonHierarchy(positions),
+          material: colors.fill,
+          outline: true,
+          outlineColor: colors.outline,
+          outlineWidth: 1,
+          height: 0,
+          classificationType: Cesium.ClassificationType.BOTH,
+        };
+
     const entity = viewer.entities.add({
-      polygon: {
-        hierarchy: new Cesium.PolygonHierarchy(positions),
-        material: colors.fill,
-        outline: true,
-        outlineColor: colors.outline,
-        outlineWidth: 1,
-        height: 0,
-        classificationType: Cesium.ClassificationType.BOTH,
-      },
+      polygon: polygonOpts,
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 800000),
       show: CONFIG.airspaceEnabled,
     });
     airspaceEntities.push(entity);
   }
 
-  console.log(`[Airspace] Created ${airspaceEntities.length} boundary polygons`);
+  console.log(`[Airspace] Created ${airspaceEntities.length} ${use3D ? '3D volume' : 'flat boundary'} polygons`);
+}
+
+function rebuildAirspace() {
+  for (const entity of airspaceEntities) {
+    viewer.entities.remove(entity);
+  }
+  airspaceEntities.length = 0;
+  initAirspace();
 }
 
 function toggleAirspace(show) {
@@ -293,6 +322,11 @@ function toggleAirspace(show) {
   for (const entity of airspaceEntities) {
     entity.show = show;
   }
+}
+
+function toggleAirspace3D(use3D) {
+  CONFIG.airspace3D = use3D;
+  rebuildAirspace();
 }
 
 // ============================================================
@@ -835,6 +869,10 @@ document.getElementById('toggle-airports').addEventListener('change', (e) => {
 
 document.getElementById('toggle-airspace').addEventListener('change', (e) => {
   toggleAirspace(e.target.checked);
+});
+
+document.getElementById('toggle-airspace-3d').addEventListener('change', (e) => {
+  toggleAirspace3D(e.target.checked);
 });
 
 document.getElementById('toggle-labels').addEventListener('change', (e) => {

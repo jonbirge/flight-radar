@@ -34,6 +34,7 @@ const CONFIG = {
   rotationSpeed: 6,             // degrees per second for camera rotation
   airportsEnabled: true,
   airspaceEnabled: true,
+  airspace3D: true,
 };
 
 // ============================================================
