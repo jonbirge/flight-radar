@@ -181,16 +181,11 @@ function getAirportLabelColor() {
   return Cesium.Color.fromBytes(rgb[0], rgb[1], rgb[2], 180);
 }
 
-function initAirports() {
-  if (typeof AIRPORT_DB === 'undefined') {
-    console.log('[Airports] No AIRPORT_DB found — run: npm run pull-data');
-    return;
-  }
-
+function initAirports(airports) {
   const pointColor = getAirportColor();
   const labelColor = getAirportLabelColor();
 
-  for (const ap of AIRPORT_DB) {
+  for (const ap of airports) {
     const isLarge = ap.type === 'L';
     const label = ap.iata || ap.icao;
     const labelRange = isLarge ? 800000 : 300000;
@@ -259,15 +254,15 @@ const AIRSPACE_COLORS = {
   D: { fill: new Cesium.Color(0.53, 0.81, 0.98, 0.15), outline: new Cesium.Color(0.53, 0.81, 0.98, 1.0) },  // light blue
 };
 
-function initAirspace() {
-  if (typeof AIRSPACE_DB === 'undefined') {
-    console.log('[Airspace] No AIRSPACE_DB found — run: npm run pull-data');
-    return;
-  }
+let airspaceData = null; // cached for rebuild on 3D toggle
+
+function initAirspace(airspace) {
+  if (airspace) airspaceData = airspace;
+  if (!airspaceData) return;
 
   const use3D = CONFIG.airspace3D;
 
-  for (const entry of AIRSPACE_DB) {
+  for (const entry of airspaceData) {
     const colors = AIRSPACE_COLORS[entry.cls];
     if (!colors || !entry.coords || entry.coords.length < 3) continue;
 
@@ -1118,6 +1113,17 @@ document.getElementById('info-close').addEventListener('click', hideAircraftInfo
 // ============================================================
 
 // Load settings from the platform-specific settings API and apply them
+async function loadDataJSON(path) {
+  try {
+    const resp = await fetch(path);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (err) {
+    console.warn('[DataLoader] Failed to load ' + path + ':', err);
+    return null;
+  }
+}
+
 async function loadAndApplySettings() {
   try {
     const saved = await window.flightAPI.getSettings();
@@ -1137,14 +1143,20 @@ async function loadAndApplySettings() {
     console.warn('[Settings] Could not load:', err);
   }
 
+  // Load data files
+  const [airports, airspace] = await Promise.all([
+    loadDataJSON('../data/airports.json'),
+    loadDataJSON('../data/airspace.json'),
+  ]);
+
   // Initialize airport markers (after theme is applied so colors are correct)
-  if (airportEntities.length === 0) {
-    initAirports();
+  if (airportEntities.length === 0 && airports) {
+    initAirports(airports);
   }
 
   // Initialize airspace boundaries
-  if (airspaceEntities.length === 0) {
-    initAirspace();
+  if (airspaceEntities.length === 0 && airspace) {
+    initAirspace(airspace);
   }
 }
 
