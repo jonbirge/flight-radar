@@ -130,6 +130,12 @@ function computeIconSize(camHeight, baseSize) {
   return Math.max(MIN_SIZE, Math.round(baseSize * (1 - t) + MIN_SIZE * t) + 1);
 }
 
+// Display size for billboards: 2px at CONUS, 5px at city, linear transition
+function computeDisplaySize(camHeight) {
+  const t = getZoomFraction(camHeight);
+  return Math.round(5 - 3 * t);
+}
+
 const POLL_STEPS = [10, 20, 30, 60]; // seconds
 
 function computePollInterval(camHeight) {
