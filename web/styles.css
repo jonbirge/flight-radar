@@ -23,7 +23,6 @@
   border: 1px solid var(--phosphor);
   border-radius: 6px;
   width: 380px;
-  box-shadow: 0 0 40px rgba(0, 204, 68, 0.15);
   font-size: 11px;
 }
 
@@ -103,7 +102,6 @@
 body.theme-light #settings-panel {
   background: rgba(240, 240, 240, 0.95);
   border-color: rgba(0, 0, 0, 0.3);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
 body.theme-light #settings-container {
