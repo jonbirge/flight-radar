@@ -57,7 +57,7 @@ async function fetchFAAClass(cls) {
   while (true) {
     const params = new URLSearchParams({
       where: `CLASS='${cls}'`,
-      outFields: 'NAME,CLASS',
+      outFields: 'NAME,CLASS,UPPER_VAL,UPPER_UOM,UPPER_CODE,LOWER_VAL,LOWER_UOM,LOWER_CODE,SECTOR',
       f: 'geojson',
       resultOffset: String(offset),
       resultRecordCount: String(BATCH_SIZE),
@@ -81,14 +81,19 @@ function parseFAAFeatures(features, cls) {
   const entries = [];
   for (const f of features) {
     const name = (f.properties.NAME || '').trim();
+    const p = f.properties;
+    const ceil = p.UPPER_VAL != null ? p.UPPER_VAL : null;
+    const floor = p.LOWER_VAL != null ? p.LOWER_VAL : null;
+    const ceilRef = p.UPPER_CODE || null;  // "MSL"
+    const floorRef = p.LOWER_CODE || null; // "SFC" or "MSL"
     const geom = f.geometry;
     if (!geom || !geom.coordinates) continue;
 
     if (geom.type === 'Polygon') {
-      entries.push({ name, cls, coords: roundCoords(geom.coordinates[0]) });
+      entries.push({ name, cls, ceil, floor, ceilRef, floorRef, coords: roundCoords(geom.coordinates[0]) });
     } else if (geom.type === 'MultiPolygon') {
       for (const poly of geom.coordinates) {
-        entries.push({ name, cls, coords: roundCoords(poly[0]) });
+        entries.push({ name, cls, ceil, floor, ceilRef, floorRef, coords: roundCoords(poly[0]) });
       }
     }
   }
@@ -113,11 +118,12 @@ function parseGitHubFeatures(features, cls) {
     const geom = f.geometry;
     if (!geom || !geom.coordinates) continue;
 
+    // GitHub fallback doesn't include altitude data
     if (geom.type === 'Polygon') {
-      entries.push({ name, cls, coords: roundCoords(geom.coordinates[0]) });
+      entries.push({ name, cls, ceil: null, floor: null, ceilRef: null, floorRef: null, coords: roundCoords(geom.coordinates[0]) });
     } else if (geom.type === 'MultiPolygon') {
       for (const poly of geom.coordinates) {
-        entries.push({ name, cls, coords: roundCoords(poly[0]) });
+        entries.push({ name, cls, ceil: null, floor: null, ceilRef: null, floorRef: null, coords: roundCoords(poly[0]) });
       }
     }
   }
@@ -213,7 +219,11 @@ async function main() {
   const jsLines = allEntries.map((e) => {
     const name = e.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     const coordStr = JSON.stringify(e.coords);
-    return `  {name:"${name}",cls:"${e.cls}",coords:${coordStr}}`;
+    const ceil = e.ceil != null ? e.ceil : 'null';
+    const floor = e.floor != null ? e.floor : 'null';
+    const ceilRef = e.ceilRef ? `"${e.ceilRef}"` : 'null';
+    const floorRef = e.floorRef ? `"${e.floorRef}"` : 'null';
+    return `  {name:"${name}",cls:"${e.cls}",ceil:${ceil},floor:${floor},ceilRef:${ceilRef},floorRef:${floorRef},coords:${coordStr}}`;
   });
 
   const content = `// Auto-generated — do not edit. Run: npm run download-airspace\nvar AIRSPACE_DB = [\n${jsLines.join(',\n')}\n];\n`;
