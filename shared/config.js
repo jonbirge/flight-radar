@@ -32,6 +32,7 @@ const CONFIG = {
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   rotationSpeed: 6,             // degrees per second for camera rotation
+  airportsEnabled: true,
 };
 
 // ============================================================

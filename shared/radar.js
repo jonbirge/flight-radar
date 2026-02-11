@@ -11,6 +11,7 @@
 
 const aircraft = new Map();       // icao24 -> aircraft state object
 const trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
+const airportEntities = [];       // Cesium entities for airport markers
 let pollTimer = null;
 let trackTimer = null;
 let viewer = null;
@@ -144,6 +145,9 @@ function applyTheme() {
 
   // Force re-render all aircraft entities with new colors/sizes
   refreshAllEntities();
+
+  // Update airport marker colors to match theme
+  updateAirportColors();
 }
 
 // Destroy and re-create all aircraft entities to pick up new theme
@@ -158,6 +162,88 @@ function refreshAllEntities() {
     removeTrailEntities(ac);
   }
   renderAircraft();
+}
+
+// ============================================================
+// Airport Markers
+// ============================================================
+
+function getAirportColor() {
+  return Cesium.Color.WHITE;
+}
+
+function getAirportLabelColor() {
+  if (CONFIG.theme === 'light') {
+    return Cesium.Color.fromCssColorString('rgba(80, 80, 80, 0.85)');
+  }
+  const rgb = CONFIG.trailColor;
+  return Cesium.Color.fromBytes(rgb[0], rgb[1], rgb[2], 180);
+}
+
+function initAirports() {
+  if (typeof AIRPORT_DB === 'undefined') {
+    console.log('[Airports] No AIRPORT_DB found — run: npm run download-data');
+    return;
+  }
+
+  const pointColor = getAirportColor();
+  const labelColor = getAirportLabelColor();
+
+  for (const ap of AIRPORT_DB) {
+    const isLarge = ap.type === 'L';
+    const label = ap.iata || ap.icao;
+    const labelRange = isLarge ? 800000 : 300000;
+
+    // Scale dots down with distance: full size at 100km, 3px at CONUS (~6000km)
+    const farScale = isLarge ? (3 / 10) : (3 / 6);
+    const dotScale = new Cesium.NearFarScalar(1e5, 1.0, 6e6, farScale);
+
+    const entity = viewer.entities.add({
+      // Slight altitude keeps dots above the globe surface at oblique angles
+      position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 500),
+      point: {
+        pixelSize: isLarge ? 10 : 6,
+        color: pointColor,
+        outlineWidth: 0,
+        scaleByDistance: dotScale,
+      },
+      label: {
+        text: label,
+        font: '14px Consolas, monospace',
+        fillColor: labelColor,
+        outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, 10),
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        verticalOrigin: Cesium.VerticalOrigin.TOP,
+        scale: 0.85,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, labelRange),
+      },
+      show: CONFIG.airportsEnabled,
+    });
+    airportEntities.push(entity);
+  }
+
+  console.log(`[Airports] Created ${airportEntities.length} markers`);
+}
+
+function toggleAirports(show) {
+  CONFIG.airportsEnabled = show;
+  for (const entity of airportEntities) {
+    entity.show = show;
+  }
+}
+
+function updateAirportColors() {
+  const pointColor = getAirportColor();
+  const labelColor = getAirportLabelColor();
+  const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
+  for (const entity of airportEntities) {
+    entity.point.color = pointColor;
+    entity.label.fillColor = labelColor;
+    entity.label.outlineColor = outlineColor;
+  }
 }
 
 // ============================================================
@@ -694,6 +780,10 @@ document.getElementById('toggle-trails').addEventListener('change', (e) => {
   renderAircraft();
 });
 
+document.getElementById('toggle-airports').addEventListener('change', (e) => {
+  toggleAirports(e.target.checked);
+});
+
 document.getElementById('toggle-labels').addEventListener('change', (e) => {
   CONFIG.labelsEnabled = e.target.checked;
   for (const [, ac] of aircraft) {
@@ -954,6 +1044,11 @@ async function loadAndApplySettings() {
     }
   } catch (err) {
     console.warn('[Settings] Could not load:', err);
+  }
+
+  // Initialize airport markers (after theme is applied so colors are correct)
+  if (airportEntities.length === 0) {
+    initAirports();
   }
 }
 
