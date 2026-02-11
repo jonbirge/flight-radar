@@ -1,8 +1,5 @@
 node_modules/
 vendor/
 dist/
-.claude/
-cred.json
-nul
 assets/*.png
-data/
+cred.json

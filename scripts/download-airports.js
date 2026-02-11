@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Download OurAirports data and generate a filtered JS database.
-// Run: npm run download-data
+// Run: npm run pull-data
 
 'use strict';
 
