@@ -68,4 +68,4 @@ Camera viewport bounds are sent to the main process (Electron) or fetched direct
 
 For shared functionality (renderer logic, styles, UI controls, data formatting), edit the appropriate `shared/` module — changes automatically apply to both platforms. For platform-specific behavior (API calls, settings persistence, auth), edit `src/renderer.js` (Electron) or `web/app.js` (web).
 
-The web version intentionally omits the CONUS button (present in the Electron version) since zooming out to the full continental US scope is impractical for a public web deployment. This difference should be preserved.
+Both the Electron and web versions include the CONUS button. `shared/radar.js` guards with a null check so it works on both platforms.
