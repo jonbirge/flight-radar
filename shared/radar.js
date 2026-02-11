@@ -129,11 +129,13 @@ function applyTheme() {
   // Update CSS custom properties for dynamic dark mode colors
   if (isDark) {
     const root = document.documentElement;
+    const [r, g, b] = hexToRgb(CONFIG.darkColor);
     root.style.setProperty('--phosphor', CONFIG.phosphor);
     root.style.setProperty('--phosphor-bright', CONFIG.phosphorBright);
     root.style.setProperty('--phosphor-dim', CONFIG.phosphorDim);
     root.style.setProperty('--phosphor-faint', withAlpha(CONFIG.darkColor, 0.15));
     root.style.setProperty('--border', withAlpha(CONFIG.darkColor, 0.3));
+    root.style.setProperty('--panel-bg', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.85)`);
   } else {
     // Light mode CSS variables are handled by the theme-light class overrides
     const root = document.documentElement;
@@ -142,6 +144,7 @@ function applyTheme() {
     root.style.removeProperty('--phosphor-dim');
     root.style.removeProperty('--phosphor-faint');
     root.style.removeProperty('--border');
+    root.style.removeProperty('--panel-bg');
   }
 
   // Force re-render all aircraft entities with new colors/sizes
