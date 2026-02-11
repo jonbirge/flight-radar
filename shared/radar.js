@@ -12,6 +12,7 @@
 const aircraft = new Map();       // icao24 -> aircraft state object
 const trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
 const airportEntities = [];       // Cesium entities for airport markers
+const airspaceEntities = [];     // Cesium entities for airspace polygons
 let pollTimer = null;
 let trackTimer = null;
 let viewer = null;
@@ -182,7 +183,7 @@ function getAirportLabelColor() {
 
 function initAirports() {
   if (typeof AIRPORT_DB === 'undefined') {
-    console.log('[Airports] No AIRPORT_DB found — run: npm run download-data');
+    console.log('[Airports] No AIRPORT_DB found — run: npm run pull-data');
     return;
   }
 
@@ -243,6 +244,54 @@ function updateAirportColors() {
     entity.point.color = pointColor;
     entity.label.fillColor = labelColor;
     entity.label.outlineColor = outlineColor;
+  }
+}
+
+// ============================================================
+// Airspace Boundaries (Class B / C / D)
+// ============================================================
+
+const AIRSPACE_COLORS = {
+  B: { fill: new Cesium.Color(0.53, 0.81, 0.98, 0.15), outline: new Cesium.Color(0.53, 0.81, 0.98, 1.0) },  // light blue
+  C: { fill: new Cesium.Color(1.0, 0.0, 1.0, 0.15),    outline: new Cesium.Color(1.0, 0.0, 1.0, 1.0) },     // magenta
+  D: { fill: new Cesium.Color(0.27, 0.51, 0.97, 0.15),  outline: new Cesium.Color(0.27, 0.51, 0.97, 1.0) },  // blue
+};
+
+function initAirspace() {
+  if (typeof AIRSPACE_DB === 'undefined') {
+    console.log('[Airspace] No AIRSPACE_DB found — run: npm run pull-data');
+    return;
+  }
+
+  for (const entry of AIRSPACE_DB) {
+    const colors = AIRSPACE_COLORS[entry.cls];
+    if (!colors || !entry.coords || entry.coords.length < 3) continue;
+
+    const positions = entry.coords.map(([lon, lat]) => Cesium.Cartesian3.fromDegrees(lon, lat));
+
+    const entity = viewer.entities.add({
+      polygon: {
+        hierarchy: new Cesium.PolygonHierarchy(positions),
+        material: colors.fill,
+        outline: true,
+        outlineColor: colors.outline,
+        outlineWidth: 1,
+        height: 0,
+        classificationType: Cesium.ClassificationType.BOTH,
+      },
+      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 800000),
+      show: CONFIG.airspaceEnabled,
+    });
+    airspaceEntities.push(entity);
+  }
+
+  console.log(`[Airspace] Created ${airspaceEntities.length} boundary polygons`);
+}
+
+function toggleAirspace(show) {
+  CONFIG.airspaceEnabled = show;
+  for (const entity of airspaceEntities) {
+    entity.show = show;
   }
 }
 
@@ -784,6 +833,10 @@ document.getElementById('toggle-airports').addEventListener('change', (e) => {
   toggleAirports(e.target.checked);
 });
 
+document.getElementById('toggle-airspace').addEventListener('change', (e) => {
+  toggleAirspace(e.target.checked);
+});
+
 document.getElementById('toggle-labels').addEventListener('change', (e) => {
   CONFIG.labelsEnabled = e.target.checked;
   for (const [, ac] of aircraft) {
@@ -1049,6 +1102,11 @@ async function loadAndApplySettings() {
   // Initialize airport markers (after theme is applied so colors are correct)
   if (airportEntities.length === 0) {
     initAirports();
+  }
+
+  // Initialize airspace boundaries
+  if (airspaceEntities.length === 0) {
+    initAirspace();
   }
 }
 

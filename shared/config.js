@@ -33,6 +33,7 @@ const CONFIG = {
   thickTrailsByAltitude: false,
   rotationSpeed: 6,             // degrees per second for camera rotation
   airportsEnabled: true,
+  airspaceEnabled: true,
 };
 
 // ============================================================

@@ -10,7 +10,7 @@
     "dev": "electron . --dev",
     "postinstall": "node scripts/copy-cesium.js",
     "setup": "node scripts/copy-cesium.js",
-    "download-data": "node scripts/download-airports.js",
+    "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js",
     "pack": "electron-builder --win dir",
     "dist": "electron-builder --win nsis"
   },
