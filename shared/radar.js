@@ -406,7 +406,7 @@ function renderAircraft() {
       const trailPoints = buildTrailPositions(ac, isSelected);
 
       if (trailPoints.length >= 2) {
-        // Determine base trail width
+        // Determine base trail width, then scale down with zoom
         let trailWidth;
         if (CONFIG.thickTrailsByAltitude) {
           trailWidth = altitudeToTrailWidth(s.altitude);
@@ -414,6 +414,8 @@ function renderAircraft() {
         } else {
           trailWidth = isSelected ? 4 : 3;
         }
+        const zoomT = getZoomFraction(camHeight);
+        trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
 
         // Teardown previous trail entities
         removeTrailEntities(ac);
