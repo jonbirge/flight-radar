@@ -14,6 +14,7 @@ const SETTINGS_DEFAULTS = {
   darkColor: '#00cc44',
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+  rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
 };
@@ -210,6 +211,14 @@ function createSettingsFormHTML() {
       </div>
     </div>
 
+    <div class="settings-section">
+      <div class="settings-label">ROTATION SPEED</div>
+      <div class="settings-row">
+        <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
+        <span class="settings-fontsize-val" id="set-rotation-speed-val">3 &deg;/s</span>
+      </div>
+    </div>
+
     <div class="settings-section" style="border-bottom:none;">
       <div class="settings-label">OPENSKY NETWORK CREDENTIALS</div>
       <div class="settings-hint">
@@ -269,6 +278,12 @@ function populateSettingsForm(container, settings) {
   container.querySelector('#set-color-by-alt').checked = s.colorByAltitude;
   container.querySelector('#set-thick-trails').checked = s.thickTrailsByAltitude;
 
+  // Rotation speed
+  const rotSlider = container.querySelector('#set-rotation-speed');
+  const rotVal = container.querySelector('#set-rotation-speed-val');
+  rotSlider.value = s.rotationSpeed;
+  rotVal.textContent = `${s.rotationSpeed} \u00B0/s`;
+
   // Credentials
   container.querySelector('#set-client-id').value = s.openskyClientId || '';
   container.querySelector('#set-client-secret').value = s.openskyClientSecret || '';
@@ -301,6 +316,8 @@ function initSettingsPanel(options) {
   const customColor = container.querySelector('#set-custom-color');
   const colorByAlt = container.querySelector('#set-color-by-alt');
   const thickTrails = container.querySelector('#set-thick-trails');
+  const rotSlider = container.querySelector('#set-rotation-speed');
+  const rotVal = container.querySelector('#set-rotation-speed-val');
   const clientId = container.querySelector('#set-client-id');
   const clientSecret = container.querySelector('#set-client-secret');
 
@@ -314,6 +331,7 @@ function initSettingsPanel(options) {
       darkColor: formState.darkColor,
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
+      rotationSpeed: parseInt(rotSlider.value),
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
     };
@@ -396,6 +414,12 @@ function initSettingsPanel(options) {
 
   thickTrails.addEventListener('change', () => {
     broadcast();
+  });
+
+  // --- Rotation speed slider ---
+  rotSlider.addEventListener('input', () => {
+    rotVal.textContent = `${rotSlider.value} \u00B0/s`;
+    debouncedBroadcast();
   });
 
   // --- Credentials (fire on blur/change, not every keystroke) ---

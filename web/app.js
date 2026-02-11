@@ -272,6 +272,7 @@ const settingsPanel = initSettingsPanel({
     darkColor: CONFIG.darkColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
+    rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
   }),
@@ -281,6 +282,7 @@ const settingsPanel = initSettingsPanel({
     CONFIG.darkColor = form.darkColor;
     CONFIG.colorByAltitude = form.colorByAltitude;
     CONFIG.thickTrailsByAltitude = form.thickTrailsByAltitude;
+    CONFIG.rotationSpeed = form.rotationSpeed;
     CONFIG.openskyClientId = form.openskyClientId;
     CONFIG.openskyClientSecret = form.openskyClientSecret;
     applyTheme();
@@ -297,6 +299,7 @@ function openSettings() {
     darkColor: CONFIG.darkColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
+    rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
   });

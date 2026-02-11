@@ -809,8 +809,6 @@ document.getElementById('btn-3d').addEventListener('click', () => {
 function startRotation() {
   if (rotateHandler) return;
   frozenBounds = getViewBounds();
-  const RATE = Cesium.Math.toRadians(3); // degrees per second
-
   // Determine the ground point, pitch, and range at the moment rotation starts
   const ray = viewer.camera.getPickRay(new Cesium.Cartesian2(
     viewer.canvas.clientWidth / 2, viewer.canvas.clientHeight / 2
@@ -831,7 +829,8 @@ function startRotation() {
     const now = Date.now();
     const dt = (now - lastTime) / 1000;
     lastTime = now;
-    currentHeading = (currentHeading + RATE * dt) % Cesium.Math.TWO_PI;
+    const rate = Cesium.Math.toRadians(CONFIG.rotationSpeed || 6);
+    currentHeading = (currentHeading + rate * dt) % Cesium.Math.TWO_PI;
     viewer.camera.lookAt(
       groundPoint,
       new Cesium.HeadingPitchRange(currentHeading, pitch, range)
@@ -945,6 +944,7 @@ async function loadAndApplySettings() {
       CONFIG.darkColor = saved.darkColor || '#00cc44';
       CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
       CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
+      CONFIG.rotationSpeed = saved.rotationSpeed || 3;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;

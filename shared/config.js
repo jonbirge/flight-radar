@@ -31,6 +31,7 @@ const CONFIG = {
   labelOutlineColor: Cesium.Color.BLACK,
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+  rotationSpeed: 6,             // degrees per second for camera rotation
 };
 
 // ============================================================
