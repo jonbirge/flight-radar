@@ -37,7 +37,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Flight Radar"
+      "shortcutName": "3D Flight Radar"
     },
     "directories": {
       "output": "dist"

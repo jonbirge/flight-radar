@@ -273,7 +273,7 @@ function createWindow() {
     width: 1600,
     height: 1000,
     backgroundColor: '#000000',
-    title: 'Flight Radar - FAA Scope',
+    title: '3D Flight Radar - FAA Scope',
     icon: path.join(__dirname, 'assets', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -322,13 +322,13 @@ function buildMenu() {
       label: 'Help',
       submenu: [
         {
-          label: 'About Flight Radar...',
+          label: 'About 3D Flight Radar...',
           click: () => {
             const cesiumVersion = require(path.join(__dirname, 'package.json')).cesiumVersion;
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: 'About Flight Radar',
-              message: 'Flight Radar',
+              title: 'About 3D Flight Radar',
+              message: '3D Flight Radar',
               detail: [
                 'Version 0.2',
                 '',
