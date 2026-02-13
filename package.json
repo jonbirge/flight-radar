@@ -4,7 +4,7 @@
   "description": "Real-time US flight tracker with FAA radar center aesthetic",
   "main": "main.js",
   "author": "Jonathan Birge",
-  "cesiumVersion": "1.119.0",
+  "cesiumVersion": "1.138.0",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
@@ -45,8 +45,8 @@
     }
   },
   "devDependencies": {
-    "cesium": "1.119.0",
-    "electron": "^35.7.5",
-    "electron-builder": "^26.7.0"
+    "cesium": "*",
+    "electron": "*",
+    "electron-builder": "*"
   }
 }
