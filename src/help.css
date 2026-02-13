@@ -1,0 +1,143 @@
+/* Help window — native OS styling with dark/light mode */
+
+/* ============================================================
+   Light mode (default)
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 16px 24px 24px;
+  user-select: text;
+  background: #f0f0f0;
+  color: #333;
+}
+
+h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.version {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 16px;
+}
+
+h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ccc;
+}
+
+h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 14px 0 4px;
+}
+
+p {
+  margin: 4px 0 8px;
+}
+
+ul {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+li {
+  margin: 2px 0;
+}
+
+kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  background: #e0e0e0;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+th, td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  font-weight: 600;
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+code {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  background: #e8e8e8;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* ============================================================
+   Dark mode (OS preference)
+   ============================================================ */
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #2d2d2d;
+    color: #e0e0e0;
+  }
+
+  h2 {
+    border-bottom-color: #555;
+  }
+
+  .version {
+    color: #888;
+  }
+
+  th {
+    color: #aaa;
+  }
+
+  th, td {
+    border-bottom-color: #444;
+  }
+
+  kbd {
+    background: #444;
+    border-color: #666;
+    color: #e0e0e0;
+  }
+
+  code {
+    background: #3a3a3a;
+  }
+}
