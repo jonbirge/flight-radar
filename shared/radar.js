@@ -887,9 +887,9 @@ document.getElementById('toggle-airspace-3d').addEventListener('change', (e) => 
 
 document.getElementById('toggle-labels').addEventListener('change', (e) => {
   CONFIG.labelsEnabled = e.target.checked;
-  for (const [, ac] of aircraft) {
+  for (const [icao, ac] of aircraft) {
     if (ac.entity && ac.entity.label) {
-      ac.entity.label.show = e.target.checked;
+      ac.entity.label.show = e.target.checked || icao === selectedIcao;
     }
   }
 });
@@ -1057,8 +1057,17 @@ document.getElementById('btn-rotate').addEventListener('click', () => {
 // Aircraft Selection (click to inspect)
 // ============================================================
 
+// Track window focus so the activation click (bringing window to front)
+// doesn't accidentally deselect the current aircraft.
+let focusTime = 0;
+window.addEventListener('focus', () => { focusTime = Date.now(); });
+
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction((click) => {
+  // Ignore clicks within 300ms of the window regaining focus — these are
+  // activation clicks that the user intended to bring the window to front,
+  // not to deselect the current aircraft.
+  if (Date.now() - focusTime < 300) return;
   const picked = viewer.scene.pick(click.position);
   if (Cesium.defined(picked) && picked.id && picked.id.id && picked.id.id.startsWith('ac-')) {
     const icao = picked.id.id.replace('ac-', '');
