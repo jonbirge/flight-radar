@@ -6,42 +6,33 @@ header('Content-Type: application/json');
 
 $TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 $CRED_FILE = __DIR__ . '/cred.json';
-$CACHE_FILE = sys_get_temp_dir() . '/opensky_token_cache.json';
+// Load credentials: prefer POST body, fall back to cred.json
+$input = json_decode(file_get_contents('php://input'), true);
+$clientId     = !empty($input['client_id'])     ? $input['client_id']     : null;
+$clientSecret = !empty($input['client_secret']) ? $input['client_secret'] : null;
 
-// Load credentials
-if (!file_exists($CRED_FILE)) {
-    http_response_code(404);
-    echo json_encode(['error' => 'No credentials configured']);
-    exit;
-}
-
-$creds = json_decode(file_get_contents($CRED_FILE), true);
-if (!$creds || empty($creds['openskyClientId']) || empty($creds['openskyClientSecret'])) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Invalid credentials file']);
-    exit;
-}
-
-// Check cache
-if (file_exists($CACHE_FILE)) {
-    $cache = json_decode(file_get_contents($CACHE_FILE), true);
-    if ($cache && isset($cache['access_token'], $cache['expires_at'])) {
-        // Return cached token if still valid (60s buffer)
-        if ($cache['expires_at'] > time() + 60) {
-            echo json_encode([
-                'access_token' => $cache['access_token'],
-                'expires_in'   => $cache['expires_at'] - time(),
-            ]);
-            exit;
+if (!$clientId || !$clientSecret) {
+    // Fall back to server-side cred.json
+    if (file_exists($CRED_FILE)) {
+        $creds = json_decode(file_get_contents($CRED_FILE), true);
+        if ($creds) {
+            $clientId     = $clientId     ?: ($creds['client_id']     ?? null);
+            $clientSecret = $clientSecret ?: ($creds['client_secret'] ?? null);
         }
     }
 }
 
-// Fetch new token
+if (empty($clientId) || empty($clientSecret)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'No credentials provided or configured']);
+    exit;
+}
+
+// Fetch token
 $postData = http_build_query([
     'grant_type'    => 'client_credentials',
-    'client_id'     => $creds['openskyClientId'],
-    'client_secret' => $creds['openskyClientSecret'],
+    'client_id'     => $clientId,
+    'client_secret' => $clientSecret,
 ]);
 
 $ch = curl_init($TOKEN_URL);
@@ -70,14 +61,7 @@ if (!$data || empty($data['access_token'])) {
     exit;
 }
 
-// Cache token
-$expiresIn = $data['expires_in'] ?? 1500;
-file_put_contents($CACHE_FILE, json_encode([
-    'access_token' => $data['access_token'],
-    'expires_at'   => time() + $expiresIn,
-]));
-
 echo json_encode([
     'access_token' => $data['access_token'],
-    'expires_in'   => $expiresIn,
+    'expires_in'   => $data['expires_in'] ?? 1500,
 ]);

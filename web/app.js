@@ -58,12 +58,18 @@ const TRACK_MIN_INTERVAL = 10000;
 let cachedToken = null;
 let tokenExpiresAt = 0;
 
-async function fetchTokenViaProxy() {
+async function fetchTokenViaProxy(clientId, clientSecret) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const resp = await fetch('cred.php', { signal: controller.signal });
+    const opts = { signal: controller.signal };
+    if (clientId && clientSecret) {
+      opts.method = 'POST';
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify({ client_id: clientId, client_secret: clientSecret });
+    }
+    const resp = await fetch('cred.php', opts);
     clearTimeout(timeout);
     if (!resp.ok) throw new Error(`Token proxy failed: HTTP ${resp.status}`);
     return await resp.json();
@@ -84,7 +90,7 @@ async function getOpenSkyToken() {
   if (s.openskyClientId && s.openskyClientSecret) {
     console.log('[OpenSky] Fetching token via server proxy (cred.php)...');
     try {
-      const resp = await fetchTokenViaProxy();
+      const resp = await fetchTokenViaProxy(s.openskyClientId, s.openskyClientSecret);
       if (resp.access_token) {
         cachedToken = resp.access_token;
         tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
