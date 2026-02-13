@@ -614,8 +614,10 @@ function renderAircraft() {
               if (runPoints.length >= 2) {
                 const midAlt = ((currentBucket + 0.5) * 1500) / 3.28084; // bucket midpoint in meters
                 const rgb = isSelected ? altitudeToSelectedRgb(midAlt) : altitudeToRgb(midAlt);
-                const trailAlpha = isSelected ? 255 : 160;
-                const material = Cesium.Color.fromBytes(rgb[0], rgb[1], rgb[2], trailAlpha);
+                // Mute trail colors in dark mode to avoid overly bright opaque trails
+                const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
+                const material = Cesium.Color.fromBytes(
+                  Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
                 const positions = runPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
                 ac.trailEntities.push(viewer.entities.add({
                   polyline: {
@@ -632,9 +634,11 @@ function renderAircraft() {
           }
         } else {
           // Single-color trail
-          const trailAlpha = isSelected ? 255 : 160;
           const trailRgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
-          const trailMaterial = Cesium.Color.fromBytes(trailRgb[0], trailRgb[1], trailRgb[2], trailAlpha);
+          // Mute trail colors in dark mode to avoid overly bright opaque trails
+          const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
+          const trailMaterial = Cesium.Color.fromBytes(
+            Math.round(trailRgb[0] * mute), Math.round(trailRgb[1] * mute), Math.round(trailRgb[2] * mute), 255);
           const positions = trailPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
           ac.trailEntities.push(viewer.entities.add({
             polyline: {
