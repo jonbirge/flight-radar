@@ -110,6 +110,18 @@ const SETTINGS_CSS = `
   font-family: system-ui, -apple-system, sans-serif;
 }
 
+.settings-cred-section {
+  transition: background 0.15s, border-color 0.15s;
+  border: 2px dashed transparent;
+  border-radius: 6px;
+  margin: -6px;
+  padding: 6px;
+}
+.settings-cred-section.drag-over {
+  border-color: var(--settings-label-color, #666);
+  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.04));
+}
+
 .settings-theme-btn {
   padding: 5px 14px;
   font-size: 11px;
@@ -220,19 +232,22 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-section" style="border-bottom:none;">
-      <div class="settings-label">OPENSKY NETWORK CREDENTIALS</div>
-      <div class="settings-hint">
-        OAuth2 Client ID &amp; Secret from your OpenSky account. Leave blank for anonymous access (lower rate limits).
-      </div>
-      <div class="settings-row" style="margin-bottom:6px">
-        <span class="settings-field-label">CLIENT ID</span>
-        <input type="text" id="set-client-id" class="settings-cred-input"
-               placeholder="client_id" spellcheck="false" autocomplete="off">
-      </div>
-      <div class="settings-row">
-        <span class="settings-field-label">SECRET</span>
-        <input type="text" id="set-client-secret" class="settings-cred-input"
-               placeholder="client_secret" autocomplete="off">
+      <div class="settings-cred-section" id="cred-drop-zone">
+        <div class="settings-label">OPENSKY NETWORK CREDENTIALS</div>
+        <div class="settings-hint">
+          OAuth2 Client ID &amp; Secret from your OpenSky account. Leave blank for anonymous access (lower rate limits).
+          You can also drag &amp; drop a credentials JSON file here.
+        </div>
+        <div class="settings-row" style="margin-bottom:6px">
+          <span class="settings-field-label">CLIENT ID</span>
+          <input type="text" id="set-client-id" class="settings-cred-input"
+                 placeholder="client_id" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <span class="settings-field-label">SECRET</span>
+          <input type="text" id="set-client-secret" class="settings-cred-input"
+                 placeholder="client_secret" autocomplete="off">
+        </div>
       </div>
     </div>
   `;
@@ -425,6 +440,54 @@ function initSettingsPanel(options) {
   // --- Credentials (fire on blur/change, not every keystroke) ---
   clientId.addEventListener('change', broadcast);
   clientSecret.addEventListener('change', broadcast);
+
+  // --- Credential JSON drag-and-drop ---
+  const credDropZone = container.querySelector('#cred-drop-zone');
+  if (credDropZone) {
+    let dragCounter = 0;
+
+    credDropZone.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      credDropZone.classList.add('drag-over');
+    });
+
+    credDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    credDropZone.addEventListener('dragleave', () => {
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        credDropZone.classList.remove('drag-over');
+      }
+    });
+
+    credDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      credDropZone.classList.remove('drag-over');
+
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const json = JSON.parse(reader.result);
+          const id = json.client_id || json.clientId || json.openskyClientId || '';
+          const secret = json.client_secret || json.clientSecret || json.openskyClientSecret || '';
+          if (id) clientId.value = id;
+          if (secret) clientSecret.value = secret;
+          if (id || secret) broadcast();
+        } catch (_) {
+          // Silently ignore non-JSON files
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
 
   // --- Load initial settings ---
   async function loadAndPopulate() {
