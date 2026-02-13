@@ -144,10 +144,6 @@ const SETTINGS_CSS = `
   border-color: var(--settings-btn-active-border, #333);
 }
 
-#dark-color-section.color-disabled {
-  opacity: 0.3;
-  pointer-events: none;
-}
 
 .settings-toggle-label {
   display: flex;
@@ -271,9 +267,7 @@ function populateSettingsForm(container, settings) {
   btnDark.classList.toggle('active', s.theme === 'dark');
   btnLight.classList.toggle('active', s.theme === 'light');
 
-  // Dark color section visibility
   const darkSection = container.querySelector('#dark-color-section');
-  darkSection.style.display = s.theme === 'dark' ? '' : 'none';
 
   // Color swatches
   const swatches = container.querySelectorAll('.color-swatch');
@@ -284,10 +278,6 @@ function populateSettingsForm(container, settings) {
     if (match) isPreset = true;
   });
   container.querySelector('#set-custom-color').value = s.darkColor;
-
-  // Color-by-altitude dimming
-  const colorDisabled = s.theme === 'dark' && s.colorByAltitude;
-  darkSection.classList.toggle('color-disabled', colorDisabled);
 
   // Altitude checkboxes
   container.querySelector('#set-color-by-alt').checked = s.colorByAltitude;
@@ -358,10 +348,7 @@ function initSettingsPanel(options) {
   }
 
   function updateDarkSectionState() {
-    const isDark = formState.theme === 'dark';
-    darkSection.style.display = isDark ? '' : 'none';
-    const colorDisabled = isDark && colorByAlt.checked;
-    darkSection.classList.toggle('color-disabled', colorDisabled);
+    // Color section always visible and interactive
   }
 
   function updateSwatchActive(selectedColor) {
