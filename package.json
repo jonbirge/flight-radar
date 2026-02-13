@@ -1,9 +1,9 @@
 {
   "name": "flight-radar",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Real-time US flight tracker with FAA radar center aesthetic",
   "main": "main.js",
-  "author": "Jon",
+  "author": "Jonathan Birge",
   "cesiumVersion": "1.119.0",
   "scripts": {
     "start": "electron .",
