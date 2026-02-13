@@ -365,7 +365,7 @@ function buildMenu() {
               title: 'About 3D Flight Radar',
               message: '3D Flight Radar',
               detail: [
-                'Version 0.2',
+                `Version ${require(path.join(__dirname, 'package.json')).version}`,
                 '',
                 'Real-time flight tracking with data from',
                 'OpenSky Network (ADS-B)',
