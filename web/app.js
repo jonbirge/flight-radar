@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   savedView: null,
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+  airspaceEdges: true,
 };
 
 function loadSettings() {
@@ -46,39 +47,12 @@ function saveSettings(settings) {
 // ============================================================
 
 const OPENSKY_BASE = 'https://opensky-network.org/api';
-const OPENSKY_TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 
 // Rate limiting state
 let lastStatesCall = 0;
 let lastTrackCall = 0;
 const STATES_MIN_INTERVAL = 10000;
 const TRACK_MIN_INTERVAL = 10000;
-
-// Server-side token proxy
-async function loadServerCredentials() {
-  console.log('[OpenSky] Checking server token proxy (cred.php)...');
-  try {
-    const resp = await fetch('cred.php');
-    if (!resp.ok) {
-      console.warn(`[OpenSky] cred.php returned HTTP ${resp.status}`);
-      return;
-    }
-    const data = await resp.json();
-    if (data.error) {
-      console.warn('[OpenSky] cred.php error:', data.error, data.detail || '');
-      return;
-    }
-    if (data.access_token) {
-      cachedToken = data.access_token;
-      tokenExpiresAt = Date.now() + ((data.expires_in || 1500) * 1000);
-      console.log(`[OpenSky] Token acquired via server proxy, expires in ${data.expires_in || 1500}s`);
-    } else {
-      console.warn('[OpenSky] cred.php response missing access_token:', JSON.stringify(data));
-    }
-  } catch (err) {
-    console.warn('[OpenSky] cred.php fetch failed:', err.message);
-  }
-}
 
 // OAuth2 token cache
 let cachedToken = null;
@@ -99,75 +73,32 @@ async function fetchTokenViaProxy() {
   }
 }
 
-async function fetchToken(clientId, clientSecret) {
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: clientId,
-    client_secret: clientSecret,
-  });
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-
-  try {
-    const resp = await fetch(OPENSKY_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!resp.ok) throw new Error(`Token request failed: HTTP ${resp.status}`);
-    return await resp.json();
-  } catch (err) {
-    clearTimeout(timeout);
-    throw err;
-  }
-}
-
 async function getOpenSkyToken() {
   const now = Date.now();
   if (cachedToken && tokenExpiresAt > now + 60000) {
     return cachedToken;
   }
 
-  // Priority 1: User-entered credentials (direct token fetch)
+  // Only use server proxy if credentials are configured in settings
   const s = loadSettings();
   if (s.openskyClientId && s.openskyClientSecret) {
-    console.log('[OpenSky] Attempting token fetch with user credentials...');
+    console.log('[OpenSky] Fetching token via server proxy (cred.php)...');
     try {
-      const resp = await fetchToken(s.openskyClientId, s.openskyClientSecret);
-      cachedToken = resp.access_token;
-      tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-      console.log(`[OpenSky] Token acquired (user credentials), expires in ${resp.expires_in || 1500}s`);
-      return cachedToken;
+      const resp = await fetchTokenViaProxy();
+      if (resp.access_token) {
+        cachedToken = resp.access_token;
+        tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
+        console.log(`[OpenSky] Token acquired via cred.php, expires in ${resp.expires_in || 1500}s`);
+        return cachedToken;
+      } else if (resp.error) {
+        console.warn('[OpenSky] cred.php error:', resp.error, resp.detail || '');
+      }
     } catch (err) {
-      console.error('[OpenSky] Token fetch failed (user credentials):', err.message);
+      console.warn('[OpenSky] cred.php unavailable:', err.message);
     }
-  } else {
-    console.log('[OpenSky] No user credentials in localStorage');
   }
 
-  // Priority 2: Server-side proxy (cred.php)
-  console.log('[OpenSky] Attempting token fetch via server proxy (cred.php)...');
-  try {
-    const resp = await fetchTokenViaProxy();
-    if (resp.access_token) {
-      cachedToken = resp.access_token;
-      tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-      console.log(`[OpenSky] Token acquired (server proxy), expires in ${resp.expires_in || 1500}s`);
-      return cachedToken;
-    } else if (resp.error) {
-      console.warn('[OpenSky] Server proxy error:', resp.error, resp.detail || '');
-    } else {
-      console.warn('[OpenSky] Server proxy returned no token:', JSON.stringify(resp));
-    }
-  } catch (err) {
-    console.warn('[OpenSky] Server proxy unavailable:', err.message);
-  }
-
-  // Priority 3: Anonymous access
-  console.log('[OpenSky] Falling back to anonymous access (no token)');
+  // No credentials configured — anonymous access
   cachedToken = null;
   tokenExpiresAt = 0;
   return null;
@@ -272,6 +203,7 @@ const settingsPanel = initSettingsPanel({
     darkColor: CONFIG.darkColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
+    airspaceEdges: CONFIG.airspaceEdges,
     rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
@@ -282,10 +214,13 @@ const settingsPanel = initSettingsPanel({
     CONFIG.darkColor = form.darkColor;
     CONFIG.colorByAltitude = form.colorByAltitude;
     CONFIG.thickTrailsByAltitude = form.thickTrailsByAltitude;
+    const edgesChanged = CONFIG.airspaceEdges !== form.airspaceEdges;
+    CONFIG.airspaceEdges = form.airspaceEdges;
     CONFIG.rotationSpeed = form.rotationSpeed;
     CONFIG.openskyClientId = form.openskyClientId;
     CONFIG.openskyClientSecret = form.openskyClientSecret;
     applyTheme();
+    if (edgesChanged) toggleAirspaceEdges(form.airspaceEdges);
     // Merge with existing settings to preserve savedView and other non-form fields
     const existing = loadSettings();
     saveSettings({ ...existing, ...form });
@@ -299,6 +234,7 @@ function openSettings() {
     darkColor: CONFIG.darkColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
+    airspaceEdges: CONFIG.airspaceEdges,
     rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
@@ -321,9 +257,6 @@ document.getElementById('btn-settings').addEventListener('click', () => openSett
 // ============================================================
 
 async function init() {
-  // Try to load server-side credentials from cred.php
-  await loadServerCredentials();
-
   await loadAndApplySettings();
   applySavedView();
   startPolling();

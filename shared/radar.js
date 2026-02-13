@@ -288,22 +288,23 @@ function initAirspace(airspace) {
     const floorM = hasAltData ? entry.floor * FT_TO_M : 0;
     const ceilM = hasAltData ? entry.ceil * FT_TO_M : 0;
 
+    const edgesOn = CONFIG.airspaceEdges;
     const polygonOpts = use3D && hasAltData
       ? {
           hierarchy: new Cesium.PolygonHierarchy(positions),
           material: colors.fill,
-          outline: true,
-          outlineColor: colors.outline,
-          outlineWidth: 1,
+          outline: edgesOn,
+          outlineColor: edgesOn ? colors.outline : undefined,
+          outlineWidth: edgesOn ? 1 : undefined,
           height: floorM,
           extrudedHeight: ceilM,
         }
       : {
           hierarchy: new Cesium.PolygonHierarchy(positions),
           material: colors.fill,
-          outline: true,
-          outlineColor: colors.outline,
-          outlineWidth: 1,
+          outline: edgesOn,
+          outlineColor: edgesOn ? colors.outline : undefined,
+          outlineWidth: edgesOn ? 1 : undefined,
           height: 0,
           classificationType: Cesium.ClassificationType.BOTH,
         };
@@ -336,6 +337,11 @@ function toggleAirspace(show) {
 
 function toggleAirspace3D(use3D) {
   CONFIG.airspace3D = use3D;
+  rebuildAirspace();
+}
+
+function toggleAirspaceEdges(show) {
+  CONFIG.airspaceEdges = show;
   rebuildAirspace();
 }
 
@@ -1162,10 +1168,15 @@ async function loadAndApplySettings() {
       CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
       CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
       CONFIG.rotationSpeed = saved.rotationSpeed || 3;
+      const prevEdges = CONFIG.airspaceEdges;
+      CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : true;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;
       applyTheme();
+      if (prevEdges !== CONFIG.airspaceEdges && airspaceEntities.length > 0) {
+        rebuildAirspace();
+      }
     }
   } catch (err) {
     console.warn('[Settings] Could not load:', err);
