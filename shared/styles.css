@@ -55,7 +55,7 @@ body {
   display: none !important;
 }
 
-/* HUD Top Bar */
+/* HUD */
 #hud {
   position: absolute;
   top: 0;
@@ -65,29 +65,21 @@ body {
   pointer-events: none;
 }
 
-#hud-top {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 16px;
-  background: var(--panel-bg);
-  border-bottom: 1px solid var(--border);
+#clock {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 100;
+  color: var(--phosphor);
   font-size: 14px;
   letter-spacing: 2px;
-}
-
-#scope-title {
-  color: var(--phosphor-bright);
-  text-shadow: 0 0 8px var(--phosphor-dim);
-}
-
-#clock {
-  color: var(--phosphor);
+  pointer-events: none;
 }
 
 #hud-stats {
   display: flex;
   gap: 24px;
-  padding: 4px 16px;
+  padding: 8px 16px;
   font-size: 11px;
   color: var(--phosphor-dim);
   letter-spacing: 1px;
@@ -244,7 +236,7 @@ select {
 /* Aircraft Info Panel */
 #aircraft-info {
   position: absolute;
-  top: 60px;
+  top: 36px;
   right: 16px;
   z-index: 100;
   background: var(--panel-bg);
