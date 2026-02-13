@@ -205,6 +205,35 @@ ipcMain.handle('get-track', async (event, icao24) => {
   }
 });
 
+// --- Help Window ---
+let helpWindow = null;
+
+function openHelpWindow() {
+  if (helpWindow) {
+    helpWindow.focus();
+    return;
+  }
+  helpWindow = new BrowserWindow({
+    width: 600,
+    height: 700,
+    minWidth: 400,
+    minHeight: 300,
+    resizable: true,
+    parent: mainWindow,
+    modal: false,
+    show: false,
+    backgroundColor: '#f0f0f0',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  helpWindow.setMenu(null);
+  helpWindow.loadFile(path.join(__dirname, 'src', 'help.html'));
+  helpWindow.once('ready-to-show', () => helpWindow.show());
+  helpWindow.on('closed', () => { helpWindow = null; });
+}
+
 // --- Settings Window ---
 let settingsWindow = null;
 
@@ -321,6 +350,12 @@ function buildMenu() {
     {
       label: 'Help',
       submenu: [
+        {
+          label: 'Help Contents',
+          accelerator: 'F1',
+          click: () => openHelpWindow(),
+        },
+        { type: 'separator' },
         {
           label: 'About 3D Flight Radar...',
           click: () => {
