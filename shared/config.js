@@ -14,7 +14,7 @@ const CONFIG = {
   startAlt: 500000,           // initial camera height in meters
 
   pollInterval: 15000,        // ms between state polls
-  trailMaxAge: 300,           // seconds of trail to keep
+  trailMaxAge: 120,           // seconds of trail to keep
   trailEnabled: true,
   labelsEnabled: true,
   staleThreshold: 60,         // seconds before marking aircraft stale
@@ -34,7 +34,7 @@ const CONFIG = {
   rotationSpeed: 6,             // degrees per second for camera rotation
   airportsEnabled: true,
   airspaceEnabled: true,
-  airspace3D: true,
+  airspace3D: false,
 };
 
 // ============================================================
@@ -107,8 +107,8 @@ function hslToRgb(h, s, l) {
 // Light mode: s=55%,  l=38% — muted, ink-like on white background
 function altitudeToRgb(altMeters) {
   const altFeet = (altMeters || 0) * 3.28084;
-  const clamped = Math.max(0, Math.min(45000, altFeet));
-  const hue = (clamped / 45000) * 300;
+  const clamped = Math.max(0, Math.min(40000, altFeet));
+  const hue = (clamped / 40000) * 300;
   if (CONFIG.theme === 'light') {
     return hslToRgb(hue, 0.55, 0.38);
   }
@@ -127,8 +127,8 @@ function altitudeToSelectedRgb(altMeters) {
 
 function altitudeToTrailWidth(altMeters) {
   const altFeet = (altMeters || 0) * 3.28084;
-  const clamped = Math.max(0, Math.min(45000, altFeet));
-  return 1 + (clamped / 45000) * 5; // 1px at ground, 6px at FL450
+  const clamped = Math.max(0, Math.min(40000, altFeet));
+  return 1 + (clamped / 40000) * 5; // 1px at ground, 6px at FL400
 }
 
 // ============================================================
