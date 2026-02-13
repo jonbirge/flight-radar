@@ -95,7 +95,7 @@ async function main() {
     if (!line) continue;
     const row = parseCSVRow(line);
     const type = row[iType];
-    if (type !== 'large_airport' && type !== 'medium_airport') continue;
+    if (type !== 'large_airport' && type !== 'medium_airport' && type !== 'small_airport') continue;
 
     const lat = parseFloat(row[iLat]);
     const lon = parseFloat(row[iLon]);
@@ -104,7 +104,7 @@ async function main() {
     const icao = row[iIdent] || '';
     const iata = (iIata !== -1 ? row[iIata] : '') || '';
     const name = row[iName] || '';
-    const sizeCode = type === 'large_airport' ? 'L' : 'M';
+    const sizeCode = type === 'large_airport' ? 'L' : type === 'medium_airport' ? 'M' : 'S';
 
     airports.push({ icao, iata, name, lat: +lat.toFixed(4), lon: +lon.toFixed(4), type: sizeCode });
   }
