@@ -35,6 +35,7 @@ const CONFIG = {
   airportsEnabled: true,
   airspaceEnabled: true,
   airspace3D: false,
+  airspaceEdges: true,
 };
 
 // ============================================================

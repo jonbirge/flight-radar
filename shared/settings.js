@@ -14,6 +14,7 @@ const SETTINGS_DEFAULTS = {
   darkColor: '#00cc44',
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+  airspaceEdges: true,
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
@@ -220,6 +221,16 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-section">
+      <div class="settings-label">AIRSPACE</div>
+      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <label class="settings-toggle-label">
+          <input type="checkbox" id="set-airspace-edges">
+          <span>Show airspace edges</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-label">ROTATION SPEED</div>
       <div class="settings-row">
         <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
@@ -283,6 +294,9 @@ function populateSettingsForm(container, settings) {
   container.querySelector('#set-color-by-alt').checked = s.colorByAltitude;
   container.querySelector('#set-thick-trails').checked = s.thickTrailsByAltitude;
 
+  // Airspace edges
+  container.querySelector('#set-airspace-edges').checked = s.airspaceEdges;
+
   // Rotation speed
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
@@ -321,6 +335,7 @@ function initSettingsPanel(options) {
   const customColor = container.querySelector('#set-custom-color');
   const colorByAlt = container.querySelector('#set-color-by-alt');
   const thickTrails = container.querySelector('#set-thick-trails');
+  const airspaceEdges = container.querySelector('#set-airspace-edges');
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
   const clientId = container.querySelector('#set-client-id');
@@ -336,6 +351,7 @@ function initSettingsPanel(options) {
       darkColor: formState.darkColor,
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
+      airspaceEdges: airspaceEdges.checked,
       rotationSpeed: parseInt(rotSlider.value),
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
@@ -415,6 +431,10 @@ function initSettingsPanel(options) {
   });
 
   thickTrails.addEventListener('change', () => {
+    broadcast();
+  });
+
+  airspaceEdges.addEventListener('change', () => {
     broadcast();
   });
 
