@@ -186,39 +186,32 @@ function getAirportLabelColor() {
 
 function initAirports(airports) {
   const pointColor = getAirportColor();
-  const smallPointColor = Cesium.Color.GRAY;
   const labelColor = getAirportLabelColor();
 
   for (const ap of airports) {
+    if (ap.type === 'S') continue;  // Skip small airports to reduce entity count
     const isLarge = ap.type === 'L';
-    const isSmall = ap.type === 'S';
     const label = ap.iata || ap.icao;
-    const labelRange = isLarge ? 800000 : isSmall ? 100000 : 300000;
-    const dotSize = isLarge ? 10 : isSmall ? 4 : 6;
+    const labelRange = isLarge ? 800000 : 300000;
+    const dotSize = isLarge ? 10 : 6;
 
     // Scale dots down with distance: full size at 100km, 3px at CONUS (~6000km)
     const farScale = 3 / dotSize;
     const dotScale = new Cesium.NearFarScalar(1e5, 1.0, 6e6, farScale);
-
-    // Hide small airport dots beyond 200km to reduce entity count at wide zoom
-    const dotDisplayCondition = isSmall
-      ? new Cesium.DistanceDisplayCondition(0, 200000)
-      : undefined;
 
     const entity = viewer.entities.add({
       // Slight altitude keeps dots above the globe surface at oblique angles
       position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 500),
       point: {
         pixelSize: dotSize,
-        color: isSmall ? smallPointColor : pointColor,
+        color: pointColor,
         outlineWidth: 0,
         scaleByDistance: dotScale,
-        distanceDisplayCondition: dotDisplayCondition,
       },
       label: {
         text: label,
         font: '14px Consolas, monospace',
-        fillColor: isSmall ? Cesium.Color.GRAY : labelColor,
+        fillColor: labelColor,
         outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
         outlineWidth: 2,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -229,7 +222,6 @@ function initAirports(airports) {
         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, labelRange),
       },
       show: CONFIG.airportsEnabled,
-      _airportType: ap.type,
     });
     airportEntities.push(entity);
   }
@@ -246,13 +238,11 @@ function toggleAirports(show) {
 
 function updateAirportColors() {
   const pointColor = getAirportColor();
-  const smallPointColor = Cesium.Color.GRAY;
   const labelColor = getAirportLabelColor();
   const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
   for (const entity of airportEntities) {
-    const isSmall = entity._airportType === 'S';
-    entity.point.color = isSmall ? smallPointColor : pointColor;
-    entity.label.fillColor = isSmall ? Cesium.Color.GRAY : labelColor;
+    entity.point.color = pointColor;
+    entity.label.fillColor = labelColor;
     entity.label.outlineColor = outlineColor;
   }
 }
