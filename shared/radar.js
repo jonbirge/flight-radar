@@ -12,7 +12,9 @@
 const aircraft = new Map();       // icao24 -> aircraft state object
 const trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
 const airportEntities = [];       // Cesium entities for airport markers
+const smallAirportEntities = [];  // Cesium entities for small airport markers
 const airspaceEntities = [];     // Cesium entities for airspace polygons
+let cachedAirportData = null;     // Cached airport JSON for rebuilds
 let pollTimer = null;
 let trackTimer = null;
 let viewer = null;
@@ -185,11 +187,12 @@ function getAirportLabelColor() {
 }
 
 function initAirports(airports) {
+  cachedAirportData = airports;
   const pointColor = getAirportColor();
   const labelColor = getAirportLabelColor();
 
   for (const ap of airports) {
-    if (ap.type === 'S') continue;  // Skip small airports to reduce entity count
+    if (ap.type === 'S') continue;  // Small airports handled separately
     const isLarge = ap.type === 'L';
     const label = ap.iata || ap.icao;
     const labelRange = isLarge ? 800000 : 300000;
@@ -227,11 +230,67 @@ function initAirports(airports) {
   }
 
   console.log(`[Airports] Created ${airportEntities.length} markers`);
+
+  if (CONFIG.showSmallAirports) {
+    initSmallAirports(airports);
+  }
+}
+
+function initSmallAirports(airports) {
+  const pointColor = getAirportColor();
+  const labelColor = getAirportLabelColor();
+  const smallRange = 200000; // Only visible within 200km
+
+  for (const ap of airports) {
+    if (ap.type !== 'S') continue;
+    const label = ap.iata || ap.icao;
+    const dotSize = 4;
+    const farScale = 2 / dotSize;
+    const dotScale = new Cesium.NearFarScalar(5e4, 1.0, 2e5, farScale);
+
+    const entity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 500),
+      point: {
+        pixelSize: dotSize,
+        color: pointColor,
+        outlineWidth: 0,
+        scaleByDistance: dotScale,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, smallRange),
+      },
+      label: {
+        text: label,
+        font: '12px Consolas, monospace',
+        fillColor: labelColor,
+        outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, 8),
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        verticalOrigin: Cesium.VerticalOrigin.TOP,
+        scale: 0.75,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, smallRange),
+      },
+      show: CONFIG.airportsEnabled,
+    });
+    smallAirportEntities.push(entity);
+  }
+
+  console.log(`[Airports] Created ${smallAirportEntities.length} small airport markers`);
+}
+
+function removeSmallAirports() {
+  for (const entity of smallAirportEntities) {
+    viewer.entities.remove(entity);
+  }
+  smallAirportEntities.length = 0;
 }
 
 function toggleAirports(show) {
   CONFIG.airportsEnabled = show;
   for (const entity of airportEntities) {
+    entity.show = show;
+  }
+  for (const entity of smallAirportEntities) {
     entity.show = show;
   }
 }
@@ -240,7 +299,7 @@ function updateAirportColors() {
   const pointColor = getAirportColor();
   const labelColor = getAirportLabelColor();
   const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
-  for (const entity of airportEntities) {
+  for (const entity of [...airportEntities, ...smallAirportEntities]) {
     entity.point.color = pointColor;
     entity.label.fillColor = labelColor;
     entity.label.outlineColor = outlineColor;
@@ -1160,12 +1219,21 @@ async function loadAndApplySettings() {
       CONFIG.rotationSpeed = saved.rotationSpeed || 3;
       const prevEdges = CONFIG.airspaceEdges;
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : true;
+      const prevSmallAirports = CONFIG.showSmallAirports;
+      CONFIG.showSmallAirports = saved.showSmallAirports || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;
       applyTheme();
       if (prevEdges !== CONFIG.airspaceEdges && airspaceEntities.length > 0) {
         rebuildAirspace();
+      }
+      if (prevSmallAirports !== CONFIG.showSmallAirports && cachedAirportData) {
+        if (CONFIG.showSmallAirports) {
+          initSmallAirports(cachedAirportData);
+        } else {
+          removeSmallAirports();
+        }
       }
     }
   } catch (err) {
