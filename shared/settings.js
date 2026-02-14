@@ -15,6 +15,7 @@ const SETTINGS_DEFAULTS = {
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   airspaceEdges: true,
+  showSmallAirports: false,
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
@@ -231,6 +232,16 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-section">
+      <div class="settings-label">AIRPORTS</div>
+      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <label class="settings-toggle-label">
+          <input type="checkbox" id="set-small-airports">
+          <span>Show small airports (visible when zoomed in)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-label">ROTATION SPEED</div>
       <div class="settings-row">
         <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
@@ -297,6 +308,9 @@ function populateSettingsForm(container, settings) {
   // Airspace edges
   container.querySelector('#set-airspace-edges').checked = s.airspaceEdges;
 
+  // Small airports
+  container.querySelector('#set-small-airports').checked = s.showSmallAirports;
+
   // Rotation speed
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
@@ -336,6 +350,7 @@ function initSettingsPanel(options) {
   const colorByAlt = container.querySelector('#set-color-by-alt');
   const thickTrails = container.querySelector('#set-thick-trails');
   const airspaceEdges = container.querySelector('#set-airspace-edges');
+  const smallAirports = container.querySelector('#set-small-airports');
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
   const clientId = container.querySelector('#set-client-id');
@@ -352,6 +367,7 @@ function initSettingsPanel(options) {
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
       airspaceEdges: airspaceEdges.checked,
+      showSmallAirports: smallAirports.checked,
       rotationSpeed: parseInt(rotSlider.value),
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
@@ -435,6 +451,10 @@ function initSettingsPanel(options) {
   });
 
   airspaceEdges.addEventListener('change', () => {
+    broadcast();
+  });
+
+  smallAirports.addEventListener('change', () => {
     broadcast();
   });
 

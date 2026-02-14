@@ -210,6 +210,7 @@ const settingsPanel = initSettingsPanel({
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     airspaceEdges: CONFIG.airspaceEdges,
+    showSmallAirports: CONFIG.showSmallAirports,
     rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
@@ -222,11 +223,20 @@ const settingsPanel = initSettingsPanel({
     CONFIG.thickTrailsByAltitude = form.thickTrailsByAltitude;
     const edgesChanged = CONFIG.airspaceEdges !== form.airspaceEdges;
     CONFIG.airspaceEdges = form.airspaceEdges;
+    const smallAirportsChanged = CONFIG.showSmallAirports !== form.showSmallAirports;
+    CONFIG.showSmallAirports = form.showSmallAirports;
     CONFIG.rotationSpeed = form.rotationSpeed;
     CONFIG.openskyClientId = form.openskyClientId;
     CONFIG.openskyClientSecret = form.openskyClientSecret;
     applyTheme();
     if (edgesChanged) toggleAirspaceEdges(form.airspaceEdges);
+    if (smallAirportsChanged && cachedAirportData) {
+      if (form.showSmallAirports) {
+        initSmallAirports(cachedAirportData);
+      } else {
+        removeSmallAirports();
+      }
+    }
     // Merge with existing settings to preserve savedView and other non-form fields
     const existing = loadSettings();
     saveSettings({ ...existing, ...form });
@@ -241,6 +251,7 @@ function openSettings() {
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     airspaceEdges: CONFIG.airspaceEdges,
+    showSmallAirports: CONFIG.showSmallAirports,
     rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
