@@ -210,6 +210,17 @@ async function main() {
     process.exit(1);
   }
 
+  // Validate altitude data (required for 3D airspace volumes)
+  const withAltitude = allEntries.filter(e => e.ceil != null && e.floor != null);
+  const altPct = Math.round((withAltitude.length / allEntries.length) * 100);
+  console.log(`\nAltitude data: ${withAltitude.length}/${allEntries.length} entries (${altPct}%)`);
+  if (withAltitude.length === 0) {
+    console.error('ERROR: No entries have altitude data — 3D airspace volumes will not work.');
+    console.error('This typically means the FAA ArcGIS source failed and the GitHub fallback was used.');
+    console.error('Aborting to avoid overwriting good data. Retry when FAA service is available.');
+    process.exit(1);
+  }
+
   // Sort by class then name for deterministic output
   allEntries.sort((a, b) => a.cls.localeCompare(b.cls) || a.name.localeCompare(b.name));
 
