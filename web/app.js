@@ -93,19 +93,15 @@ async function getOpenSkyToken() {
   // Only use server proxy if credentials are configured in settings
   const s = loadSettings();
   if (s.openskyClientId && s.openskyClientSecret) {
-    console.log('[OpenSky] Fetching token via server proxy (cred.php)...');
     try {
       const resp = await fetchTokenViaProxy(s.openskyClientId, s.openskyClientSecret);
       if (resp.access_token) {
         cachedToken = resp.access_token;
         tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-        console.log(`[OpenSky] Token acquired via cred.php, expires in ${resp.expires_in || 1500}s`);
         return cachedToken;
-      } else if (resp.error) {
-        console.warn('[OpenSky] cred.php error:', resp.error, resp.detail || '');
       }
     } catch (err) {
-      console.warn('[OpenSky] cred.php unavailable:', err.message);
+      // Token fetch failed, will fall back to anonymous
     }
   }
 
@@ -125,7 +121,6 @@ async function apiGetStates(bounds) {
   try {
     const { south, west, north, east } = bounds;
     const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
-    console.log(`[OpenSky] Fetching states: ${south.toFixed(1)},${west.toFixed(1)} -> ${north.toFixed(1)},${east.toFixed(1)}`);
 
     const token = await getOpenSkyToken();
     const headers = {};
@@ -145,11 +140,8 @@ async function apiGetStates(bounds) {
     }
 
     const data = await resp.json();
-    const count = data.states ? data.states.length : 0;
-    console.log(`[OpenSky] Got ${count} aircraft`);
     return data;
   } catch (err) {
-    console.error('[OpenSky] States error:', err.message);
     return { error: err.message };
   }
 }
@@ -163,7 +155,6 @@ async function apiGetTrack(icao24) {
 
   try {
     const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}&time=0`;
-    console.log(`[OpenSky] Fetching track for ${icao24}`);
 
     const token = await getOpenSkyToken();
     const headers = {};
@@ -181,7 +172,6 @@ async function apiGetTrack(icao24) {
 
     return await resp.json();
   } catch (err) {
-    console.error(`[OpenSky] Track error for ${icao24}:`, err.message);
     return { error: err.message };
   }
 }
