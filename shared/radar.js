@@ -39,6 +39,7 @@ let turbDataRefreshTimer = null;
 const turbEntities = [];
 let renderInProgress = false;
 let pendingRender = false;
+const RENDER_CHUNK_SIZE = 20; // Number of aircraft to render per frame
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -1436,11 +1437,10 @@ function renderAircraft() {
   // Convert aircraft map to array for chunked processing
   const aircraftEntries = Array.from(aircraft.entries());
   let index = 0;
-  const chunkSize = 20; // Process 20 aircraft per frame
 
   function processChunk() {
     const startIndex = index;
-    const endIndex = Math.min(index + chunkSize, aircraftEntries.length);
+    const endIndex = Math.min(index + RENDER_CHUNK_SIZE, aircraftEntries.length);
 
     // Process chunk
     for (let i = startIndex; i < endIndex; i++) {
@@ -1454,7 +1454,7 @@ function renderAircraft() {
     if (index < aircraftEntries.length) {
       // Use requestIdleCallback if available, otherwise use requestAnimationFrame
       if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => processChunk(), { timeout: 50 });
+        requestIdleCallback(() => processChunk(), { timeout: 100 });
       } else {
         requestAnimationFrame(processChunk);
       }
