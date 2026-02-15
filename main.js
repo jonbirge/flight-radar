@@ -275,11 +275,19 @@ function openSettingsWindow() {
       (function() {
         const container = document.getElementById('settings-container');
         const actions = document.querySelector('.actions');
+        
+        if (!container || !actions) {
+          return JSON.stringify({
+            width: document.body.scrollWidth,
+            height: document.body.scrollHeight
+          });
+        }
+        
         const bodyStyle = window.getComputedStyle(document.body);
-        const paddingTop = parseInt(bodyStyle.paddingTop);
-        const paddingBottom = parseInt(bodyStyle.paddingBottom);
+        const paddingTop = parseInt(bodyStyle.paddingTop, 10);
+        const paddingBottom = parseInt(bodyStyle.paddingBottom, 10);
         const actionsStyle = window.getComputedStyle(actions);
-        const actionsMarginTop = parseInt(actionsStyle.marginTop);
+        const actionsMarginTop = parseInt(actionsStyle.marginTop, 10);
         
         const totalHeight = paddingTop + container.offsetHeight + actionsMarginTop + actions.offsetHeight + paddingBottom;
         
