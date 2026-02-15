@@ -921,20 +921,19 @@ function initNavaids(data) {
   const navaids = cachedWaypointData.navaids || [];
   const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
   const navLabelRange = 150000; // labels within 150km
-  const navRange = 300000;      // visible within 300km
 
   for (const nav of navaids) {
     const color = getNavaidColor(nav.type);
+    const cssColor = color.toCssColorString();
     const labelText = nav.id + ' ' + nav.type;
 
     const entity = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(nav.lon, nav.lat, 10),
-      point: {
-        pixelSize: 5,
-        color: color,
-        outlineWidth: 0,
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, navRange),
-        scaleByDistance: new Cesium.NearFarScalar(5e4, 1.0, 3e5, 0.5),
+      billboard: {
+        image: createNavaidIcon(8, cssColor),
+        width: 8,
+        height: 8,
+        scaleByDistance: new Cesium.NearFarScalar(5e4, 1.0, 5e6, 0.4),
       },
       label: {
         text: labelText,
@@ -1033,7 +1032,8 @@ function updateWaypointColors() {
     const navaids = cachedWaypointData.navaids || [];
     for (let i = 0; i < navaidEntities.length && i < navaids.length; i++) {
       const color = getNavaidColor(navaids[i].type);
-      navaidEntities[i].point.color = color;
+      const cssColor = color.toCssColorString();
+      navaidEntities[i].billboard.image = createNavaidIcon(8, cssColor);
       navaidEntities[i].label.fillColor = color;
       navaidEntities[i].label.outlineColor = outlineColor;
     }
