@@ -12,6 +12,7 @@ const SETTINGS_DEFAULTS = {
   fontSize: 12,
   theme: 'light',
   darkColor: '#00cc44',
+  lightColor: '#1a1a1a',
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   airspaceEdges: true,
@@ -34,6 +35,17 @@ const COLOR_PRESETS = [
   { color: '#cc4444', label: 'Red' },
   { color: '#8888ff', label: 'Lavender' },
   { color: '#cccccc', label: 'White' },
+  { color: '#ff44cc', label: 'Hot Pink' },
+];
+
+const LIGHT_COLOR_PRESETS = [
+  { color: '#1a1a1a', label: 'Charcoal' },
+  { color: '#1a5276', label: 'Steel Blue' },
+  { color: '#117864', label: 'Teal' },
+  { color: '#922b21', label: 'Brick Red' },
+  { color: '#6c3483', label: 'Royal Purple' },
+  { color: '#1e8449', label: 'Emerald' },
+  { color: '#b9770e', label: 'Goldenrod' },
 ];
 
 // ============================================================
@@ -81,7 +93,8 @@ const SETTINGS_CSS = `
   box-shadow: 0 0 6px var(--swatch-active-shadow, rgba(0,0,0,0.2));
 }
 
-#set-custom-color {
+#set-custom-color,
+#set-light-custom-color {
   width: 28px;
   height: 28px;
   border: 1px solid var(--settings-border, #ccc);
@@ -173,6 +186,14 @@ const SETTINGS_CSS = `
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+
+.settings-color-label {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--settings-label-color, #666);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
 `;
 
 let settingsCssInjected = false;
@@ -190,11 +211,37 @@ function injectSettingsCSS(doc) {
 // ============================================================
 
 function createSettingsFormHTML() {
-  const swatchesHTML = COLOR_PRESETS.map(p =>
-    `<button class="color-swatch" data-color="${p.color}" style="background:${p.color}" title="${p.label}" type="button"></button>`
+  const darkSwatchesHTML = COLOR_PRESETS.map(p =>
+    `<button class="color-swatch dark-color-swatch" data-color="${p.color}" style="background:${p.color}" title="${p.label}" type="button"></button>`
+  ).join('\n          ');
+
+  const lightSwatchesHTML = LIGHT_COLOR_PRESETS.map(p =>
+    `<button class="color-swatch light-color-swatch" data-color="${p.color}" style="background:${p.color}" title="${p.label}" type="button"></button>`
   ).join('\n          ');
 
   return `
+    <div class="settings-section">
+      <div class="settings-label">DISPLAY MODE</div>
+      <div class="settings-row">
+        <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
+        <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
+      </div>
+    </div>
+
+    <div class="settings-section" id="color-section">
+      <div class="settings-label">UI COLOR</div>
+      <div class="settings-color-label">Dark Mode</div>
+      <div class="settings-row settings-color-row" style="margin-bottom:12px;">
+          ${darkSwatchesHTML}
+          <input type="color" id="set-custom-color" value="#00cc44" title="Custom color">
+      </div>
+      <div class="settings-color-label">Light Mode</div>
+      <div class="settings-row settings-color-row">
+          ${lightSwatchesHTML}
+          <input type="color" id="set-light-custom-color" value="#1a1a1a" title="Custom color">
+      </div>
+    </div>
+
     <div class="settings-section">
       <div class="settings-label">AIRCRAFT DISPLAY</div>
       <div class="settings-row" style="margin-bottom:8px;">
@@ -203,7 +250,7 @@ function createSettingsFormHTML() {
         <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
       </div>
       <div class="settings-row" id="trail-length-row">
-        <span class="settings-toggle-label" style="cursor:default;">Trail length</span>
+        <span class="settings-toggle-label" style="cursor:default;">History length</span>
         <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
         <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
       </div>
@@ -217,24 +264,8 @@ function createSettingsFormHTML() {
       </label>
       <label class="settings-toggle-label" style="margin-top:4px;">
         <input type="checkbox" id="set-thick-trails">
-        <span>Thick trails by altitude</span>
+        <span>Trail thickness by altitude</span>
       </label>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-label">DISPLAY MODE</div>
-      <div class="settings-row">
-        <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
-        <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
-      </div>
-    </div>
-
-    <div class="settings-section" id="dark-color-section">
-      <div class="settings-label">DARK MODE COLOR</div>
-      <div class="settings-row settings-color-row">
-          ${swatchesHTML}
-          <input type="color" id="set-custom-color" value="#00cc44" title="Custom color">
-      </div>
     </div>
 
     <div class="settings-section">
@@ -307,17 +338,19 @@ function populateSettingsForm(container, settings) {
   btnDark.classList.toggle('active', s.theme === 'dark');
   btnLight.classList.toggle('active', s.theme === 'light');
 
-  const darkSection = container.querySelector('#dark-color-section');
-
-  // Color swatches
-  const swatches = container.querySelectorAll('.color-swatch');
-  let isPreset = false;
-  swatches.forEach(sw => {
-    const match = sw.dataset.color === s.darkColor;
-    sw.classList.toggle('active', match);
-    if (match) isPreset = true;
+  // Dark color swatches
+  const darkSwatches = container.querySelectorAll('.dark-color-swatch');
+  darkSwatches.forEach(sw => {
+    sw.classList.toggle('active', sw.dataset.color === s.darkColor);
   });
   container.querySelector('#set-custom-color').value = s.darkColor;
+
+  // Light color swatches
+  const lightSwatches = container.querySelectorAll('.light-color-swatch');
+  lightSwatches.forEach(sw => {
+    sw.classList.toggle('active', sw.dataset.color === s.lightColor);
+  });
+  container.querySelector('#set-light-custom-color').value = s.lightColor;
 
   // Altitude checkboxes
   container.querySelector('#set-color-by-alt').checked = s.colorByAltitude;
@@ -374,9 +407,10 @@ function initSettingsPanel(options) {
   const fontVal = container.querySelector('#set-fontsize-val');
   const btnDark = container.querySelector('#set-theme-dark');
   const btnLight = container.querySelector('#set-theme-light');
-  const darkSection = container.querySelector('#dark-color-section');
-  const swatches = container.querySelectorAll('.color-swatch');
+  const darkSwatches = container.querySelectorAll('.dark-color-swatch');
   const customColor = container.querySelector('#set-custom-color');
+  const lightSwatches = container.querySelectorAll('.light-color-swatch');
+  const lightCustomColor = container.querySelector('#set-light-custom-color');
   const colorByAlt = container.querySelector('#set-color-by-alt');
   const thickTrails = container.querySelector('#set-thick-trails');
   const velocityVector = container.querySelector('#set-velocity-vector');
@@ -400,6 +434,7 @@ function initSettingsPanel(options) {
       fontSize: parseInt(fontSlider.value),
       theme: formState.theme,
       darkColor: formState.darkColor,
+      lightColor: formState.lightColor,
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
       showVelocityVector: velocityVector.checked,
@@ -419,12 +454,14 @@ function initSettingsPanel(options) {
     onChanged(formState);
   }
 
-  function updateDarkSectionState() {
-    // Color section always visible and interactive
+  function updateDarkSwatchActive(selectedColor) {
+    darkSwatches.forEach(sw => {
+      sw.classList.toggle('active', sw.dataset.color === selectedColor);
+    });
   }
 
-  function updateSwatchActive(selectedColor) {
-    swatches.forEach(sw => {
+  function updateLightSwatchActive(selectedColor) {
+    lightSwatches.forEach(sw => {
       sw.classList.toggle('active', sw.dataset.color === selectedColor);
     });
   }
@@ -451,7 +488,6 @@ function initSettingsPanel(options) {
     formState.theme = 'dark';
     btnDark.classList.add('active');
     btnLight.classList.remove('active');
-    updateDarkSectionState();
     broadcast();
   });
 
@@ -459,30 +495,45 @@ function initSettingsPanel(options) {
     formState.theme = 'light';
     btnLight.classList.add('active');
     btnDark.classList.remove('active');
-    updateDarkSectionState();
     broadcast();
   });
 
-  // --- Color swatches ---
-  swatches.forEach(sw => {
+  // --- Dark color swatches ---
+  darkSwatches.forEach(sw => {
     sw.addEventListener('click', () => {
       formState.darkColor = sw.dataset.color;
-      updateSwatchActive(sw.dataset.color);
+      updateDarkSwatchActive(sw.dataset.color);
       customColor.value = sw.dataset.color;
       broadcast();
     });
   });
 
-  // --- Custom color picker ---
+  // --- Dark custom color picker ---
   customColor.addEventListener('input', () => {
     formState.darkColor = customColor.value;
-    updateSwatchActive(''); // deselect all presets
+    updateDarkSwatchActive(''); // deselect all presets
+    debouncedBroadcast();
+  });
+
+  // --- Light color swatches ---
+  lightSwatches.forEach(sw => {
+    sw.addEventListener('click', () => {
+      formState.lightColor = sw.dataset.color;
+      updateLightSwatchActive(sw.dataset.color);
+      lightCustomColor.value = sw.dataset.color;
+      broadcast();
+    });
+  });
+
+  // --- Light custom color picker ---
+  lightCustomColor.addEventListener('input', () => {
+    formState.lightColor = lightCustomColor.value;
+    updateLightSwatchActive(''); // deselect all presets
     debouncedBroadcast();
   });
 
   // --- Altitude checkboxes ---
   colorByAlt.addEventListener('change', () => {
-    updateDarkSectionState();
     broadcast();
   });
 

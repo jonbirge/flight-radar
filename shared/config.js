@@ -23,6 +23,7 @@ const CONFIG = {
   fontSize: 11,
   theme: 'light',             // 'dark' | 'light'
   darkColor: '#00cc44',       // user-selected dark mode color
+  lightColor: '#1a1a1a',      // user-selected light mode color
   phosphor: '#00cc44',
   phosphorBright: '#33ff66',
   phosphorSelect: '#99ffbb',
@@ -86,13 +87,18 @@ function setDarkColors(hex) {
   CONFIG.trailColor = hexToRgb(hex);
 }
 
-// Light mode uses fixed black/dark-gray palette
-function setLightColors() {
-  CONFIG.phosphor = '#1a1a1a';
-  CONFIG.phosphorBright = '#000000';
-  CONFIG.phosphorSelect = '#000000';
-  CONFIG.phosphorDim = 'rgba(0, 0, 0, 0.45)';
-  CONFIG.trailColor = [40, 40, 40];
+// Light mode derives colors from user-selected light color
+function setLightColors(hex) {
+  hex = hex || '#1a1a1a';
+  CONFIG.lightColor = hex;
+  CONFIG.phosphor = hex;
+  const [r, g, b] = hexToRgb(hex);
+  // Darken for bright/select (increase contrast on light background)
+  const dk = v => Math.round(v * 0.6);
+  CONFIG.phosphorBright = `#${dk(r).toString(16).padStart(2,'0')}${dk(g).toString(16).padStart(2,'0')}${dk(b).toString(16).padStart(2,'0')}`;
+  CONFIG.phosphorSelect = CONFIG.phosphorBright;
+  CONFIG.phosphorDim = withAlpha(hex, 0.45);
+  CONFIG.trailColor = [r, g, b];
   CONFIG.labelOutlineColor = Cesium.Color.WHITE;
 }
 

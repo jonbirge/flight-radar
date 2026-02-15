@@ -324,29 +324,29 @@ body.theme-light {
 }
 
 body.theme-light .scope-btn {
-  color: #1a1a1a;
-  border-color: rgba(0, 0, 0, 0.3);
+  color: var(--phosphor, #1a1a1a);
+  border-color: var(--phosphor-dim, rgba(0, 0, 0, 0.3));
 }
 body.theme-light .scope-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
-  border-color: #1a1a1a;
+  background: var(--phosphor-faint, rgba(0, 0, 0, 0.08));
+  border-color: var(--phosphor, #1a1a1a);
 }
 body.theme-light .scope-btn.active {
-  background: #1a1a1a;
+  background: var(--phosphor, #1a1a1a);
   color: #ffffff;
-  border-color: #1a1a1a;
+  border-color: var(--phosphor, #1a1a1a);
 }
 
 body.theme-light .toggle-label input[type="checkbox"]:checked {
-  background: #1a1a1a;
-  border-color: #1a1a1a;
+  background: var(--phosphor, #1a1a1a);
+  border-color: var(--phosphor, #1a1a1a);
 }
 body.theme-light .toggle-label input[type="checkbox"]:checked::after {
   border-color: #ffffff;
 }
 
-body.theme-light input[type="range"] { background: rgba(0, 0, 0, 0.2); }
-body.theme-light input[type="range"]::-webkit-slider-thumb { background: #1a1a1a; }
+body.theme-light input[type="range"] { background: var(--phosphor-faint, rgba(0, 0, 0, 0.2)); }
+body.theme-light input[type="range"]::-webkit-slider-thumb { background: var(--phosphor, #1a1a1a); }
 
 body.theme-light #aircraft-info {
   border-color: rgba(0, 0, 0, 0.3);

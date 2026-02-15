@@ -568,7 +568,7 @@ function applyTheme() {
     setDarkColors(CONFIG.darkColor);
     CONFIG.labelOutlineColor = Cesium.Color.BLACK;
   } else {
-    setLightColors();
+    setLightColors(CONFIG.lightColor);
   }
 
   // Swap tile layer
@@ -611,13 +611,13 @@ function applyTheme() {
     root.style.setProperty('--border', withAlpha(CONFIG.darkColor, 0.3));
     root.style.setProperty('--panel-bg', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.85)`);
   } else {
-    // Light mode CSS variables are handled by the theme-light class overrides
+    // Light mode: set CSS variables from user-selected light color
     const root = document.documentElement;
-    root.style.removeProperty('--phosphor');
-    root.style.removeProperty('--phosphor-bright');
-    root.style.removeProperty('--phosphor-dim');
-    root.style.removeProperty('--phosphor-faint');
-    root.style.removeProperty('--border');
+    root.style.setProperty('--phosphor', CONFIG.phosphor);
+    root.style.setProperty('--phosphor-bright', CONFIG.phosphorBright);
+    root.style.setProperty('--phosphor-dim', CONFIG.phosphorDim);
+    root.style.setProperty('--phosphor-faint', withAlpha(CONFIG.lightColor, 0.1));
+    root.style.setProperty('--border', withAlpha(CONFIG.lightColor, 0.2));
     root.style.removeProperty('--panel-bg');
   }
 
@@ -2081,6 +2081,7 @@ async function loadAndApplySettings() {
       CONFIG.fontSize = saved.fontSize || 11;
       CONFIG.theme = saved.theme || 'dark';
       CONFIG.darkColor = saved.darkColor || '#00cc44';
+      CONFIG.lightColor = saved.lightColor || '#1a1a1a';
       CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
       CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
       CONFIG.showVelocityVector = saved.showVelocityVector || false;
