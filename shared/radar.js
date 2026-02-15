@@ -155,17 +155,154 @@ async function makeMapTiles(layerId) {
 // NEXRAD Weather Radar Overlay
 // ============================================================
 
+// Filter radar tile to remove clutter, keeping only material weather colors.
+// NEXRAD color scheme: dark blues/light blues = weak returns (clutter),
+// saturated green/yellow/orange/red = actual precipitation.
+function filterRadarTile(img) {
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.drawImage(img, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  
+  // Process each pixel
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const a = data[i + 3];
+    
+    // Skip already-transparent pixels
+    if (a === 0) continue;
+    
+    // Keep pixels that represent material weather (precipitation):
+    // - Saturated greens: high green, lower blue
+    // - Yellows: high red and green
+    // - Oranges: high red, medium green
+    // - Reds: high red, low green/blue
+    // Filter out weak returns (blues, light colors, grays)
+    
+    const isMaterialWeather = (
+      // Bright/saturated green (precipitation): g > 150, g > b, g > r*1.2
+      (g > 150 && g > b && g > r * 1.2) ||
+      // Yellow (heavier precipitation): r > 180, g > 180, b < 150
+      (r > 180 && g > 180 && b < 150) ||
+      // Orange (heavy precipitation): r > 200, g > 100 && g < 200, b < 100
+      (r > 200 && g > 100 && g < 200 && b < 100) ||
+      // Red (very heavy precipitation): r > 200, g < 100, b < 100
+      (r > 200 && g < 100 && b < 100)
+    );
+    
+    // Make non-weather pixels transparent
+    if (!isMaterialWeather) {
+      data[i + 3] = 0;
+    }
+  }
+  
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
+// Custom imagery provider that wraps WMS and filters tiles
+class FilteredRadarImageryProvider {
+  constructor() {
+    this.ready = false;
+    this.errorEvent = new Cesium.Event();
+    this._credit = new Cesium.Credit('Iowa State Mesonet');
+    
+    // Create underlying WMS provider
+    this._wmsProvider = new Cesium.WebMapServiceImageryProvider({
+      url: 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi?',
+      layers: 'nexrad-n0q-900913',
+      parameters: {
+        transparent: true,
+        format: 'image/png',
+      },
+    });
+    
+    // Wait for WMS provider to be ready
+    this._wmsProvider.readyPromise.then(() => {
+      this.ready = true;
+    }).catch((err) => {
+      console.error('[Radar] WMS provider failed:', err);
+      this.errorEvent.raiseEvent(err);
+    });
+  }
+  
+  get readyPromise() {
+    return this._wmsProvider.readyPromise;
+  }
+  
+  get rectangle() {
+    return this._wmsProvider.rectangle;
+  }
+  
+  get tileWidth() {
+    return this._wmsProvider.tileWidth;
+  }
+  
+  get tileHeight() {
+    return this._wmsProvider.tileHeight;
+  }
+  
+  get maximumLevel() {
+    return this._wmsProvider.maximumLevel;
+  }
+  
+  get minimumLevel() {
+    return this._wmsProvider.minimumLevel;
+  }
+  
+  get tilingScheme() {
+    return this._wmsProvider.tilingScheme;
+  }
+  
+  get tileDiscardPolicy() {
+    return this._wmsProvider.tileDiscardPolicy;
+  }
+  
+  get credit() {
+    return this._credit;
+  }
+  
+  get hasAlphaChannel() {
+    return true;
+  }
+  
+  getTileCredits(x, y, level) {
+    return this._wmsProvider.getTileCredits ? this._wmsProvider.getTileCredits(x, y, level) : [];
+  }
+  
+  requestImage(x, y, level, request) {
+    // Get the tile from WMS provider
+    return this._wmsProvider.requestImage(x, y, level, request).then((image) => {
+      if (!image) return image;
+      
+      // Filter the image to remove clutter
+      const filteredDataUrl = filterRadarTile(image);
+      
+      // Return a new image with the filtered data
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Filtered image load failed'));
+        img.src = filteredDataUrl;
+      });
+    });
+  }
+  
+  pickFeatures(x, y, level, longitude, latitude) {
+    return this._wmsProvider.pickFeatures ? 
+      this._wmsProvider.pickFeatures(x, y, level, longitude, latitude) : undefined;
+  }
+}
+
 function makeRadarProvider() {
-  console.log('[Radar] Loading NEXRAD WMS tiles from Iowa State Mesonet');
-  return new Cesium.WebMapServiceImageryProvider({
-    url: 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi?',
-    layers: 'nexrad-n0q-900913',
-    parameters: {
-      transparent: true,
-      format: 'image/png',
-    },
-    credit: new Cesium.Credit('Iowa State Mesonet'),
-  });
+  console.log('[Radar] Loading NEXRAD WMS tiles from Iowa State Mesonet with clutter filter');
+  return new FilteredRadarImageryProvider();
 }
 
 function enableRadar() {
