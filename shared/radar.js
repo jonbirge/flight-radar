@@ -37,6 +37,8 @@ let turbLayer = null;
 let turbRefreshTimer = null;
 let turbDataRefreshTimer = null;
 const turbEntities = [];
+let renderInProgress = false;
+let pendingRender = false;
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -1198,15 +1200,8 @@ function updateAircraft(states) {
   }
 }
 
-function renderAircraft() {
-  // LOD based on camera height
-  const camHeight = viewer.camera.positionCartographic
-    ? viewer.camera.positionCartographic.height
-    : 0;
-  const useDot = camHeight > 2000000;
-  const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
-
-  for (const [icao, ac] of aircraft) {
+// Render a single aircraft entity with its trails
+function renderSingleAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
     const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
     const isSelected = icao === selectedIcao;
@@ -1418,7 +1413,63 @@ function renderAircraft() {
     } else {
       removeTrailEntities(ac);
     }
+}
+
+// Chunked rendering function to avoid blocking UI
+function renderAircraft() {
+  // If already rendering, mark that we need another pass after current one completes
+  if (renderInProgress) {
+    pendingRender = true;
+    return;
   }
+
+  renderInProgress = true;
+  pendingRender = false;
+
+  // LOD based on camera height
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height
+    : 0;
+  const useDot = camHeight > 2000000;
+  const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
+
+  // Convert aircraft map to array for chunked processing
+  const aircraftEntries = Array.from(aircraft.entries());
+  let index = 0;
+  const chunkSize = 20; // Process 20 aircraft per frame
+
+  function processChunk() {
+    const startIndex = index;
+    const endIndex = Math.min(index + chunkSize, aircraftEntries.length);
+
+    // Process chunk
+    for (let i = startIndex; i < endIndex; i++) {
+      const [icao, ac] = aircraftEntries[i];
+      renderSingleAircraft(icao, ac, camHeight, useDot, showLabels);
+    }
+
+    index = endIndex;
+
+    // If more aircraft to process, schedule next chunk
+    if (index < aircraftEntries.length) {
+      // Use requestIdleCallback if available, otherwise use requestAnimationFrame
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => processChunk(), { timeout: 50 });
+      } else {
+        requestAnimationFrame(processChunk);
+      }
+    } else {
+      // Rendering complete
+      renderInProgress = false;
+      // If another render was requested during this pass, start it now
+      if (pendingRender) {
+        renderAircraft();
+      }
+    }
+  }
+
+  // Start processing chunks
+  processChunk();
 }
 
 // Merge granular API track data with polled history
