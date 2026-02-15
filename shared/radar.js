@@ -814,73 +814,127 @@ function renderAircraft() {
 
     // --- Trail polyline ---
     if (CONFIG.trailEnabled) {
-      const trailPoints = buildTrailPositions(ac, isSelected);
+      // Determine base trail width, then scale down with zoom
+      let trailWidth;
+      if (CONFIG.thickTrailsByAltitude) {
+        trailWidth = altitudeToTrailWidth(s.altitude);
+        if (isSelected) trailWidth = Math.min(trailWidth + 1, 8);
+      } else {
+        trailWidth = isSelected ? 4 : 3;
+      }
+      const zoomT = getZoomFraction(camHeight);
+      trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
 
-      if (trailPoints.length >= 2) {
-        // Determine base trail width, then scale down with zoom
-        let trailWidth;
-        if (CONFIG.thickTrailsByAltitude) {
-          trailWidth = altitudeToTrailWidth(s.altitude);
-          if (isSelected) trailWidth = Math.min(trailWidth + 1, 8);
-        } else {
-          trailWidth = isSelected ? 4 : 3;
-        }
-        const zoomT = getZoomFraction(camHeight);
-        trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
-
-        // Teardown previous trail entities
+      if (CONFIG.showVelocityVector && s.heading != null && s.velocity != null) {
+        // Velocity vector mode: single line behind aircraft proportional to speed
         removeTrailEntities(ac);
 
-        if (CONFIG.colorByAltitude) {
-          // Group trail points into runs by altitude color bucket
-          const bucketOf = (alt) => Math.floor(((alt || 0) * 3.28084) / 1500);
-          let runStart = 0;
-          let currentBucket = bucketOf(trailPoints[0].alt);
+        const speed = s.velocity || 0; // m/s
+        const lineLength = speed * 60; // scale factor: ~15km line at cruise speed
+        if (lineLength > 100) {
+          // Compute endpoint behind the aircraft (heading + 180°)
+          const behindDeg = (s.heading + 180) % 360;
+          const behindRad = Cesium.Math.toRadians(behindDeg);
+          const acLonRad = Cesium.Math.toRadians(s.lon);
+          const acLatRad = Cesium.Math.toRadians(s.lat);
+          const R = 6371000; // Earth radius in meters
+          const angDist = lineLength / R;
 
-          for (let i = 1; i <= trailPoints.length; i++) {
-            const bucket = i < trailPoints.length ? bucketOf(trailPoints[i].alt) : -1;
-            if (bucket !== currentBucket || i === trailPoints.length) {
-              // End of run: runStart..i-1 (inclusive)
-              const end = Math.min(i, trailPoints.length - 1);
-              const runPoints = trailPoints.slice(runStart, end + 1);
-              if (runPoints.length >= 2) {
-                const midAlt = ((currentBucket + 0.5) * 1500) / 3.28084; // bucket midpoint in meters
-                const rgb = isSelected ? altitudeToSelectedRgb(midAlt) : altitudeToRgb(midAlt);
-                // Mute trail colors in dark mode to avoid overly bright opaque trails
-                const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
-                const material = Cesium.Color.fromBytes(
-                  Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
-                const positions = runPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
-                ac.trailEntities.push(viewer.entities.add({
-                  polyline: {
-                    positions: positions,
-                    width: trailWidth,
-                    material: material,
-                    clampToGround: false,
-                  },
-                }));
-              }
-              runStart = i;
-              currentBucket = bucket;
-            }
+          const endLat = Math.asin(
+            Math.sin(acLatRad) * Math.cos(angDist) +
+            Math.cos(acLatRad) * Math.sin(angDist) * Math.cos(behindRad)
+          );
+          const endLon = acLonRad + Math.atan2(
+            Math.sin(behindRad) * Math.sin(angDist) * Math.cos(acLatRad),
+            Math.cos(angDist) - Math.sin(acLatRad) * Math.sin(endLat)
+          );
+
+          const alt = s.altitude || 0;
+          const positions = [
+            Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt),
+            Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(endLon), Cesium.Math.toDegrees(endLat), alt),
+          ];
+
+          // Color logic matching existing trail colors
+          let rgb;
+          if (CONFIG.colorByAltitude) {
+            rgb = isSelected ? altitudeToSelectedRgb(alt) : altitudeToRgb(alt);
+          } else {
+            rgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
           }
-        } else {
-          // Single-color trail
-          const trailRgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
-          // Mute trail colors in dark mode to avoid overly bright opaque trails
           const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
-          const trailMaterial = Cesium.Color.fromBytes(
-            Math.round(trailRgb[0] * mute), Math.round(trailRgb[1] * mute), Math.round(trailRgb[2] * mute), 255);
-          const positions = trailPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+          const material = Cesium.Color.fromBytes(
+            Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
+
           ac.trailEntities.push(viewer.entities.add({
             polyline: {
               positions: positions,
               width: trailWidth,
-              material: trailMaterial,
+              material: material,
               clampToGround: false,
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
           }));
+        }
+      } else {
+        // Normal history trail mode
+        const trailPoints = buildTrailPositions(ac, isSelected);
+
+        if (trailPoints.length >= 2) {
+          // Teardown previous trail entities
+          removeTrailEntities(ac);
+
+          if (CONFIG.colorByAltitude) {
+            // Group trail points into runs by altitude color bucket
+            const bucketOf = (alt) => Math.floor(((alt || 0) * 3.28084) / 1500);
+            let runStart = 0;
+            let currentBucket = bucketOf(trailPoints[0].alt);
+
+            for (let i = 1; i <= trailPoints.length; i++) {
+              const bucket = i < trailPoints.length ? bucketOf(trailPoints[i].alt) : -1;
+              if (bucket !== currentBucket || i === trailPoints.length) {
+                // End of run: runStart..i-1 (inclusive)
+                const end = Math.min(i, trailPoints.length - 1);
+                const runPoints = trailPoints.slice(runStart, end + 1);
+                if (runPoints.length >= 2) {
+                  const midAlt = ((currentBucket + 0.5) * 1500) / 3.28084; // bucket midpoint in meters
+                  const rgb = isSelected ? altitudeToSelectedRgb(midAlt) : altitudeToRgb(midAlt);
+                  // Mute trail colors in dark mode to avoid overly bright opaque trails
+                  const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
+                  const material = Cesium.Color.fromBytes(
+                    Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
+                  const positions = runPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+                  ac.trailEntities.push(viewer.entities.add({
+                    polyline: {
+                      positions: positions,
+                      width: trailWidth,
+                      material: material,
+                      clampToGround: false,
+                    },
+                  }));
+                }
+                runStart = i;
+                currentBucket = bucket;
+              }
+            }
+          } else {
+            // Single-color trail
+            const trailRgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
+            // Mute trail colors in dark mode to avoid overly bright opaque trails
+            const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
+            const trailMaterial = Cesium.Color.fromBytes(
+              Math.round(trailRgb[0] * mute), Math.round(trailRgb[1] * mute), Math.round(trailRgb[2] * mute), 255);
+            const positions = trailPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+            ac.trailEntities.push(viewer.entities.add({
+              polyline: {
+                positions: positions,
+                width: trailWidth,
+                material: trailMaterial,
+                clampToGround: false,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              },
+            }));
+          }
         }
       }
     } else {
@@ -1117,9 +1171,12 @@ document.getElementById('toggle-airspace').addEventListener('change', (e) => {
   toggleAirspace(e.target.checked);
 });
 
-document.getElementById('toggle-airspace-3d').addEventListener('change', (e) => {
-  toggleAirspace3D(e.target.checked);
-});
+const airspace3DToggle = document.getElementById('toggle-airspace-3d');
+if (airspace3DToggle) {
+  airspace3DToggle.addEventListener('change', (e) => {
+    toggleAirspace3D(e.target.checked);
+  });
+}
 
 const navaidToggle = document.getElementById('toggle-navaids');
 if (navaidToggle) {
@@ -1145,11 +1202,14 @@ document.getElementById('poll-interval').addEventListener('change', (e) => {
   setPollInterval(parseInt(e.target.value) * 1000);
 });
 
-document.getElementById('trail-length').addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  document.getElementById('trail-value').textContent = `${Math.round(val / 60)}m`;
-  CONFIG.trailMaxAge = val;
-});
+const trailLengthEl = document.getElementById('trail-length');
+if (trailLengthEl) {
+  trailLengthEl.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value);
+    document.getElementById('trail-value').textContent = `${Math.round(val / 60)}m`;
+    CONFIG.trailMaxAge = val;
+  });
+}
 
 // View presets
 document.getElementById('btn-home').addEventListener('click', () => {
@@ -1404,9 +1464,13 @@ async function loadAndApplySettings() {
       CONFIG.darkColor = saved.darkColor || '#00cc44';
       CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
       CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
+      CONFIG.showVelocityVector = saved.showVelocityVector || false;
+      CONFIG.trailMaxAge = saved.trailLength || 120;
       CONFIG.rotationSpeed = saved.rotationSpeed || 3;
       const prevEdges = CONFIG.airspaceEdges;
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : true;
+      const prev3D = CONFIG.airspace3D;
+      CONFIG.airspace3D = saved.airspace3D || false;
       const prevSmallAirports = CONFIG.showSmallAirports;
       CONFIG.showSmallAirports = saved.showSmallAirports || false;
       const prevNavaids = CONFIG.navaidsEnabled;
@@ -1417,7 +1481,7 @@ async function loadAndApplySettings() {
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;
       applyTheme();
-      if (prevEdges !== CONFIG.airspaceEdges && airspaceEntities.length > 0) {
+      if ((prevEdges !== CONFIG.airspaceEdges || prev3D !== CONFIG.airspace3D) && airspaceEntities.length > 0) {
         rebuildAirspace();
       }
       if (prevSmallAirports !== CONFIG.showSmallAirports && cachedAirportData) {
