@@ -11,13 +11,20 @@ const http = require('http');
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 const DEFAULT_SETTINGS = {
   fontSize: 12,
-  theme: 'dark',           // 'dark' | 'light'
-  darkColor: '#00cc44',    // phosphor color for dark mode
-  openskyClientId: '',     // OpenSky API client ID (blank = anonymous)
-  openskyClientSecret: '', // OpenSky API client secret
-  savedView: null,         // saved camera view {lon, lat, height, heading, pitch}
+  theme: 'dark',
+  darkColor: '#00cc44',
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+  showVelocityVector: false,
+  trailLength: 120,
+  airspaceEdges: true,
+  airspace3D: false,
+  showSmallAirports: false,
+  showFixes: false,
+  rotationSpeed: 6,
+  openskyClientId: '',
+  openskyClientSecret: '',
+  savedView: null,
 };
 
 function loadSettings() {
