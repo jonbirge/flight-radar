@@ -55,6 +55,10 @@
         <input type="checkbox" id="toggle-radar">
         <span>RADAR</span>
       </label>
+      <label class="toggle-label">
+        <input type="checkbox" id="toggle-turbulence">
+        <span>TURB</span>
+      </label>
     </div>
     <div class="control-group">
       <label class="range-label">
@@ -74,6 +78,27 @@
           <option value="terminal">VFR Terminal</option>
           <option value="ifrLow">IFR Low</option>
           <option value="ifrHigh">IFR High</option>
+        </select>
+      </label>
+      <label class="range-label">
+        TURB FORECAST
+        <select id="turb-level">
+          <option value="none" selected>None</option>
+          <option value="100">FL100</option>
+          <option value="130">FL130</option>
+          <option value="160">FL160</option>
+          <option value="180">FL180</option>
+          <option value="210">FL210</option>
+          <option value="240">FL240</option>
+          <option value="270">FL270</option>
+          <option value="300">FL300</option>
+          <option value="330">FL330</option>
+          <option value="360">FL360</option>
+          <option value="390">FL390</option>
+          <option value="420">FL420</option>
+          <option value="450">FL450</option>
+          <option value="maxa">MAX (HI)</option>
+          <option value="maxb">MAX (LO)</option>
         </select>
       </label>
     </div>
