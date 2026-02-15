@@ -105,6 +105,18 @@ code {
   margin-right: 4px;
 }
 
+/* PIREP turbulence intensity colors */
+.color-smooth { background: rgb(51,128,255); }
+.color-light { background: rgb(0,204,0); }
+.color-moderate { background: rgb(255,153,0); }
+.color-severe { background: rgb(255,0,0); }
+.color-extreme { background: rgb(255,0,255); }
+
+/* Airspace class colors */
+.color-class-b { background: #4582f8; }
+.color-class-c { background: #ff00ff; }
+.color-class-d { background: #87cefa; }
+
 /* ============================================================
    Dark mode (OS preference)
    ============================================================ */
