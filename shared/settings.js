@@ -194,15 +194,15 @@ function createSettingsFormHTML() {
         <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
         <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
       </div>
-      <label class="settings-toggle-label">
-        <input type="checkbox" id="set-velocity-vector">
-        <span>Show velocity vector</span>
-      </label>
-      <div class="settings-row" id="trail-length-row" style="margin-top:8px;">
+      <div class="settings-row" id="trail-length-row">
         <span class="settings-toggle-label" style="cursor:default;">Trail length</span>
         <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
         <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
       </div>
+      <label class="settings-toggle-label" style="margin-top:8px;">
+        <input type="checkbox" id="set-velocity-vector">
+        <span>Show velocity vector</span>
+      </label>
     </div>
 
     <div class="settings-section">
