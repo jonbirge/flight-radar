@@ -19,6 +19,8 @@ const DEFAULT_SETTINGS = {
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   airspaceEdges: true,
+  showFixes: false,
+  navaidsEnabled: false,
 };
 
 function loadSettings() {
@@ -211,6 +213,7 @@ const settingsPanel = initSettingsPanel({
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     airspaceEdges: CONFIG.airspaceEdges,
     showSmallAirports: CONFIG.showSmallAirports,
+    showFixes: CONFIG.showFixes,
     rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
@@ -225,6 +228,8 @@ const settingsPanel = initSettingsPanel({
     CONFIG.airspaceEdges = form.airspaceEdges;
     const smallAirportsChanged = CONFIG.showSmallAirports !== form.showSmallAirports;
     CONFIG.showSmallAirports = form.showSmallAirports;
+    const showFixesChanged = CONFIG.showFixes !== form.showFixes;
+    CONFIG.showFixes = form.showFixes;
     CONFIG.rotationSpeed = form.rotationSpeed;
     CONFIG.openskyClientId = form.openskyClientId;
     CONFIG.openskyClientSecret = form.openskyClientSecret;
@@ -235,6 +240,13 @@ const settingsPanel = initSettingsPanel({
         initSmallAirports(cachedAirportData);
       } else {
         removeSmallAirports();
+      }
+    }
+    if (showFixesChanged && cachedWaypointData) {
+      if (form.showFixes) {
+        initFixes();
+      } else {
+        removeFixes();
       }
     }
     // Merge with existing settings to preserve savedView and other non-form fields
@@ -252,6 +264,7 @@ function openSettings() {
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     airspaceEdges: CONFIG.airspaceEdges,
     showSmallAirports: CONFIG.showSmallAirports,
+    showFixes: CONFIG.showFixes,
     rotationSpeed: CONFIG.rotationSpeed,
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
