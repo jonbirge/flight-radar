@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   fontSize: 12,
   theme: 'dark',
   darkColor: '#00cc44',
+  lightColor: '#1a1a1a',
   openskyClientId: '',
   openskyClientSecret: '',
   savedView: null,
@@ -211,6 +212,7 @@ const settingsPanel = initSettingsPanel({
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
+    lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     airspaceEdges: CONFIG.airspaceEdges,
@@ -224,6 +226,7 @@ const settingsPanel = initSettingsPanel({
     CONFIG.fontSize = form.fontSize;
     CONFIG.theme = form.theme;
     CONFIG.darkColor = form.darkColor;
+    CONFIG.lightColor = form.lightColor;
     CONFIG.colorByAltitude = form.colorByAltitude;
     CONFIG.thickTrailsByAltitude = form.thickTrailsByAltitude;
     const edgesChanged = CONFIG.airspaceEdges !== form.airspaceEdges;
@@ -262,6 +265,7 @@ function openSettings() {
     fontSize: CONFIG.fontSize,
     theme: CONFIG.theme,
     darkColor: CONFIG.darkColor,
+    lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
     airspaceEdges: CONFIG.airspaceEdges,

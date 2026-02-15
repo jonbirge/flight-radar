@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   fontSize: 12,
   theme: 'dark',
   darkColor: '#00cc44',
+  lightColor: '#1a1a1a',
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   showVelocityVector: false,
