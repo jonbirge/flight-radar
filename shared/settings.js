@@ -15,8 +15,11 @@ const SETTINGS_DEFAULTS = {
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   airspaceEdges: true,
+  airspace3D: false,
   showSmallAirports: false,
   showFixes: false,
+  showVelocityVector: false,
+  trailLength: 120,
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
@@ -42,7 +45,7 @@ const SETTINGS_CSS = `
 }
 
 .settings-label {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 1.5px;
   color: var(--settings-label-color, #666);
   margin-bottom: 8px;
@@ -185,10 +188,20 @@ function createSettingsFormHTML() {
 
   return `
     <div class="settings-section">
-      <div class="settings-label">DATA BLOCK FONT SIZE</div>
-      <div class="settings-row">
-        <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1">
+      <div class="settings-label">AIRCRAFT DISPLAY</div>
+      <div class="settings-row" style="margin-bottom:8px;">
+        <span class="settings-toggle-label" style="cursor:default;">Font size</span>
+        <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
         <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
+      </div>
+      <label class="settings-toggle-label">
+        <input type="checkbox" id="set-velocity-vector">
+        <span>Show velocity vector</span>
+      </label>
+      <div class="settings-row" id="trail-length-row" style="margin-top:8px;">
+        <span class="settings-toggle-label" style="cursor:default;">Trail length</span>
+        <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
+        <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
       </div>
     </div>
 
@@ -223,31 +236,23 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-section">
-      <div class="settings-label">AIRSPACE</div>
+      <div class="settings-label">LEVEL OF DETAIL</div>
       <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
         <label class="settings-toggle-label">
           <input type="checkbox" id="set-airspace-edges">
           <span>Show airspace edges</span>
         </label>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-label">AIRPORTS</div>
-      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <label class="settings-toggle-label">
+          <input type="checkbox" id="set-airspace-3d">
+          <span>3D airspace</span>
+        </label>
         <label class="settings-toggle-label">
           <input type="checkbox" id="set-small-airports">
-          <span>Show small airports (visible when zoomed in)</span>
+          <span>Show small airports</span>
         </label>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-label">NAVAIDS</div>
-      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
         <label class="settings-toggle-label">
           <input type="checkbox" id="set-show-fixes">
-          <span>Include waypoint fixes (visible when zoomed in)</span>
+          <span>Include waypoint fixes</span>
         </label>
       </div>
     </div>
@@ -315,14 +320,23 @@ function populateSettingsForm(container, settings) {
   // Altitude checkboxes
   container.querySelector('#set-color-by-alt').checked = s.colorByAltitude;
   container.querySelector('#set-thick-trails').checked = s.thickTrailsByAltitude;
+  container.querySelector('#set-velocity-vector').checked = s.showVelocityVector;
 
-  // Airspace edges
+  // Trail length
+  const trailSlider = container.querySelector('#set-trail-length');
+  const trailVal = container.querySelector('#set-trail-length-val');
+  trailSlider.value = s.trailLength;
+  trailVal.textContent = `${Math.round(s.trailLength / 60)}m`;
+  const trailRow = container.querySelector('#trail-length-row');
+  if (trailRow) {
+    trailRow.style.opacity = s.showVelocityVector ? '0.4' : '1';
+    trailSlider.disabled = s.showVelocityVector;
+  }
+
+  // Level of detail
   container.querySelector('#set-airspace-edges').checked = s.airspaceEdges;
-
-  // Small airports
+  container.querySelector('#set-airspace-3d').checked = s.airspace3D;
   container.querySelector('#set-small-airports').checked = s.showSmallAirports;
-
-  // Waypoint fixes
   container.querySelector('#set-show-fixes').checked = s.showFixes;
 
   // Rotation speed
@@ -363,7 +377,12 @@ function initSettingsPanel(options) {
   const customColor = container.querySelector('#set-custom-color');
   const colorByAlt = container.querySelector('#set-color-by-alt');
   const thickTrails = container.querySelector('#set-thick-trails');
+  const velocityVector = container.querySelector('#set-velocity-vector');
+  const trailLengthSlider = container.querySelector('#set-trail-length');
+  const trailLengthVal = container.querySelector('#set-trail-length-val');
+  const trailLengthRow = container.querySelector('#trail-length-row');
   const airspaceEdges = container.querySelector('#set-airspace-edges');
+  const airspace3D = container.querySelector('#set-airspace-3d');
   const smallAirports = container.querySelector('#set-small-airports');
   const showFixes = container.querySelector('#set-show-fixes');
   const rotSlider = container.querySelector('#set-rotation-speed');
@@ -381,7 +400,10 @@ function initSettingsPanel(options) {
       darkColor: formState.darkColor,
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
+      showVelocityVector: velocityVector.checked,
+      trailLength: parseInt(trailLengthSlider.value),
       airspaceEdges: airspaceEdges.checked,
+      airspace3D: airspace3D.checked,
       showSmallAirports: smallAirports.checked,
       showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
@@ -466,7 +488,22 @@ function initSettingsPanel(options) {
     broadcast();
   });
 
+  velocityVector.addEventListener('change', () => {
+    trailLengthRow.style.opacity = velocityVector.checked ? '0.4' : '1';
+    trailLengthSlider.disabled = velocityVector.checked;
+    broadcast();
+  });
+
+  trailLengthSlider.addEventListener('input', () => {
+    trailLengthVal.textContent = `${Math.round(trailLengthSlider.value / 60)}m`;
+    debouncedBroadcast();
+  });
+
   airspaceEdges.addEventListener('change', () => {
+    broadcast();
+  });
+
+  airspace3D.addEventListener('change', () => {
     broadcast();
   });
 

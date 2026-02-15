@@ -31,6 +31,7 @@ const CONFIG = {
   labelOutlineColor: Cesium.Color.BLACK,
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+  showVelocityVector: false,
   rotationSpeed: 6,             // degrees per second for camera rotation
   airportsEnabled: true,
   airspaceEnabled: true,
@@ -158,7 +159,7 @@ function computeIconSize(camHeight, baseSize) {
 // Display size for billboards: 2px at CONUS, 5px at city, linear transition
 function computeDisplaySize(camHeight) {
   const t = getZoomFraction(camHeight);
-  return Math.round(5 - 3 * t);
+  return Math.round(10 - 8 * t);
 }
 
 const POLL_STEPS = [10, 20, 30, 60]; // seconds
