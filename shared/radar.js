@@ -31,6 +31,8 @@ let lastIconSize = -1;
 let lastPollBounds = null;
 let viewChangePollDebounce = null;
 const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
+let radarLayer = null;
+let radarRefreshTimer = null;
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -145,6 +147,59 @@ async function makeMapTiles(layerId) {
   }
 }
 
+// ============================================================
+// NEXRAD Weather Radar Overlay
+// ============================================================
+
+function makeRadarProvider() {
+  return new Cesium.WebMapServiceImageryProvider({
+    url: 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi?',
+    layers: 'nexrad-n0q-900913',
+    parameters: {
+      transparent: true,
+      format: 'image/png',
+    },
+    credit: new Cesium.Credit('Iowa State Mesonet'),
+  });
+}
+
+function enableRadar() {
+  if (radarLayer) return;
+  const provider = makeRadarProvider();
+  radarLayer = viewer.imageryLayers.addImageryProvider(provider);
+  radarLayer.alpha = 0.6;
+  CONFIG.radarEnabled = true;
+  console.log('[Radar] NEXRAD overlay enabled');
+  // Auto-refresh every 5 minutes
+  if (radarRefreshTimer) clearInterval(radarRefreshTimer);
+  radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+}
+
+function disableRadar() {
+  if (radarLayer) {
+    viewer.imageryLayers.remove(radarLayer);
+    radarLayer = null;
+  }
+  CONFIG.radarEnabled = false;
+  if (radarRefreshTimer) {
+    clearInterval(radarRefreshTimer);
+    radarRefreshTimer = null;
+  }
+  console.log('[Radar] NEXRAD overlay disabled');
+}
+
+function refreshRadar() {
+  if (!CONFIG.radarEnabled) return;
+  if (radarLayer) {
+    viewer.imageryLayers.remove(radarLayer);
+    radarLayer = null;
+  }
+  const provider = makeRadarProvider();
+  radarLayer = viewer.imageryLayers.addImageryProvider(provider);
+  radarLayer.alpha = 0.6;
+  console.log('[Radar] NEXRAD overlay refreshed');
+}
+
 function applyTheme() {
   const isDark = CONFIG.theme === 'dark';
 
@@ -159,8 +214,13 @@ function applyTheme() {
   // Swap tile layer
   const layers = viewer.imageryLayers;
   layers.removeAll();
+  radarLayer = null; // cleared by removeAll
   makeMapTiles(CONFIG.mapLayer).then(provider => {
     layers.addImageryProvider(provider);
+    if (CONFIG.radarEnabled) {
+      radarLayer = layers.addImageryProvider(makeRadarProvider());
+      radarLayer.alpha = 0.6;
+    }
   });
 
   // Globe & scene background
@@ -1229,6 +1289,20 @@ if (navaidToggle) {
   });
 }
 
+const radarToggle = document.getElementById('toggle-radar');
+if (radarToggle) {
+  radarToggle.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      enableRadar();
+    } else {
+      disableRadar();
+    }
+    const settings = await window.flightAPI.getSettings();
+    settings.radarEnabled = CONFIG.radarEnabled;
+    await window.flightAPI.saveSettings(settings);
+  });
+}
+
 document.getElementById('toggle-labels').addEventListener('change', (e) => {
   CONFIG.labelsEnabled = e.target.checked;
   for (const [icao, ac] of aircraft) {
@@ -1246,8 +1320,13 @@ document.getElementById('map-layer').addEventListener('change', async (e) => {
   CONFIG.mapLayer = e.target.value;
   const layers = viewer.imageryLayers;
   layers.removeAll();
+  radarLayer = null; // cleared by removeAll
   const provider = await makeMapTiles(CONFIG.mapLayer);
   layers.addImageryProvider(provider);
+  if (CONFIG.radarEnabled) {
+    radarLayer = layers.addImageryProvider(makeRadarProvider());
+    radarLayer.alpha = 0.6;
+  }
   // Persist the selection
   const settings = await window.flightAPI.getSettings();
   settings.mapLayer = CONFIG.mapLayer;
@@ -1532,8 +1611,16 @@ async function loadAndApplySettings() {
       CONFIG.showFixes = saved.showFixes || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
+      CONFIG.radarEnabled = saved.radarEnabled || false;
       CONFIG.savedView = saved.savedView || null;
-      applyTheme();
+      applyTheme(); // adds radar layer on top if CONFIG.radarEnabled
+      const rToggle = document.getElementById('toggle-radar');
+      if (rToggle) rToggle.checked = CONFIG.radarEnabled;
+      // Start auto-refresh timer (applyTheme already adds the visual layer)
+      if (CONFIG.radarEnabled) {
+        if (radarRefreshTimer) clearInterval(radarRefreshTimer);
+        radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+      }
       const mapLayerSel = document.getElementById('map-layer');
       if (mapLayerSel) mapLayerSel.value = CONFIG.mapLayer;
       if ((prevEdges !== CONFIG.airspaceEdges || prev3D !== CONFIG.airspace3D) && airspaceEntities.length > 0) {

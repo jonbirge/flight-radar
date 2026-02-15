@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS = {
   showSmallAirports: false,
   showFixes: false,
   mapLayer: 'carto',
+  radarEnabled: false,
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
