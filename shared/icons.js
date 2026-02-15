@@ -32,6 +32,31 @@ function createAircraftIcon(heading = 0, selected = false, colorOverride = null)
   return canvas;
 }
 
+// Create a triangle icon for navaids (VOR, NDB, etc.)
+// Render at 4x resolution for crisp display
+function createNavaidIcon(size, cssColor) {
+  const scale = 4;
+  const res = size * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = res;
+  canvas.height = res;
+  const ctx = canvas.getContext('2d');
+
+  const cx = res / 2;
+  const r = res / 2 - scale; // slight inset for clean edges
+
+  // Equilateral triangle pointing up
+  ctx.beginPath();
+  ctx.moveTo(cx, cx - r);                           // top
+  ctx.lineTo(cx + r * Math.cos(Math.PI / 6), cx + r * Math.sin(Math.PI / 6));  // bottom-right
+  ctx.lineTo(cx - r * Math.cos(Math.PI / 6), cx + r * Math.sin(Math.PI / 6));  // bottom-left
+  ctx.closePath();
+
+  ctx.fillStyle = cssColor;
+  ctx.fill();
+  return canvas;
+}
+
 // Create a simple dot icon for zoomed-out LOD
 // Render at 4x resolution for clean anti-aliased circles at small display sizes
 function createDotIcon(size, bright = false, colorOverride = null) {
