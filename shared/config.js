@@ -40,6 +40,7 @@ const CONFIG = {
   showSmallAirports: false,
   navaidsEnabled: false,
   showFixes: false,
+  mapLayer: 'carto',
 };
 
 // ============================================================

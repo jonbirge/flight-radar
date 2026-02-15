@@ -19,6 +19,7 @@ const SETTINGS_DEFAULTS = {
   showSmallAirports: false,
   showFixes: false,
   showVelocityVector: false,
+  mapLayer: 'carto',
   trailLength: 120,
   rotationSpeed: 6,
   openskyClientId: '',

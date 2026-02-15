@@ -107,6 +107,44 @@ function makeLightTiles() {
   });
 }
 
+function makeSectionalTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+function makeTerminalTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Terminal/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+function makeIfrLowTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+function makeIfrHighTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+async function makeMapTiles(layerId) {
+  switch (layerId) {
+    case 'sectional': return await makeSectionalTiles();
+    case 'terminal':  return await makeTerminalTiles();
+    case 'ifrLow':    return await makeIfrLowTiles();
+    case 'ifrHigh':   return await makeIfrHighTiles();
+    default:          return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
+  }
+}
+
 function applyTheme() {
   const isDark = CONFIG.theme === 'dark';
 
@@ -121,7 +159,9 @@ function applyTheme() {
   // Swap tile layer
   const layers = viewer.imageryLayers;
   layers.removeAll();
-  layers.addImageryProvider(isDark ? makeDarkTiles() : makeLightTiles());
+  makeMapTiles(CONFIG.mapLayer).then(provider => {
+    layers.addImageryProvider(provider);
+  });
 
   // Globe & scene background
   const bgColor = isDark ? '#0a0a0a' : '#e8e8e8';
@@ -1202,6 +1242,18 @@ document.getElementById('poll-interval').addEventListener('change', (e) => {
   setPollInterval(parseInt(e.target.value) * 1000);
 });
 
+document.getElementById('map-layer').addEventListener('change', async (e) => {
+  CONFIG.mapLayer = e.target.value;
+  const layers = viewer.imageryLayers;
+  layers.removeAll();
+  const provider = await makeMapTiles(CONFIG.mapLayer);
+  layers.addImageryProvider(provider);
+  // Persist the selection
+  const settings = await window.flightAPI.getSettings();
+  settings.mapLayer = CONFIG.mapLayer;
+  await window.flightAPI.saveSettings(settings);
+});
+
 const trailLengthEl = document.getElementById('trail-length');
 if (trailLengthEl) {
   trailLengthEl.addEventListener('input', (e) => {
@@ -1473,6 +1525,7 @@ async function loadAndApplySettings() {
       CONFIG.airspace3D = saved.airspace3D || false;
       const prevSmallAirports = CONFIG.showSmallAirports;
       CONFIG.showSmallAirports = saved.showSmallAirports || false;
+      CONFIG.mapLayer = saved.mapLayer || 'carto';
       const prevNavaids = CONFIG.navaidsEnabled;
       CONFIG.navaidsEnabled = saved.navaidsEnabled || false;
       const prevShowFixes = CONFIG.showFixes;
@@ -1481,6 +1534,8 @@ async function loadAndApplySettings() {
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;
       applyTheme();
+      const mapLayerSel = document.getElementById('map-layer');
+      if (mapLayerSel) mapLayerSel.value = CONFIG.mapLayer;
       if ((prevEdges !== CONFIG.airspaceEdges || prev3D !== CONFIG.airspace3D) && airspaceEntities.length > 0) {
         rebuildAirspace();
       }

@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   airspaceEdges: true,
   showFixes: false,
   navaidsEnabled: false,
+  mapLayer: 'carto',
 };
 
 function loadSettings() {
