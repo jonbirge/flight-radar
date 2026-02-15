@@ -284,10 +284,10 @@ function openSettingsWindow() {
         }
         
         const bodyStyle = window.getComputedStyle(document.body);
-        const paddingTop = parseInt(bodyStyle.paddingTop, 10);
-        const paddingBottom = parseInt(bodyStyle.paddingBottom, 10);
+        const paddingTop = parseInt(bodyStyle.paddingTop, 10) || 0;
+        const paddingBottom = parseInt(bodyStyle.paddingBottom, 10) || 0;
         const actionsStyle = window.getComputedStyle(actions);
-        const actionsMarginTop = parseInt(actionsStyle.marginTop, 10);
+        const actionsMarginTop = parseInt(actionsStyle.marginTop, 10) || 0;
         
         const totalHeight = paddingTop + container.offsetHeight + actionsMarginTop + actions.offsetHeight + paddingBottom;
         
