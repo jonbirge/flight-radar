@@ -39,7 +39,8 @@
     <li><strong>AIRSPACE</strong> — Show/hide Class B, C, and D airspace boundaries.</li>
     <li><strong>NAVAIDS</strong> — Show/hide VOR, NDB, and other navigation aids.</li>
     <li><strong>RADAR</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
-      Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.</li>
+      Data is provided by the Iowa State Mesonet and refreshes every 5 minutes. Clutter filtering
+      automatically removes weak returns to show only material precipitation.</li>
     <li><strong>TURB</strong> — Toggle weather hazard overlays: Pilot Reports (PIREPs),
       turbulence SIGMETs, convective SIGMETs, and G-AIRMETs. Data refreshes every 5 minutes.</li>
   </ul>
@@ -72,6 +73,8 @@
   <p>
     The RADAR toggle displays composite NEXRAD reflectivity over CONUS via WMS tiles
     from the Iowa State Mesonet. The overlay refreshes automatically every 5 minutes.
+    Clutter filtering automatically removes weak returns and ground clutter, showing only
+    material weather (precipitation) in saturated green, yellow, orange, and red colors.
   </p>
 
   <h3>Weather Hazard Overlays (TURB toggle)</h3>
