@@ -90,7 +90,6 @@ const SETTINGS_CSS = `
 .color-swatch:hover { transform: scale(1.15); }
 .color-swatch.active {
   border-color: var(--swatch-active-border, #333);
-  box-shadow: 0 0 6px var(--swatch-active-shadow, rgba(0,0,0,0.2));
 }
 
 #set-custom-color,
@@ -224,6 +223,7 @@ function createSettingsFormHTML() {
       <div class="settings-label">DISPLAY MODE</div>
       <div class="settings-row">
         <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
+        <button class="settings-theme-btn" id="set-theme-system" type="button">SYSTEM</button>
         <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
       </div>
     </div>
@@ -334,8 +334,10 @@ function populateSettingsForm(container, settings) {
 
   // Theme buttons
   const btnDark = container.querySelector('#set-theme-dark');
+  const btnSystem = container.querySelector('#set-theme-system');
   const btnLight = container.querySelector('#set-theme-light');
   btnDark.classList.toggle('active', s.theme === 'dark');
+  btnSystem.classList.toggle('active', s.theme === 'system');
   btnLight.classList.toggle('active', s.theme === 'light');
 
   // Dark color swatches
@@ -406,6 +408,7 @@ function initSettingsPanel(options) {
   const fontSlider = container.querySelector('#set-fontsize');
   const fontVal = container.querySelector('#set-fontsize-val');
   const btnDark = container.querySelector('#set-theme-dark');
+  const btnSystem = container.querySelector('#set-theme-system');
   const btnLight = container.querySelector('#set-theme-light');
   const darkSwatches = container.querySelectorAll('.dark-color-swatch');
   const customColor = container.querySelector('#set-custom-color');
@@ -484,19 +487,17 @@ function initSettingsPanel(options) {
   });
 
   // --- Theme toggle ---
-  btnDark.addEventListener('click', () => {
-    formState.theme = 'dark';
-    btnDark.classList.add('active');
-    btnLight.classList.remove('active');
+  function setThemeButton(theme) {
+    formState.theme = theme;
+    btnDark.classList.toggle('active', theme === 'dark');
+    btnSystem.classList.toggle('active', theme === 'system');
+    btnLight.classList.toggle('active', theme === 'light');
     broadcast();
-  });
+  }
 
-  btnLight.addEventListener('click', () => {
-    formState.theme = 'light';
-    btnLight.classList.add('active');
-    btnDark.classList.remove('active');
-    broadcast();
-  });
+  btnDark.addEventListener('click', () => setThemeButton('dark'));
+  btnSystem.addEventListener('click', () => setThemeButton('system'));
+  btnLight.addEventListener('click', () => setThemeButton('light'));
 
   // --- Dark color swatches ---
   darkSwatches.forEach(sw => {

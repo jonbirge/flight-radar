@@ -21,7 +21,8 @@ const CONFIG = {
 
   // Visual (dynamically updated by theme system)
   fontSize: 11,
-  theme: 'light',             // 'dark' | 'light'
+  theme: 'light',             // resolved theme: always 'dark' | 'light'
+  themePref: 'light',          // user preference: 'dark' | 'light' | 'system'
   darkColor: '#00cc44',       // user-selected dark mode color
   lightColor: '#1a1a1a',      // user-selected light mode color
   phosphor: '#00cc44',

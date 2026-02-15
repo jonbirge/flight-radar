@@ -83,7 +83,6 @@
 
 #settings-container .settings-cred-input:focus {
   border-color: var(--phosphor);
-  box-shadow: 0 0 6px var(--phosphor-dim);
   outline: none;
 }
 
@@ -127,5 +126,4 @@ body.theme-light #settings-container .settings-cred-input {
 }
 body.theme-light #settings-container .settings-cred-input:focus {
   border-color: #1a1a1a;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
 }

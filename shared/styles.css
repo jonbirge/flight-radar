@@ -246,7 +246,6 @@ select {
   min-width: 220px;
   font-size: 12px;
   line-height: 1.6;
-  box-shadow: 0 0 20px var(--phosphor-faint);
 }
 
 #aircraft-info.hidden {
@@ -350,7 +349,6 @@ body.theme-light input[type="range"]::-webkit-slider-thumb { background: var(--p
 
 body.theme-light #aircraft-info {
   border-color: rgba(0, 0, 0, 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 /* Remove scanline overlay in light mode */

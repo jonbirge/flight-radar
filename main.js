@@ -1,7 +1,7 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -62,6 +62,16 @@ ipcMain.handle('get-settings', () => loadSettings());
 ipcMain.handle('save-settings', (event, settings) => {
   saveSettings(settings);
   return true;
+});
+
+// --- System Theme ---
+ipcMain.handle('get-system-theme', () => nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
+
+nativeTheme.on('updated', () => {
+  const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('system-theme-changed', theme);
+  }
 });
 
 // --- OpenSky Network API ---

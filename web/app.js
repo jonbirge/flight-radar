@@ -196,6 +196,15 @@ window.flightAPI = {
   getSettings: () => Promise.resolve(loadSettings()),
   saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
   onOpenSettings: () => {},  // no-op
+
+  // System theme detection
+  getSystemTheme: () => Promise.resolve(
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  ),
+  onSystemThemeChanged: (callback) => {
+    window.matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', (e) => callback(e.matches ? 'dark' : 'light'));
+  },
 };
 
 // ============================================================
@@ -210,7 +219,7 @@ const settingsPanel = initSettingsPanel({
   container: settingsContainer,
   getSettings: () => Promise.resolve({
     fontSize: CONFIG.fontSize,
-    theme: CONFIG.theme,
+    theme: CONFIG.themePref,
     darkColor: CONFIG.darkColor,
     lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,
@@ -222,9 +231,9 @@ const settingsPanel = initSettingsPanel({
     openskyClientId: CONFIG.openskyClientId || '',
     openskyClientSecret: CONFIG.openskyClientSecret || '',
   }),
-  onChanged: (form) => {
+  onChanged: async (form) => {
     CONFIG.fontSize = form.fontSize;
-    CONFIG.theme = form.theme;
+    CONFIG.themePref = form.theme;
     CONFIG.darkColor = form.darkColor;
     CONFIG.lightColor = form.lightColor;
     CONFIG.colorByAltitude = form.colorByAltitude;
@@ -238,7 +247,7 @@ const settingsPanel = initSettingsPanel({
     CONFIG.rotationSpeed = form.rotationSpeed;
     CONFIG.openskyClientId = form.openskyClientId;
     CONFIG.openskyClientSecret = form.openskyClientSecret;
-    applyTheme();
+    await applyTheme();
     if (edgesChanged) toggleAirspaceEdges(form.airspaceEdges);
     if (smallAirportsChanged && cachedAirportData) {
       if (form.showSmallAirports) {
@@ -263,7 +272,7 @@ const settingsPanel = initSettingsPanel({
 function openSettings() {
   settingsPanel.populate({
     fontSize: CONFIG.fontSize,
-    theme: CONFIG.theme,
+    theme: CONFIG.themePref,
     darkColor: CONFIG.darkColor,
     lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,

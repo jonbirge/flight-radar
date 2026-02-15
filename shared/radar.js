@@ -560,7 +560,16 @@ function refreshTurbForecast() {
   console.log('[Weather] GTG forecast refreshed');
 }
 
-function applyTheme() {
+async function resolveTheme() {
+  if (CONFIG.themePref !== 'system') return CONFIG.themePref;
+  if (window.flightAPI && window.flightAPI.getSystemTheme) {
+    try { return await window.flightAPI.getSystemTheme(); } catch (_) {}
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+async function applyTheme() {
+  CONFIG.theme = await resolveTheme();
   const isDark = CONFIG.theme === 'dark';
 
   // Update color config
@@ -930,9 +939,9 @@ function initNavaids(data) {
     const entity = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(nav.lon, nav.lat, 10),
       billboard: {
-        image: createNavaidIcon(8, cssColor),
-        width: 8,
-        height: 8,
+        image: createNavaidIcon(12, cssColor),
+        width: 12,
+        height: 12,
         scaleByDistance: new Cesium.NearFarScalar(5e4, 1.0, 5e6, 0.4),
       },
       label: {
@@ -1033,7 +1042,7 @@ function updateWaypointColors() {
     for (let i = 0; i < navaidEntities.length && i < navaids.length; i++) {
       const color = getNavaidColor(navaids[i].type);
       const cssColor = color.toCssColorString();
-      navaidEntities[i].billboard.image = createNavaidIcon(8, cssColor);
+      navaidEntities[i].billboard.image = createNavaidIcon(12, cssColor);
       navaidEntities[i].label.fillColor = color;
       navaidEntities[i].label.outlineColor = outlineColor;
     }
@@ -2079,7 +2088,7 @@ async function loadAndApplySettings() {
     const saved = await window.flightAPI.getSettings();
     if (saved) {
       CONFIG.fontSize = saved.fontSize || 11;
-      CONFIG.theme = saved.theme || 'dark';
+      CONFIG.themePref = saved.theme || 'dark';
       CONFIG.darkColor = saved.darkColor || '#00cc44';
       CONFIG.lightColor = saved.lightColor || '#1a1a1a';
       CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
@@ -2108,7 +2117,7 @@ async function loadAndApplySettings() {
       CONFIG.turbulenceEnabled = saved.turbulenceEnabled || false;
       CONFIG.turbulenceLevel = saved.turbulenceLevel || 'none';
       CONFIG.savedView = saved.savedView || null;
-      applyTheme(); // adds turb + radar layers on top if enabled
+      await applyTheme(); // adds turb + radar layers on top if enabled
       // Sync main window checkboxes
       const trailsToggle = document.getElementById('toggle-trails');
       if (trailsToggle) trailsToggle.checked = CONFIG.trailEnabled;
@@ -2202,6 +2211,14 @@ async function loadAndApplySettings() {
     if (CONFIG.navaidsEnabled && navaidEntities.length === 0) {
       initNavaids();
     }
+  }
+
+  // Register system theme change listener (once)
+  if (!loadAndApplySettings._systemThemeRegistered && window.flightAPI && window.flightAPI.onSystemThemeChanged) {
+    loadAndApplySettings._systemThemeRegistered = true;
+    window.flightAPI.onSystemThemeChanged(() => {
+      if (CONFIG.themePref === 'system') applyTheme();
+    });
   }
 }
 
