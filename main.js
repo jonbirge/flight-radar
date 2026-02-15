@@ -272,7 +272,7 @@ function openSettingsWindow() {
   settingsWindow.once('ready-to-show', () => {
     // Auto-resize to fit content
     settingsWindow.webContents.executeJavaScript(
-      'JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight })'
+      '(() => { document.body.style.height = "auto"; document.body.style.overflow = "hidden"; return JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight }); })()'
     ).then(json => {
       const { width, height } = JSON.parse(json);
       settingsWindow.setContentSize(Math.max(width, 440), height);
