@@ -223,8 +223,8 @@ function createSettingsFormHTML() {
       <div class="settings-label">DISPLAY MODE</div>
       <div class="settings-row">
         <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
-        <button class="settings-theme-btn" id="set-theme-system" type="button">SYSTEM</button>
         <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
+        <button class="settings-theme-btn" id="set-theme-system" type="button">SYSTEM</button>
       </div>
     </div>
 
