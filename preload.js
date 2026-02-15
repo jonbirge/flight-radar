@@ -17,4 +17,8 @@ contextBridge.exposeInMainWorld('flightAPI', {
 
   // Listen for settings changes applied from the settings window
   onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', callback),
+
+  // System theme detection
+  getSystemTheme: () => ipcRenderer.invoke('get-system-theme'),
+  onSystemThemeChanged: (callback) => ipcRenderer.on('system-theme-changed', (_, theme) => callback(theme)),
 });
