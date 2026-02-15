@@ -41,6 +41,7 @@ const CONFIG = {
   navaidsEnabled: false,
   showFixes: false,
   mapLayer: 'carto',
+  radarEnabled: false,
 };
 
 // ============================================================
