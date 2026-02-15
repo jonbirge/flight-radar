@@ -14,7 +14,10 @@ const trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
 const airportEntities = [];       // Cesium entities for airport markers
 const smallAirportEntities = [];  // Cesium entities for small airport markers
 const airspaceEntities = [];     // Cesium entities for airspace polygons
+const waypointEntities = [];     // Cesium entities for fix markers
+const navaidEntities = [];       // Cesium entities for navaid markers
 let cachedAirportData = null;     // Cached airport JSON for rebuilds
+let cachedWaypointData = null;    // Cached waypoint JSON for rebuilds
 let pollTimer = null;
 let trackTimer = null;
 let viewer = null;
@@ -154,6 +157,9 @@ function applyTheme() {
 
   // Update airport marker colors to match theme
   updateAirportColors();
+
+  // Update waypoint colors to match theme
+  updateWaypointColors();
 }
 
 // Destroy and re-create all aircraft entities to pick up new theme
@@ -204,7 +210,7 @@ function initAirports(airports) {
 
     const entity = viewer.entities.add({
       // Slight altitude keeps dots above the globe surface at oblique angles
-      position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 500),
+      position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 10),
       point: {
         pixelSize: dotSize,
         color: pointColor,
@@ -249,7 +255,7 @@ function initSmallAirports(airports) {
     const dotScale = new Cesium.NearFarScalar(5e4, 1.0, 2e5, farScale);
 
     const entity = viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 500),
+      position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 10),
       point: {
         pixelSize: dotSize,
         color: pointColor,
@@ -392,6 +398,177 @@ function toggleAirspace3D(use3D) {
 function toggleAirspaceEdges(show) {
   CONFIG.airspaceEdges = show;
   rebuildAirspace();
+}
+
+// ============================================================
+// Waypoints & Navaids
+// ============================================================
+
+function getWaypointColor() {
+  if (CONFIG.theme === 'light') {
+    return Cesium.Color.fromCssColorString('rgba(120, 120, 120, 0.6)');
+  }
+  const rgb = CONFIG.trailColor;
+  return Cesium.Color.fromBytes(rgb[0], rgb[1], rgb[2], 100);
+}
+
+function getWaypointLabelColor() {
+  if (CONFIG.theme === 'light') {
+    return Cesium.Color.fromCssColorString('rgba(100, 100, 100, 0.75)');
+  }
+  const rgb = CONFIG.trailColor;
+  return Cesium.Color.fromBytes(rgb[0], rgb[1], rgb[2], 150);
+}
+
+function getNavaidColor(type) {
+  if (CONFIG.theme === 'light') {
+    switch (type) {
+      case 'VOR': case 'VORTAC': case 'VOR/DME':
+        return Cesium.Color.fromCssColorString('rgba(50, 80, 180, 0.8)');
+      case 'NDB': case 'NDB/DME':
+        return Cesium.Color.fromCssColorString('rgba(160, 50, 50, 0.8)');
+      case 'DME': case 'TACAN':
+        return Cesium.Color.fromCssColorString('rgba(50, 130, 50, 0.8)');
+      default:
+        return Cesium.Color.fromCssColorString('rgba(100, 100, 100, 0.8)');
+    }
+  }
+  switch (type) {
+    case 'VOR': case 'VORTAC': case 'VOR/DME':
+      return new Cesium.Color(0.4, 0.6, 1.0, 0.9);
+    case 'NDB': case 'NDB/DME':
+      return new Cesium.Color(1.0, 0.4, 0.4, 0.9);
+    case 'DME': case 'TACAN':
+      return new Cesium.Color(0.4, 1.0, 0.5, 0.9);
+    default:
+      return new Cesium.Color(0.7, 0.7, 0.7, 0.9);
+  }
+}
+
+function initNavaids(data) {
+  if (data) cachedWaypointData = data;
+  if (!cachedWaypointData) return;
+
+  const navaids = cachedWaypointData.navaids || [];
+  const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
+  const navLabelRange = 150000; // labels within 150km
+  const navRange = 300000;      // visible within 300km
+
+  for (const nav of navaids) {
+    const color = getNavaidColor(nav.type);
+    const labelText = nav.id + ' ' + nav.type;
+
+    const entity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(nav.lon, nav.lat, 10),
+      point: {
+        pixelSize: 5,
+        color: color,
+        outlineWidth: 0,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, navRange),
+        scaleByDistance: new Cesium.NearFarScalar(5e4, 1.0, 3e5, 0.5),
+      },
+      label: {
+        text: labelText,
+        font: '11px Consolas, monospace',
+        fillColor: color,
+        outlineColor: outlineColor,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, 8),
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        verticalOrigin: Cesium.VerticalOrigin.TOP,
+        scale: 0.8,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, navLabelRange),
+      },
+      show: CONFIG.navaidsEnabled,
+    });
+    navaidEntities.push(entity);
+  }
+
+  console.log(`[Navaids] Created ${navaidEntities.length} navaid markers`);
+
+  if (CONFIG.showFixes) {
+    initFixes();
+  }
+}
+
+function initFixes() {
+  if (!cachedWaypointData) return;
+  const fixes = cachedWaypointData.fixes || [];
+
+  const fixColor = getWaypointColor();
+  const fixLabelColor = getWaypointLabelColor();
+  const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
+  const fixRange = 100000;     // visible within 100km
+  const fixLabelRange = 50000; // labels within 50km
+
+  for (const fix of fixes) {
+    const entity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(fix.lon, fix.lat, 10),
+      point: {
+        pixelSize: 3,
+        color: fixColor,
+        outlineWidth: 0,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, fixRange),
+        scaleByDistance: new Cesium.NearFarScalar(2e4, 1.0, 1e5, 0.5),
+      },
+      label: {
+        text: fix.id,
+        font: '10px Consolas, monospace',
+        fillColor: fixLabelColor,
+        outlineColor: outlineColor,
+        outlineWidth: 1,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, 6),
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        verticalOrigin: Cesium.VerticalOrigin.TOP,
+        scale: 0.7,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, fixLabelRange),
+      },
+      show: CONFIG.navaidsEnabled,
+    });
+    waypointEntities.push(entity);
+  }
+
+  console.log(`[Navaids] Created ${waypointEntities.length} fix markers`);
+}
+
+function removeFixes() {
+  for (const entity of waypointEntities) viewer.entities.remove(entity);
+  waypointEntities.length = 0;
+}
+
+function removeNavaids() {
+  removeFixes();
+  for (const entity of navaidEntities) viewer.entities.remove(entity);
+  navaidEntities.length = 0;
+}
+
+function toggleNavaids(show) {
+  CONFIG.navaidsEnabled = show;
+  for (const entity of navaidEntities) entity.show = show;
+  for (const entity of waypointEntities) entity.show = show;
+}
+
+function updateWaypointColors() {
+  const fixColor = getWaypointColor();
+  const fixLabelColor = getWaypointLabelColor();
+  const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
+  for (const entity of waypointEntities) {
+    entity.point.color = fixColor;
+    entity.label.fillColor = fixLabelColor;
+    entity.label.outlineColor = outlineColor;
+  }
+  // Rebuild navaids to update colors per type
+  if (navaidEntities.length > 0 && cachedWaypointData) {
+    const navaids = cachedWaypointData.navaids || [];
+    for (let i = 0; i < navaidEntities.length && i < navaids.length; i++) {
+      const color = getNavaidColor(navaids[i].type);
+      navaidEntities[i].point.color = color;
+      navaidEntities[i].label.fillColor = color;
+      navaidEntities[i].label.outlineColor = outlineColor;
+    }
+  }
 }
 
 // ============================================================
@@ -944,6 +1121,17 @@ document.getElementById('toggle-airspace-3d').addEventListener('change', (e) => 
   toggleAirspace3D(e.target.checked);
 });
 
+const navaidToggle = document.getElementById('toggle-navaids');
+if (navaidToggle) {
+  navaidToggle.addEventListener('change', (e) => {
+    const show = e.target.checked;
+    if (show && navaidEntities.length === 0 && cachedWaypointData) {
+      initNavaids();
+    }
+    toggleNavaids(show);
+  });
+}
+
 document.getElementById('toggle-labels').addEventListener('change', (e) => {
   CONFIG.labelsEnabled = e.target.checked;
   for (const [icao, ac] of aircraft) {
@@ -1221,6 +1409,10 @@ async function loadAndApplySettings() {
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : true;
       const prevSmallAirports = CONFIG.showSmallAirports;
       CONFIG.showSmallAirports = saved.showSmallAirports || false;
+      const prevNavaids = CONFIG.navaidsEnabled;
+      CONFIG.navaidsEnabled = saved.navaidsEnabled || false;
+      const prevShowFixes = CONFIG.showFixes;
+      CONFIG.showFixes = saved.showFixes || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
       CONFIG.savedView = saved.savedView || null;
@@ -1235,15 +1427,31 @@ async function loadAndApplySettings() {
           removeSmallAirports();
         }
       }
+      if (prevNavaids !== CONFIG.navaidsEnabled) {
+        if (CONFIG.navaidsEnabled && navaidEntities.length === 0 && cachedWaypointData) {
+          initNavaids();
+        }
+        toggleNavaids(CONFIG.navaidsEnabled);
+        const nToggle = document.getElementById('toggle-navaids');
+        if (nToggle) nToggle.checked = CONFIG.navaidsEnabled;
+      }
+      if (prevShowFixes !== CONFIG.showFixes && cachedWaypointData) {
+        if (CONFIG.showFixes) {
+          initFixes();
+        } else {
+          removeFixes();
+        }
+      }
     }
   } catch (err) {
     console.warn('[Settings] Could not load:', err);
   }
 
   // Load data files
-  const [airports, airspace] = await Promise.all([
+  const [airports, airspace, waypoints] = await Promise.all([
     loadDataJSON('../data/airports.json'),
     loadDataJSON('../data/airspace.json'),
+    loadDataJSON('../data/waypoints.json'),
   ]);
 
   // Initialize airport markers (after theme is applied so colors are correct)
@@ -1254,6 +1462,14 @@ async function loadAndApplySettings() {
   // Initialize airspace boundaries
   if (airspaceEntities.length === 0 && airspace) {
     initAirspace(airspace);
+  }
+
+  // Cache waypoint data (entities created on-demand when enabled)
+  if (waypoints) {
+    cachedWaypointData = waypoints;
+    if (CONFIG.navaidsEnabled && navaidEntities.length === 0) {
+      initNavaids();
+    }
   }
 }
 

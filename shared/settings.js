@@ -16,6 +16,7 @@ const SETTINGS_DEFAULTS = {
   thickTrailsByAltitude: false,
   airspaceEdges: true,
   showSmallAirports: false,
+  showFixes: false,
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
@@ -242,6 +243,16 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-section">
+      <div class="settings-label">NAVAIDS</div>
+      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <label class="settings-toggle-label">
+          <input type="checkbox" id="set-show-fixes">
+          <span>Include waypoint fixes (visible when zoomed in)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-label">ROTATION SPEED</div>
       <div class="settings-row">
         <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
@@ -311,6 +322,9 @@ function populateSettingsForm(container, settings) {
   // Small airports
   container.querySelector('#set-small-airports').checked = s.showSmallAirports;
 
+  // Waypoint fixes
+  container.querySelector('#set-show-fixes').checked = s.showFixes;
+
   // Rotation speed
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
@@ -351,6 +365,7 @@ function initSettingsPanel(options) {
   const thickTrails = container.querySelector('#set-thick-trails');
   const airspaceEdges = container.querySelector('#set-airspace-edges');
   const smallAirports = container.querySelector('#set-small-airports');
+  const showFixes = container.querySelector('#set-show-fixes');
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
   const clientId = container.querySelector('#set-client-id');
@@ -368,6 +383,7 @@ function initSettingsPanel(options) {
       thickTrailsByAltitude: thickTrails.checked,
       airspaceEdges: airspaceEdges.checked,
       showSmallAirports: smallAirports.checked,
+      showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
@@ -455,6 +471,10 @@ function initSettingsPanel(options) {
   });
 
   smallAirports.addEventListener('change', () => {
+    broadcast();
+  });
+
+  showFixes.addEventListener('change', () => {
     broadcast();
   });
 
