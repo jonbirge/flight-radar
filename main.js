@@ -271,9 +271,24 @@ function openSettingsWindow() {
   settingsWindow.loadFile(path.join(__dirname, 'src', 'settings.html'));
   settingsWindow.once('ready-to-show', () => {
     // Auto-resize to fit content
-    settingsWindow.webContents.executeJavaScript(
-      'JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight })'
-    ).then(json => {
+    settingsWindow.webContents.executeJavaScript(`
+      (function() {
+        const container = document.getElementById('settings-container');
+        const actions = document.querySelector('.actions');
+        const bodyStyle = window.getComputedStyle(document.body);
+        const paddingTop = parseInt(bodyStyle.paddingTop);
+        const paddingBottom = parseInt(bodyStyle.paddingBottom);
+        const actionsStyle = window.getComputedStyle(actions);
+        const actionsMarginTop = parseInt(actionsStyle.marginTop);
+        
+        const totalHeight = paddingTop + container.offsetHeight + actionsMarginTop + actions.offsetHeight + paddingBottom;
+        
+        return JSON.stringify({
+          width: document.body.scrollWidth,
+          height: totalHeight
+        });
+      })()
+    `).then(json => {
       const { width, height } = JSON.parse(json);
       settingsWindow.setContentSize(Math.max(width, 440), height);
       settingsWindow.show();
