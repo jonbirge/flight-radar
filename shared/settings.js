@@ -166,6 +166,12 @@ const SETTINGS_CSS = `
   min-width: 32px;
   color: var(--settings-text-color, #333);
 }
+
+.settings-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 `;
 
 let settingsCssInjected = false;
@@ -202,7 +208,15 @@ function createSettingsFormHTML() {
       </div>
       <label class="settings-toggle-label" style="margin-top:8px;">
         <input type="checkbox" id="set-velocity-vector">
-        <span>Show velocity vector</span>
+        <span>Velocity vector trails</span>
+      </label>
+      <label class="settings-toggle-label" style="margin-top:4px;">
+        <input type="checkbox" id="set-color-by-alt">
+        <span>Color by altitude</span>
+      </label>
+      <label class="settings-toggle-label" style="margin-top:4px;">
+        <input type="checkbox" id="set-thick-trails">
+        <span>Thick trails by altitude</span>
       </label>
     </div>
 
@@ -223,22 +237,8 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-section">
-      <div class="settings-label">ALTITUDE VISUALIZATION</div>
-      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-color-by-alt">
-          <span>Color by altitude</span>
-        </label>
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-thick-trails">
-          <span>Thick trails by altitude</span>
-        </label>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <div class="settings-label">LEVEL OF DETAIL</div>
-      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div class="settings-row settings-grid-2col">
         <label class="settings-toggle-label">
           <input type="checkbox" id="set-airspace-edges">
           <span>Show airspace edges</span>
