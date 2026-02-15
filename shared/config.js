@@ -42,6 +42,8 @@ const CONFIG = {
   showFixes: false,
   mapLayer: 'carto',
   radarEnabled: false,
+  turbulenceEnabled: false,
+  turbulenceLevel: 'none',
 };
 
 // ============================================================

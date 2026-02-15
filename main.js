@@ -17,12 +17,19 @@ const DEFAULT_SETTINGS = {
   thickTrailsByAltitude: false,
   showVelocityVector: false,
   trailLength: 120,
+  trailsEnabled: true,
+  labelsEnabled: true,
+  airportsEnabled: true,
+  airspaceEnabled: true,
   airspaceEdges: true,
   airspace3D: false,
   showSmallAirports: false,
+  navaidsEnabled: false,
   showFixes: false,
   mapLayer: 'carto',
   radarEnabled: false,
+  turbulenceEnabled: false,
+  turbulenceLevel: 'none',
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
@@ -44,7 +51,6 @@ function loadSettings() {
 function saveSettings(settings) {
   try {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
-    console.log('[Settings] Saved to', SETTINGS_FILE);
   } catch (err) {
     console.error('[Settings] Save error:', err.message);
   }
@@ -161,12 +167,10 @@ async function getOpenSkyToken() {
   }
 
   try {
-    console.log('[OpenSky] Refreshing OAuth2 token...');
     const resp = await fetchToken(s.openskyClientId, s.openskyClientSecret);
     cachedToken = resp.access_token;
     // expires_in is in seconds; default to 25 min if missing
     tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-    console.log(`[OpenSky] Token acquired, expires in ${resp.expires_in || 1500}s`);
     return cachedToken;
   } catch (err) {
     console.error('[OpenSky] Token refresh failed:', err.message);
@@ -188,11 +192,8 @@ ipcMain.handle('get-states', async (event, bounds) => {
   try {
     const { south, west, north, east } = bounds;
     const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
-    console.log(`[OpenSky] Fetching states: ${south.toFixed(1)},${west.toFixed(1)} -> ${north.toFixed(1)},${east.toFixed(1)}`);
     const token = await getOpenSkyToken();
     const data = await httpGet(url, token);
-    const count = data.states ? data.states.length : 0;
-    console.log(`[OpenSky] Got ${count} aircraft`);
     return data;
   } catch (err) {
     console.error('[OpenSky] States error:', err.message);
@@ -204,7 +205,6 @@ ipcMain.handle('get-states', async (event, bounds) => {
 ipcMain.handle('get-track', async (event, icao24) => {
   try {
     const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}&time=0`;
-    console.log(`[OpenSky] Fetching track for ${icao24}`);
     const token = await getOpenSkyToken();
     const data = await httpGet(url, token);
     return data;
@@ -322,6 +322,12 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 
+  // Forward renderer console output to terminal
+  mainWindow.webContents.on('console-message', (event, level, message) => {
+    if (level <= 1) console.log(message);
+    else console.warn(message);
+  });
+
   // Open DevTools in dev mode
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
@@ -378,6 +384,10 @@ function buildMenu() {
                 '',
                 'Real-time flight tracking with data from',
                 'OpenSky Network (ADS-B)',
+                '',
+                'Weather data from',
+                'FAA Aviation Weather Center (AWC)',
+                'Iowa State Mesonet (NEXRAD)',
                 '',
                 `Electron ${process.versions.electron}`,
                 `CesiumJS ${cesiumVersion}`,

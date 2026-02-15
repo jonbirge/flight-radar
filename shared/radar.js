@@ -33,6 +33,10 @@ let viewChangePollDebounce = null;
 const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
 let radarLayer = null;
 let radarRefreshTimer = null;
+let turbLayer = null;
+let turbRefreshTimer = null;
+let turbDataRefreshTimer = null;
+const turbEntities = [];
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -152,6 +156,7 @@ async function makeMapTiles(layerId) {
 // ============================================================
 
 function makeRadarProvider() {
+  console.log('[Radar] Loading NEXRAD WMS tiles from Iowa State Mesonet');
   return new Cesium.WebMapServiceImageryProvider({
     url: 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi?',
     layers: 'nexrad-n0q-900913',
@@ -200,6 +205,361 @@ function refreshRadar() {
   console.log('[Radar] NEXRAD overlay refreshed');
 }
 
+// ============================================================
+// AWC Turbulence Overlays
+// ============================================================
+
+// gfaak model: Mercator-projected image covering Alaska + CONUS.
+// The image crosses the antimeridian (144.3°E → 39.5°W) which CesiumJS can't handle,
+// and the pixels are in Mercator Y (not geographic latitude).
+// Solution: fetch image → crop to Western hemisphere → reproject lat from Mercator to geographic.
+const TURB_LON_WEST = -215.69104;
+const TURB_LON_EAST = -39.508957;
+const TURB_LAT_SOUTH = -0.196746;
+const TURB_LAT_NORTH = 76.97271;
+const TURB_CROP_LON = -180; // crop everything west of antimeridian
+
+// Mercator Y helper
+function geoLatToMercY(latDeg) {
+  const latRad = latDeg * Math.PI / 180;
+  return Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+}
+
+async function makeTurbProvider(level) {
+  const url = `https://aviationweather.gov/api/data/model?model=gfaak&level=${level}&type=gtg&_t=${Date.now()}`;
+  console.log(`[Weather] Loading GTG image: level=${level}`);
+  try {
+    // Fetch as blob so canvas won't be tainted by cross-origin
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('Image load failed'));
+      i.src = blobUrl;
+    });
+
+    // 1) Crop to Western hemisphere (-180° to east edge)
+    const lonSpan = TURB_LON_EAST - TURB_LON_WEST;
+    const cropX = Math.round((TURB_CROP_LON - TURB_LON_WEST) / lonSpan * img.width);
+    const cropW = img.width - cropX;
+
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = cropW;
+    srcCanvas.height = img.height;
+    srcCanvas.getContext('2d').drawImage(img, cropX, 0, cropW, img.height, 0, 0, cropW, img.height);
+    URL.revokeObjectURL(blobUrl);
+
+    // 2) Reproject rows from Mercator Y to geographic latitude
+    const srcCtx = srcCanvas.getContext('2d');
+    const srcData = srcCtx.getImageData(0, 0, cropW, img.height);
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = cropW;
+    outCanvas.height = img.height;
+    const outData = outCanvas.getContext('2d').createImageData(cropW, img.height);
+
+    const yMercSouth = geoLatToMercY(TURB_LAT_SOUTH);
+    const yMercNorth = geoLatToMercY(TURB_LAT_NORTH);
+    const rowBytes = cropW * 4;
+
+    for (let row = 0; row < img.height; row++) {
+      // Output row → geographic latitude (top row = north)
+      const geoFrac = 1 - row / (img.height - 1); // 1 at top, 0 at bottom
+      const lat = TURB_LAT_SOUTH + geoFrac * (TURB_LAT_NORTH - TURB_LAT_SOUTH);
+      // Geographic lat → Mercator fraction → source row
+      const mercY = geoLatToMercY(lat);
+      const mercFrac = (mercY - yMercSouth) / (yMercNorth - yMercSouth);
+      const srcRow = Math.min(img.height - 1, Math.max(0, Math.round((1 - mercFrac) * (img.height - 1))));
+      outData.data.set(
+        srcData.data.subarray(srcRow * rowBytes, srcRow * rowBytes + rowBytes),
+        row * rowBytes
+      );
+    }
+    outCanvas.getContext('2d').putImageData(outData, 0, 0);
+
+    console.log(`[Weather] GTG image reprojected: ${cropW}x${img.height}`);
+    return new Cesium.SingleTileImageryProvider({
+      url: outCanvas.toDataURL('image/png'),
+      rectangle: Cesium.Rectangle.fromDegrees(TURB_CROP_LON, TURB_LAT_SOUTH, TURB_LON_EAST, TURB_LAT_NORTH),
+      credit: new Cesium.Credit('AWC'),
+    });
+  } catch (err) {
+    console.warn('[Weather] Failed to load GTG image:', err.message);
+    return null;
+  }
+}
+
+async function addTurbLayer() {
+  const provider = await makeTurbProvider(CONFIG.turbulenceLevel);
+  if (!provider || CONFIG.turbulenceLevel === 'none') return;
+  // Insert turbulence layer after base map but before radar
+  if (radarLayer) {
+    const radarIdx = viewer.imageryLayers.indexOf(radarLayer);
+    turbLayer = viewer.imageryLayers.addImageryProvider(provider, radarIdx);
+  } else {
+    turbLayer = viewer.imageryLayers.addImageryProvider(provider);
+  }
+  turbLayer.alpha = 0.65;
+}
+
+function removeTurbLayer() {
+  if (turbLayer) {
+    viewer.imageryLayers.remove(turbLayer);
+    turbLayer = null;
+  }
+}
+
+function removeTurbEntities() {
+  for (const entity of turbEntities) {
+    viewer.entities.remove(entity);
+  }
+  turbEntities.length = 0;
+}
+
+const PIREP_COLORS = {
+  NEG:   new Cesium.Color(0.2, 0.5, 1.0, 0.7),
+  'SMT': new Cesium.Color(0.2, 0.5, 1.0, 0.7),
+  LGT:   new Cesium.Color(0.0, 0.8, 0.0, 0.8),
+  MOD:   new Cesium.Color(1.0, 0.6, 0.0, 0.9),
+  SEV:   new Cesium.Color(1.0, 0.0, 0.0, 1.0),
+  EXTRM: new Cesium.Color(1.0, 0.0, 1.0, 1.0),
+};
+
+function pirepColor(intensity) {
+  if (!intensity) return PIREP_COLORS.LGT;
+  const upper = intensity.toUpperCase().replace(/-/g, '');
+  // Handle combined intensities like "MOD-SEV" → take the higher
+  for (const key of ['EXTRM', 'SEV', 'MOD', 'LGT', 'NEG', 'SMT']) {
+    if (upper.includes(key)) return PIREP_COLORS[key] || PIREP_COLORS.LGT;
+  }
+  return PIREP_COLORS.LGT;
+}
+
+function pirepSize(intensity) {
+  if (!intensity) return 12;
+  const upper = intensity.toUpperCase();
+  if (upper.includes('SEV') || upper.includes('EXTRM')) return 20;
+  if (upper.includes('MOD')) return 16;
+  return 12;
+}
+
+async function fetchTurbulenceData() {
+  const AWC_BASE = 'https://aviationweather.gov/api/data';
+  console.log('[Weather] Fetching PIREPs, SIGMETs, G-AIRMETs...');
+  try {
+    const [pirepResp, sigmetResp, airmetResp] = await Promise.all([
+      fetch(`${AWC_BASE}/pirep?format=geojson&type=turb&age=12&bbox=-180,-90,180,90`).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; }),
+      fetch(`${AWC_BASE}/sigmet?format=geojson`).catch((err) => { console.warn('[Weather] SIGMET fetch failed:', err.message); return null; }),
+      fetch(`${AWC_BASE}/gairmet?format=geojson`).catch((err) => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; }),
+    ]);
+
+    // PIREPs — turbulence-related only
+    if (pirepResp && pirepResp.ok) {
+      const data = await pirepResp.json();
+      console.log(`[Weather] PIREPs response: ${(data.features || []).length} total reports`);
+      let pirepCount = 0;
+      if (data.features) {
+        for (const f of data.features) {
+          const props = f.properties || {};
+          const coords = f.geometry && f.geometry.coordinates;
+          if (!coords || coords.length < 2) continue;
+          const lon = coords[0], lat = coords[1];
+          const alt = (props.fltlvl || 0) * 100 * 0.3048; // FL to meters
+          const intensity = props.tbInt1 || 'LGT';
+          const color = pirepColor(intensity);
+          const size = pirepSize(intensity);
+
+          const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 25) + 'Z' : '?';
+          const entity = viewer.entities.add({
+            id: `turb-pirep-${pirepCount}`,
+            position: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
+            point: {
+              pixelSize: size,
+              color: color,
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 1,
+              scaleByDistance: new Cesium.NearFarScalar(1e5, 1.0, 6e6, 0.3),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            },
+            properties: {
+              turbType: 'PIREP',
+              intensity: intensity,
+              fltlvl: props.fltlvl || '?',
+              acType: props.acType || '?',
+              obsTime: obsTime,
+              rawOb: props.rawOb || '',
+            },
+          });
+          turbEntities.push(entity);
+          pirepCount++;
+        }
+        console.log(`[Weather] Added ${pirepCount} turbulence PIREP entities`);
+      }
+    } else {
+      console.warn(`[Weather] PIREPs response not ok: ${pirepResp ? pirepResp.status : 'null'}`);
+    }
+
+    // SIGMETs — turbulence, convective, and thunderstorm
+    if (sigmetResp && sigmetResp.ok) {
+      const data = await sigmetResp.json();
+      const validHazards = ['TURB', 'CONVECTIVE', 'TS'];
+      const sigmetFeatures = (data.features || []).filter(f => {
+        const hazard = (f.properties || {}).hazard || '';
+        return validHazards.includes(hazard);
+      });
+      console.log(`[Weather] SIGMETs response: ${(data.features || []).length} total, ${sigmetFeatures.length} turb/convective/TS`);
+      if (sigmetFeatures.length > 0) {
+        let count = 0;
+        for (const f of sigmetFeatures) {
+          const geom = f.geometry;
+          if (!geom) continue;
+          const sp = f.properties || {};
+          const hazard = sp.hazard || 'TURB';
+          // Color by hazard type: TURB=red, CONVECTIVE/TS=yellow
+          const isConvective = hazard === 'CONVECTIVE' || hazard === 'TS';
+          const fillColor = isConvective
+            ? new Cesium.Color(1.0, 0.85, 0.0, 0.2)
+            : new Cesium.Color(1.0, 0.0, 0.0, 0.2);
+          const edgeColor = isConvective
+            ? new Cesium.Color(1.0, 0.85, 0.0, 0.8)
+            : new Cesium.Color(1.0, 0.0, 0.0, 0.8);
+          const polygons = geom.type === 'Polygon' ? [geom.coordinates]
+            : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+          for (const rings of polygons) {
+            if (!rings || !rings[0] || rings[0].length < 3) continue;
+            const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
+            const entity = viewer.entities.add({
+              id: `turb-sigmet-${count}`,
+              polygon: {
+                hierarchy: new Cesium.PolygonHierarchy(positions),
+                material: fillColor,
+                outline: true,
+                outlineColor: edgeColor,
+                outlineWidth: 1,
+                height: 0,
+                classificationType: Cesium.ClassificationType.BOTH,
+              },
+              properties: {
+                turbType: isConvective ? 'CONVECTIVE SIGMET' : 'SIGMET',
+                hazard: hazard,
+                severity: sp.severity || '?',
+                base: sp.altitudeLow1 || sp.altLow || '?',
+                top: sp.altitudeHi1 || sp.altHi || '?',
+                validFrom: sp.validTimeFrom || '?',
+                validTo: sp.validTimeTo || '?',
+                rawText: sp.rawAirSigmet || sp.rawSigmet || '',
+              },
+            });
+            turbEntities.push(entity);
+            count++;
+          }
+        }
+        console.log(`[Weather] Added ${count} SIGMET polygons`);
+      }
+    }
+
+    // G-AIRMETs (fetch all, filter client-side for TURB-HI and TURB-LO)
+    if (airmetResp && airmetResp.ok) {
+      const data = await airmetResp.json();
+      const turbFeatures = (data.features || []).filter(f => {
+        const hazard = (f.properties || {}).hazard || '';
+        return hazard === 'TURB-HI' || hazard === 'TURB-LO';
+      });
+      console.log(`[Weather] G-AIRMETs response: ${(data.features || []).length} total, ${turbFeatures.length} turbulence`);
+      if (turbFeatures.length > 0) {
+        let count = 0;
+        for (const f of turbFeatures) {
+          const geom = f.geometry;
+          if (!geom) continue;
+          const ap = f.properties || {};
+          const polygons = geom.type === 'Polygon' ? [geom.coordinates]
+            : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+          for (const rings of polygons) {
+            if (!rings || !rings[0] || rings[0].length < 3) continue;
+            const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
+            const entity = viewer.entities.add({
+              id: `turb-airmet-${count}`,
+              polygon: {
+                hierarchy: new Cesium.PolygonHierarchy(positions),
+                material: new Cesium.Color(1.0, 0.5, 0.0, 0.15),
+                outline: true,
+                outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
+                outlineWidth: 1,
+                height: 0,
+                classificationType: Cesium.ClassificationType.BOTH,
+              },
+              properties: {
+                turbType: 'G-AIRMET',
+                hazard: ap.hazard || '?',
+                severity: ap.severity || '?',
+                base: ap.base || '?',
+                top: ap.top || '?',
+                validFrom: ap.validTime || '?',
+                validTo: ap.validTimeTo || '?',
+              },
+            });
+            turbEntities.push(entity);
+            count++;
+          }
+        }
+        console.log(`[Weather] Added ${count} G-AIRMET polygons`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Weather] Error fetching data:', err);
+  }
+}
+
+// TURB toggle: PIREPs, SIGMETs, G-AIRMETs (entities only)
+function enableTurbulence() {
+  CONFIG.turbulenceEnabled = true;
+  console.log('[Weather] PIREPs/SIGMETs/G-AIRMETs enabled');
+  fetchTurbulenceData();
+  if (turbDataRefreshTimer) clearInterval(turbDataRefreshTimer);
+  turbDataRefreshTimer = setInterval(() => {
+    removeTurbEntities();
+    fetchTurbulenceData();
+  }, 5 * 60 * 1000);
+}
+
+function disableTurbulence() {
+  removeTurbEntities();
+  CONFIG.turbulenceEnabled = false;
+  if (turbDataRefreshTimer) {
+    clearInterval(turbDataRefreshTimer);
+    turbDataRefreshTimer = null;
+  }
+  console.log('[Weather] PIREPs/SIGMETs/G-AIRMETs disabled');
+}
+
+// GTG forecast dropdown: heatmap imagery layer (independent of TURB toggle)
+function enableTurbForecast() {
+  if (turbLayer) return;
+  addTurbLayer();
+  console.log(`[Weather] GTG forecast enabled: ${CONFIG.turbulenceLevel}`);
+  if (turbRefreshTimer) clearInterval(turbRefreshTimer);
+  turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
+}
+
+function disableTurbForecast() {
+  removeTurbLayer();
+  if (turbRefreshTimer) {
+    clearInterval(turbRefreshTimer);
+    turbRefreshTimer = null;
+  }
+  console.log('[Weather] GTG forecast disabled');
+}
+
+function refreshTurbForecast() {
+  if (CONFIG.turbulenceLevel === 'none') return;
+  removeTurbLayer();
+  addTurbLayer();
+  console.log('[Weather] GTG forecast refreshed');
+}
+
 function applyTheme() {
   const isDark = CONFIG.theme === 'dark';
 
@@ -215,8 +575,17 @@ function applyTheme() {
   const layers = viewer.imageryLayers;
   layers.removeAll();
   radarLayer = null; // cleared by removeAll
-  makeMapTiles(CONFIG.mapLayer).then(provider => {
+  turbLayer = null;  // cleared by removeAll
+  makeMapTiles(CONFIG.mapLayer).then(async (provider) => {
     layers.addImageryProvider(provider);
+    // Layer order: base → turbulence forecast → radar
+    if (CONFIG.turbulenceLevel !== 'none') {
+      const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
+      if (turbProvider) {
+        turbLayer = layers.addImageryProvider(turbProvider);
+        turbLayer.alpha = 0.65;
+      }
+    }
     if (CONFIG.radarEnabled) {
       radarLayer = layers.addImageryProvider(makeRadarProvider());
       radarLayer.alpha = 0.6;
@@ -1130,6 +1499,7 @@ function buildTrailPositions(ac, isSelected = false) {
 
 async function pollStates() {
   const bounds = frozenBounds || getViewBounds();
+  console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
   const data = await window.flightAPI.getStates(bounds);
   const warningEl = document.getElementById('throttle-warning');
 
@@ -1146,7 +1516,9 @@ async function pollStates() {
 
   warningEl.classList.add('hidden');
 
-  if (data.states && data.states.length > 0) {
+  const stateCount = data.states ? data.states.length : 0;
+  console.log(`[OpenSky] Got ${stateCount} aircraft`);
+  if (stateCount > 0) {
     updateAircraft(data.states);
   }
 
@@ -1258,17 +1630,26 @@ viewer.camera.percentageChanged = 0.01;
 // UI Controls
 // ============================================================
 
-document.getElementById('toggle-trails').addEventListener('change', (e) => {
+document.getElementById('toggle-trails').addEventListener('change', async (e) => {
   CONFIG.trailEnabled = e.target.checked;
   renderAircraft();
+  const settings = await window.flightAPI.getSettings();
+  settings.trailsEnabled = CONFIG.trailEnabled;
+  await window.flightAPI.saveSettings(settings);
 });
 
-document.getElementById('toggle-airports').addEventListener('change', (e) => {
+document.getElementById('toggle-airports').addEventListener('change', async (e) => {
   toggleAirports(e.target.checked);
+  const settings = await window.flightAPI.getSettings();
+  settings.airportsEnabled = CONFIG.airportsEnabled;
+  await window.flightAPI.saveSettings(settings);
 });
 
-document.getElementById('toggle-airspace').addEventListener('change', (e) => {
+document.getElementById('toggle-airspace').addEventListener('change', async (e) => {
   toggleAirspace(e.target.checked);
+  const settings = await window.flightAPI.getSettings();
+  settings.airspaceEnabled = CONFIG.airspaceEnabled;
+  await window.flightAPI.saveSettings(settings);
 });
 
 const airspace3DToggle = document.getElementById('toggle-airspace-3d');
@@ -1280,12 +1661,15 @@ if (airspace3DToggle) {
 
 const navaidToggle = document.getElementById('toggle-navaids');
 if (navaidToggle) {
-  navaidToggle.addEventListener('change', (e) => {
+  navaidToggle.addEventListener('change', async (e) => {
     const show = e.target.checked;
     if (show && navaidEntities.length === 0 && cachedWaypointData) {
       initNavaids();
     }
     toggleNavaids(show);
+    const settings = await window.flightAPI.getSettings();
+    settings.navaidsEnabled = CONFIG.navaidsEnabled;
+    await window.flightAPI.saveSettings(settings);
   });
 }
 
@@ -1303,13 +1687,47 @@ if (radarToggle) {
   });
 }
 
-document.getElementById('toggle-labels').addEventListener('change', (e) => {
+const turbToggle = document.getElementById('toggle-turbulence');
+if (turbToggle) {
+  turbToggle.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      enableTurbulence();
+    } else {
+      disableTurbulence();
+    }
+    const settings = await window.flightAPI.getSettings();
+    settings.turbulenceEnabled = CONFIG.turbulenceEnabled;
+    await window.flightAPI.saveSettings(settings);
+  });
+}
+
+const turbLevelSel = document.getElementById('turb-level');
+if (turbLevelSel) {
+  turbLevelSel.addEventListener('change', async (e) => {
+    CONFIG.turbulenceLevel = e.target.value;
+    if (e.target.value === 'none') {
+      disableTurbForecast();
+    } else {
+      // Remove existing layer and add new one at selected level
+      disableTurbForecast();
+      enableTurbForecast();
+    }
+    const settings = await window.flightAPI.getSettings();
+    settings.turbulenceLevel = CONFIG.turbulenceLevel;
+    await window.flightAPI.saveSettings(settings);
+  });
+}
+
+document.getElementById('toggle-labels').addEventListener('change', async (e) => {
   CONFIG.labelsEnabled = e.target.checked;
   for (const [icao, ac] of aircraft) {
     if (ac.entity && ac.entity.label) {
       ac.entity.label.show = e.target.checked || icao === selectedIcao;
     }
   }
+  const settings = await window.flightAPI.getSettings();
+  settings.labelsEnabled = CONFIG.labelsEnabled;
+  await window.flightAPI.saveSettings(settings);
 });
 
 document.getElementById('poll-interval').addEventListener('change', (e) => {
@@ -1321,8 +1739,17 @@ document.getElementById('map-layer').addEventListener('change', async (e) => {
   const layers = viewer.imageryLayers;
   layers.removeAll();
   radarLayer = null; // cleared by removeAll
+  turbLayer = null;  // cleared by removeAll
   const provider = await makeMapTiles(CONFIG.mapLayer);
   layers.addImageryProvider(provider);
+  // Layer order: base → turbulence forecast → radar
+  if (CONFIG.turbulenceLevel !== 'none') {
+    const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
+    if (turbProvider) {
+      turbLayer = layers.addImageryProvider(turbProvider);
+      turbLayer.alpha = 0.65;
+    }
+  }
   if (CONFIG.radarEnabled) {
     radarLayer = layers.addImageryProvider(makeRadarProvider());
     radarLayer.alpha = 0.6;
@@ -1507,9 +1934,15 @@ handler.setInputAction((click) => {
   // not to deselect the current aircraft.
   if (Date.now() - focusTime < 300) return;
   const picked = viewer.scene.pick(click.position);
-  if (Cesium.defined(picked) && picked.id && picked.id.id && picked.id.id.startsWith('ac-')) {
-    const icao = picked.id.id.replace('ac-', '');
-    showAircraftInfo(icao);
+  if (Cesium.defined(picked) && picked.id && picked.id.id) {
+    const id = picked.id.id;
+    if (id.startsWith('ac-')) {
+      showAircraftInfo(id.replace('ac-', ''));
+    } else if (id.startsWith('turb-')) {
+      showTurbInfo(picked.id);
+    } else {
+      hideAircraftInfo();
+    }
   } else {
     hideAircraftInfo();
   }
@@ -1559,6 +1992,57 @@ function showAircraftInfo(icao) {
   }
 }
 
+function showTurbInfo(entity) {
+  const p = entity.properties;
+  if (!p) return;
+  const type = p.turbType ? p.turbType.getValue() : '?';
+  const panel = document.getElementById('aircraft-info');
+  panel.classList.remove('hidden');
+
+  // Deselect any aircraft
+  if (selectedIcao) {
+    selectedIcao = null;
+    refreshAllEntities();
+  }
+
+  if (type === 'PIREP') {
+    document.getElementById('info-callsign').textContent = `PIREP — ${p.intensity.getValue()} TURB`;
+    document.getElementById('info-details').innerHTML = `
+      <div><span class="label">TYPE</span><span>Pilot Report</span></div>
+      <div><span class="label">INTENSITY</span><span>${p.intensity.getValue()}</span></div>
+      <div><span class="label">FL</span><span>${p.fltlvl.getValue()}</span></div>
+      <div><span class="label">ACFT</span><span>${p.acType.getValue()}</span></div>
+      <div><span class="label">TIME</span><span>${p.obsTime.getValue()}</span></div>
+      <div><span class="label">RAW</span><span style="font-size:0.85em;word-break:break-all">${p.rawOb.getValue()}</span></div>
+    `;
+  } else if (type === 'SIGMET' || type === 'CONVECTIVE SIGMET') {
+    const hazard = p.hazard.getValue();
+    const label = type === 'CONVECTIVE SIGMET' ? 'CONVECTIVE SIGMET' : 'SIGMET — TURBULENCE';
+    document.getElementById('info-callsign').textContent = label;
+    const from = p.validFrom.getValue();
+    const to = p.validTo.getValue();
+    document.getElementById('info-details').innerHTML = `
+      <div><span class="label">TYPE</span><span>${type}</span></div>
+      <div><span class="label">HAZARD</span><span>${hazard}</span></div>
+      <div><span class="label">SEVERITY</span><span>${p.severity.getValue()}</span></div>
+      <div><span class="label">BASE</span><span>${p.base.getValue()}</span></div>
+      <div><span class="label">TOP</span><span>${p.top.getValue()}</span></div>
+      <div><span class="label">VALID</span><span>${from} — ${to}</span></div>
+      ${p.rawText.getValue() ? `<div><span class="label">RAW</span><span style="font-size:0.85em;word-break:break-all">${p.rawText.getValue()}</span></div>` : ''}
+    `;
+  } else if (type === 'G-AIRMET') {
+    document.getElementById('info-callsign').textContent = `G-AIRMET — ${p.hazard.getValue()}`;
+    document.getElementById('info-details').innerHTML = `
+      <div><span class="label">TYPE</span><span>G-AIRMET</span></div>
+      <div><span class="label">HAZARD</span><span>${p.hazard.getValue()}</span></div>
+      <div><span class="label">SEVERITY</span><span>${p.severity.getValue()}</span></div>
+      <div><span class="label">BASE</span><span>${p.base.getValue()}</span></div>
+      <div><span class="label">TOP</span><span>FL${p.top.getValue()}</span></div>
+      <div><span class="label">VALID</span><span>${p.validFrom.getValue()}</span></div>
+    `;
+  }
+}
+
 function hideAircraftInfo() {
   const hadSelection = selectedIcao !== null;
   selectedIcao = null;
@@ -1576,10 +2060,14 @@ document.getElementById('info-close').addEventListener('click', hideAircraftInfo
 
 // Load settings from the platform-specific settings API and apply them
 async function loadDataJSON(path) {
+  console.log(`[DataLoader] Fetching ${path}...`);
   try {
     const resp = await fetch(path);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return await resp.json();
+    const data = await resp.json();
+    const size = Array.isArray(data) ? data.length : Object.keys(data).length;
+    console.log(`[DataLoader] Loaded ${path} (${size} entries)`);
+    return data;
   } catch (err) {
     console.warn('[DataLoader] Failed to load ' + path + ':', err);
     return null;
@@ -1611,15 +2099,52 @@ async function loadAndApplySettings() {
       CONFIG.showFixes = saved.showFixes || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
+      CONFIG.trailEnabled = saved.trailsEnabled !== undefined ? saved.trailsEnabled : true;
+      CONFIG.labelsEnabled = saved.labelsEnabled !== undefined ? saved.labelsEnabled : true;
+      CONFIG.airportsEnabled = saved.airportsEnabled !== undefined ? saved.airportsEnabled : true;
+      CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : true;
       CONFIG.radarEnabled = saved.radarEnabled || false;
+      CONFIG.turbulenceEnabled = saved.turbulenceEnabled || false;
+      CONFIG.turbulenceLevel = saved.turbulenceLevel || 'none';
       CONFIG.savedView = saved.savedView || null;
-      applyTheme(); // adds radar layer on top if CONFIG.radarEnabled
+      applyTheme(); // adds turb + radar layers on top if enabled
+      // Sync main window checkboxes
+      const trailsToggle = document.getElementById('toggle-trails');
+      if (trailsToggle) trailsToggle.checked = CONFIG.trailEnabled;
+      const labelsToggle = document.getElementById('toggle-labels');
+      if (labelsToggle) labelsToggle.checked = CONFIG.labelsEnabled;
+      const airportsToggle = document.getElementById('toggle-airports');
+      if (airportsToggle) airportsToggle.checked = CONFIG.airportsEnabled;
+      const airspaceToggle = document.getElementById('toggle-airspace');
+      if (airspaceToggle) airspaceToggle.checked = CONFIG.airspaceEnabled;
+      const nToggle2 = document.getElementById('toggle-navaids');
+      if (nToggle2) nToggle2.checked = CONFIG.navaidsEnabled;
       const rToggle = document.getElementById('toggle-radar');
       if (rToggle) rToggle.checked = CONFIG.radarEnabled;
       // Start auto-refresh timer (applyTheme already adds the visual layer)
       if (CONFIG.radarEnabled) {
         if (radarRefreshTimer) clearInterval(radarRefreshTimer);
         radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+      }
+      // Turbulence UI state and timers
+      const tToggle = document.getElementById('toggle-turbulence');
+      if (tToggle) tToggle.checked = CONFIG.turbulenceEnabled;
+      const tLevel = document.getElementById('turb-level');
+      if (tLevel) tLevel.value = CONFIG.turbulenceLevel;
+      // GTG forecast: applyTheme already added the imagery layer if level !== 'none';
+      // just start the refresh timer
+      if (CONFIG.turbulenceLevel !== 'none') {
+        if (turbRefreshTimer) clearInterval(turbRefreshTimer);
+        turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
+      }
+      // TURB toggle: PIREPs/SIGMETs/G-AIRMETs (entities)
+      if (CONFIG.turbulenceEnabled) {
+        fetchTurbulenceData();
+        if (turbDataRefreshTimer) clearInterval(turbDataRefreshTimer);
+        turbDataRefreshTimer = setInterval(() => {
+          removeTurbEntities();
+          fetchTurbulenceData();
+        }, 5 * 60 * 1000);
       }
       const mapLayerSel = document.getElementById('map-layer');
       if (mapLayerSel) mapLayerSel.value = CONFIG.mapLayer;
