@@ -46,6 +46,7 @@ const CONFIG = {
   radarEnabled: false,
   turbulenceEnabled: false,
   turbulenceLevel: 'none',
+  awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
 };
 
 // ============================================================

@@ -292,6 +292,8 @@ document.getElementById('btn-settings').addEventListener('click', () => openSett
 // ============================================================
 
 async function init() {
+  // Route AWC API calls through local caching proxy to avoid CORS
+  CONFIG.awcProxyUrl = 'awc-proxy.php';
   await loadAndApplySettings();
   applySavedView();
   startPolling();

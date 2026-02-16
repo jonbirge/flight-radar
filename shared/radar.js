@@ -302,6 +302,19 @@ function refreshRadar() {
 }
 
 // ============================================================
+// AWC URL helper — routes through proxy when configured (web), direct otherwise (Electron)
+// ============================================================
+
+function awcUrl(path) {
+  if (CONFIG.awcProxyUrl) {
+    const qIdx = path.indexOf('?');
+    const endpoint = qIdx >= 0 ? path.substring(0, qIdx) : path;
+    const params = qIdx >= 0 ? '&' + path.substring(qIdx + 1) : '';
+    return `${CONFIG.awcProxyUrl}?endpoint=${endpoint}${params}`;
+  }
+  return `https://aviationweather.gov/api/data/${path}`;
+}
+
 // AWC Turbulence Overlays
 // ============================================================
 
@@ -322,7 +335,7 @@ function geoLatToMercY(latDeg) {
 }
 
 async function makeTurbProvider(level) {
-  const url = `https://aviationweather.gov/api/data/model?model=gfaak&level=${level}&type=gtg&_t=${Date.now()}`;
+  const url = awcUrl(`model?model=gfaak&level=${level}&type=gtg&_t=${Date.now()}`);
   console.log(`[Weather] Loading GTG image: level=${level}`);
   try {
     // Fetch as blob so canvas won't be tainted by cross-origin
@@ -443,13 +456,12 @@ function pirepSize(intensity) {
 }
 
 async function fetchTurbulenceData() {
-  const AWC_BASE = 'https://aviationweather.gov/api/data';
   console.log('[Weather] Fetching PIREPs, SIGMETs, G-AIRMETs...');
   try {
     const [pirepResp, sigmetResp, airmetResp] = await Promise.all([
-      fetch(`${AWC_BASE}/pirep?format=geojson&type=turb&age=12&bbox=15,-180,75,-50`).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; }),
-      fetch(`${AWC_BASE}/sigmet?format=geojson`).catch((err) => { console.warn('[Weather] SIGMET fetch failed:', err.message); return null; }),
-      fetch(`${AWC_BASE}/gairmet?format=geojson`).catch((err) => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; }),
+      fetch(awcUrl('pirep?format=geojson&type=turb&age=12&bbox=15,-180,75,-50')).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; }),
+      fetch(awcUrl('sigmet?format=geojson')).catch((err) => { console.warn('[Weather] SIGMET fetch failed:', err.message); return null; }),
+      fetch(awcUrl('gairmet?format=geojson')).catch((err) => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; }),
     ]);
 
     // PIREPs — turbulence-related only
