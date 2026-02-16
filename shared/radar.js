@@ -36,6 +36,7 @@ let _zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom
 const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
 const RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
 let _renderGeneration = 0;       // incremented to cancel stale chunked renders
+let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft
 let radarLayer = null;
 let radarRefreshTimer = null;
 let turbLayer = null;
@@ -1336,6 +1337,13 @@ function _computeTrailHash(ac, s) {
     : `T:0:${granLen}`;
 }
 
+// Compute the straight-line distance from camera to the geometric horizon.
+// Entities beyond this distance are on the far side of the globe.
+function computeHorizonDist(camHeight) {
+  const R = 6371000; // Earth radius in meters
+  return Math.sqrt(2 * R * camHeight + camHeight * camHeight) * 1.25;
+}
+
 // Render a single aircraft entity (billboard + trail). Called per-aircraft by renderAircraft.
 function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
@@ -1378,6 +1386,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           height: iconSize,
           pixelOffset: new Cesium.Cartesian2(0, 0),
           eyeOffset: new Cesium.Cartesian3(0, 0, -100),
+          distanceDisplayCondition: acDisplayCond,
         },
         label: (CONFIG.labelsEnabled || isSelected) ? {
           text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
@@ -1392,6 +1401,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           showBackground: false,
           scale: 1.0,
           show: isSelected || showLabels,
+          distanceDisplayCondition: acDisplayCond,
         } : undefined,
         properties: { icao24: icao },
       });
@@ -1424,6 +1434,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
             pixelOffset: new Cesium.Cartesian2(14, -8),
             horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            distanceDisplayCondition: acDisplayCond,
           });
         }
         const labelText = `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`;
@@ -1501,7 +1512,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
               width: trailWidth,
               material: material,
               clampToGround: false,
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              distanceDisplayCondition: acDisplayCond,
             },
           }));
         }
@@ -1509,10 +1520,11 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         // Normal history trail mode
         const trailPoints = buildTrailPositions(ac, isSelected);
 
-        if (trailPoints.length >= 2) {
-          // Teardown previous trail entities
-          removeTrailEntities(ac);
+        // Always tear down previous trail entities so stale polylines
+        // don't linger at old positions when data thins out.
+        removeTrailEntities(ac);
 
+        if (trailPoints.length >= 2) {
           if (CONFIG.colorByAltitude) {
             // Group trail points into runs by altitude color bucket
             const bucketOf = (alt) => Math.floor(((alt || 0) * 3.28084) / 1500);
@@ -1539,6 +1551,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
                       width: trailWidth,
                       material: material,
                       clampToGround: false,
+                      distanceDisplayCondition: acDisplayCond,
                     },
                   }));
                 }
@@ -1560,7 +1573,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
                 width: trailWidth,
                 material: trailMaterial,
                 clampToGround: false,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                distanceDisplayCondition: acDisplayCond,
               },
             }));
           }
@@ -1579,6 +1592,7 @@ function renderAircraft(filterIcaos) {
     : 0;
   const useDot = camHeight > 2000000;
   const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
+  acDisplayCond = new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camHeight));
 
   // Collect the aircraft entries to render
   const entries = [];
@@ -1634,6 +1648,7 @@ function resizeAircraftIcons() {
     ? viewer.camera.positionCartographic.height : 0;
   const iconSize = computeDisplaySize(camHeight);
   const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
+  acDisplayCond = new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camHeight));
 
   viewer.entities.suspendEvents();
   try {
@@ -1642,9 +1657,11 @@ function resizeAircraftIcons() {
       if (ac.entity.billboard) {
         ac.entity.billboard.width = iconSize;
         ac.entity.billboard.height = iconSize;
+        ac.entity.billboard.distanceDisplayCondition = acDisplayCond;
       }
       if (ac.entity.label) {
         ac.entity.label.show = (icao === selectedIcao) || showLabels;
+        ac.entity.label.distanceDisplayCondition = acDisplayCond;
       }
     }
   } finally {
@@ -1718,8 +1735,9 @@ function buildTrailPositions(ac, isSelected = false) {
 
   // Remove points that create large time gaps — trim to most recent
   // contiguous segment to avoid jumps from stale positions.
-  // Selected aircraft gets a much larger gap tolerance to preserve full history.
-  const MAX_GAP = isSelected ? 600 : 90;
+  // Gap threshold must exceed the longest poll interval (60s) with margin
+  // for network latency.  Selected aircraft gets a much larger tolerance.
+  const MAX_GAP = isSelected ? 600 : 180;
   let segmentStart = 0;
   for (let i = 1; i < points.length; i++) {
     if (points[i].time - points[i - 1].time > MAX_GAP) {
