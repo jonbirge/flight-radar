@@ -11,8 +11,8 @@
     "postinstall": "node scripts/copy-cesium.js",
     "setup": "node scripts/copy-cesium.js",
     "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js",
-    "pack": "electron-builder --win dir",
-    "dist": "electron-builder --win nsis"
+    "pack": "electron-builder dir",
+    "dist": "electron-builder"
   },
   "build": {
     "appId": "com.birge.flight-radar",
@@ -31,6 +31,10 @@
     ],
     "win": {
       "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility"
     },
     "nsis": {
       "oneClick": false,
