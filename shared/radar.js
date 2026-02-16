@@ -356,7 +356,7 @@ async function fetchTurbulenceData() {
   console.log('[Weather] Fetching PIREPs, SIGMETs, G-AIRMETs...');
   try {
     const [pirepResp, sigmetResp, airmetResp] = await Promise.all([
-      fetch(`${AWC_BASE}/pirep?format=geojson&type=turb&age=12&bbox=-180,-90,180,90`).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; }),
+      fetch(`${AWC_BASE}/pirep?format=geojson&type=turb&age=12&bbox=15,-180,75,-50`).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; }),
       fetch(`${AWC_BASE}/sigmet?format=geojson`).catch((err) => { console.warn('[Weather] SIGMET fetch failed:', err.message); return null; }),
       fetch(`${AWC_BASE}/gairmet?format=geojson`).catch((err) => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; }),
     ]);
@@ -387,7 +387,6 @@ async function fetchTurbulenceData() {
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 1,
               scaleByDistance: new Cesium.NearFarScalar(1e5, 1.0, 6e6, 0.3),
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
             properties: {
               turbType: 'PIREP',
