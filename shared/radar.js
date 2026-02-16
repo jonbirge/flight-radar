@@ -32,6 +32,8 @@ let lastPollBounds = null;
 let lastPollHeight = null;          // camera height at last poll interval adjustment
 let viewChangePollDebounce = null;
 const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
+const RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
+let _renderGeneration = 0;       // incremented to cancel stale chunked renders
 let radarLayer = null;
 let radarRefreshTimer = null;
 let turbLayer = null;
@@ -1226,18 +1228,8 @@ function _computeTrailHash(ac, s) {
     : `T:0:${granLen}`;
 }
 
-function renderAircraft(filterIcaos) {
-  // LOD based on camera height
-  const camHeight = viewer.camera.positionCartographic
-    ? viewer.camera.positionCartographic.height
-    : 0;
-  const useDot = camHeight > 2000000;
-  const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
-
-  viewer.entities.suspendEvents();
-  try {
-  for (const [icao, ac] of aircraft) {
-    if (filterIcaos && !filterIcaos.has(icao)) continue;
+// Render a single aircraft entity (billboard + trail). Called per-aircraft by renderAircraft.
+function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
     const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
     const isSelected = icao === selectedIcao;
@@ -1324,7 +1316,7 @@ function renderAircraft(filterIcaos) {
     // --- Trail polyline ---
     // Skip trail rebuild when data hasn't changed (e.g., during camera pan/zoom)
     const _th = _computeTrailHash(ac, s);
-    if (ac._trailHash === _th) continue;
+    if (ac._trailHash === _th) return;
     if (CONFIG.trailEnabled) {
       // Determine base trail width, then scale down with zoom
       let trailWidth;
@@ -1453,10 +1445,60 @@ function renderAircraft(filterIcaos) {
       removeTrailEntities(ac);
     }
     ac._trailHash = _th;
+}
+
+function renderAircraft(filterIcaos) {
+  // LOD based on camera height
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height
+    : 0;
+  const useDot = camHeight > 2000000;
+  const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
+
+  // Collect the aircraft entries to render
+  const entries = [];
+  for (const [icao, ac] of aircraft) {
+    if (filterIcaos && !filterIcaos.has(icao)) continue;
+    entries.push([icao, ac]);
   }
-  } finally {
-    viewer.entities.resumeEvents();
+
+  // Small batches (selection changes, single updates) render synchronously
+  if (entries.length <= RENDER_CHUNK_SIZE) {
+    viewer.entities.suspendEvents();
+    try {
+      for (const [icao, ac] of entries) {
+        _renderOneAircraft(icao, ac, camHeight, useDot, showLabels);
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    return;
   }
+
+  // Large batches: chunk across animation frames to keep UI responsive
+  const gen = ++_renderGeneration;
+  let idx = 0;
+
+  function renderChunk() {
+    // Abort if a newer render has been requested
+    if (gen !== _renderGeneration) return;
+
+    const end = Math.min(idx + RENDER_CHUNK_SIZE, entries.length);
+    viewer.entities.suspendEvents();
+    try {
+      for (; idx < end; idx++) {
+        _renderOneAircraft(entries[idx][0], entries[idx][1], camHeight, useDot, showLabels);
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+
+    if (idx < entries.length && gen === _renderGeneration) {
+      requestAnimationFrame(renderChunk);
+    }
+  }
+
+  requestAnimationFrame(renderChunk);
 }
 
 // Merge granular API track data with polled history
