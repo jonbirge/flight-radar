@@ -1,10 +1,15 @@
 name: flight-radar
 base: core22
-version: "1.2.0"
+adopt-info: app
+title: Flight Radar
 summary: Real-time US flight tracker with FAA radar center aesthetic
 description: |
   Flight Radar is an Electron app that renders OpenSky Network aircraft data in
   a Cesium-powered radar display.
+license: MIT
+contact: https://github.com/birge/flight-radar/issues
+source-code: https://github.com/birge/flight-radar
+issues: https://github.com/birge/flight-radar/issues
 grade: stable
 confinement: strict
 
@@ -33,6 +38,7 @@ parts:
       - g++
       - rsync
     override-build: |
+      craftctl set version="$(node -p "require('./package.json').version")"
       npm ci --include=dev
       npm run setup
       rsync -a \
@@ -41,5 +47,5 @@ parts:
         --exclude='snap' \
         "$CRAFT_PART_SRC/" "$CRAFT_PART_INSTALL/"
       node "$CRAFT_PART_SRC/scripts/obfuscate-snap.js" "$CRAFT_PART_INSTALL"
-      cp -a node_modules "$CRAFT_PART_INSTALL/"
+      rsync -a --exclude='7zip-bin' node_modules/ "$CRAFT_PART_INSTALL/node_modules/"
       cp -a vendor "$CRAFT_PART_INSTALL/"
