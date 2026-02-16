@@ -29,6 +29,7 @@ let frozenBounds = null;          // locked viewport bounds during rotation
 let lastPollTime = null;
 let lastIconSize = -1;
 let lastPollBounds = null;
+let lastPollHeight = null;          // camera height at last poll interval adjustment
 let viewChangePollDebounce = null;
 const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
 let radarLayer = null;
@@ -1611,6 +1612,7 @@ function startPolling() {
   const camHeight = viewer.camera.positionCartographic
     ? viewer.camera.positionCartographic.height
     : CONFIG.startAlt;
+  lastPollHeight = camHeight;
   setPollInterval(computePollInterval(camHeight));
 
   // Initial fetch
@@ -1671,10 +1673,13 @@ viewer.camera.changed.addEventListener(() => {
       renderAircraft();
     }
 
-    // Adjust poll interval based on zoom level
-    const newPollInterval = computePollInterval(h);
-    if (newPollInterval !== CONFIG.pollInterval) {
-      setPollInterval(newPollInterval);
+    // Adjust poll interval only when zoom level changes significantly (>10%)
+    if (lastPollHeight === null || Math.abs(h - lastPollHeight) / lastPollHeight > 0.1) {
+      const newPollInterval = computePollInterval(h);
+      if (newPollInterval !== CONFIG.pollInterval) {
+        lastPollHeight = h;
+        setPollInterval(newPollInterval);
+      }
     }
 
     // Poll when viewport shows area we haven't fetched yet
