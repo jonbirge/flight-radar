@@ -19,7 +19,10 @@ const DEFAULT_SETTINGS = {
   savedView: null,
   colorByAltitude: true,
   thickTrailsByAltitude: false,
+  showVelocityVector: false,
+  trailLength: 120,
   airspaceEdges: true,
+  airspace3D: false,
   showFixes: false,
   navaidsEnabled: false,
   radarEnabled: false,
@@ -214,7 +217,10 @@ const settingsPanel = initSettingsPanel({
     lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
+    showVelocityVector: CONFIG.showVelocityVector,
+    trailLength: CONFIG.trailMaxAge,
     airspaceEdges: CONFIG.airspaceEdges,
+    airspace3D: CONFIG.airspace3D,
     showSmallAirports: CONFIG.showSmallAirports,
     showFixes: CONFIG.showFixes,
     rotationSpeed: CONFIG.rotationSpeed,
@@ -228,8 +234,12 @@ const settingsPanel = initSettingsPanel({
     CONFIG.lightColor = form.lightColor;
     CONFIG.colorByAltitude = form.colorByAltitude;
     CONFIG.thickTrailsByAltitude = form.thickTrailsByAltitude;
+    CONFIG.showVelocityVector = form.showVelocityVector;
+    CONFIG.trailMaxAge = form.trailLength;
     const edgesChanged = CONFIG.airspaceEdges !== form.airspaceEdges;
     CONFIG.airspaceEdges = form.airspaceEdges;
+    const airspace3DChanged = CONFIG.airspace3D !== form.airspace3D;
+    CONFIG.airspace3D = form.airspace3D;
     const smallAirportsChanged = CONFIG.showSmallAirports !== form.showSmallAirports;
     CONFIG.showSmallAirports = form.showSmallAirports;
     const showFixesChanged = CONFIG.showFixes !== form.showFixes;
@@ -239,6 +249,7 @@ const settingsPanel = initSettingsPanel({
     CONFIG.openskyClientSecret = form.openskyClientSecret;
     await applyTheme();
     if (edgesChanged) toggleAirspaceEdges(form.airspaceEdges);
+    if (airspace3DChanged) toggleAirspace3D(form.airspace3D);
     if (smallAirportsChanged && cachedAirportData) {
       if (form.showSmallAirports) {
         initSmallAirports(cachedAirportData);
@@ -267,7 +278,10 @@ function openSettings() {
     lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
+    showVelocityVector: CONFIG.showVelocityVector,
+    trailLength: CONFIG.trailMaxAge,
     airspaceEdges: CONFIG.airspaceEdges,
+    airspace3D: CONFIG.airspace3D,
     showSmallAirports: CONFIG.showSmallAirports,
     showFixes: CONFIG.showFixes,
     rotationSpeed: CONFIG.rotationSpeed,
