@@ -62,6 +62,15 @@ This produces `dist/FlightRadar-linux-x64/`. Run the `FlightRadar` binary:
 ./dist/FlightRadar-linux-x64/FlightRadar
 ```
 
+### Snapcraft (Snap Store)
+
+This repository includes `snap/snapcraft.yaml` so Snapcraft's GitHub build
+integration can build a snap automatically on every push once the repository is
+connected in the Snapcraft dashboard.
+
+The snap build runs `scripts/obfuscate-snap.js` during `override-build`, which
+minifies and obfuscates the app JavaScript before packaging.
+
 ### Cross-platform notes
 
 - You can package for any platform from any host OS — Electron Packager handles
@@ -185,4 +194,3 @@ Any static host works: **GitHub Pages**, **Netlify**, **Vercel**, **Cloudflare P
 - CRT scanline overlay is pure CSS (can be removed in styles.css)
 - No Cesium Ion token required — uses CartoDB dark_matter / light_all tiles
 - HUD displays UTC clock, track count, last update time, and camera center coordinates
-

@@ -1,0 +1,45 @@
+name: flight-radar
+base: core22
+version: "1.2.0"
+summary: Real-time US flight tracker with FAA radar center aesthetic
+description: |
+  Flight Radar is an Electron app that renders OpenSky Network aircraft data in
+  a Cesium-powered radar display.
+grade: stable
+confinement: strict
+
+apps:
+  flight-radar:
+    command: node_modules/electron/dist/electron $SNAP/main.js
+    extensions: [gnome]
+    plugs:
+      - audio-playback
+      - desktop
+      - desktop-legacy
+      - home
+      - network
+      - network-bind
+      - opengl
+      - wayland
+      - x11
+
+parts:
+  app:
+    plugin: nil
+    source: .
+    build-packages:
+      - python3
+      - make
+      - g++
+      - rsync
+    override-build: |
+      npm ci --include=dev
+      npm run setup
+      rsync -a \
+        --exclude='.git' \
+        --exclude='dist' \
+        --exclude='snap' \
+        "$CRAFT_PART_SRC/" "$CRAFT_PART_INSTALL/"
+      cp -a node_modules "$CRAFT_PART_INSTALL/"
+      cp -a vendor "$CRAFT_PART_INSTALL/"
+      node "$CRAFT_PART_INSTALL/scripts/obfuscate-snap.js" "$CRAFT_PART_INSTALL"

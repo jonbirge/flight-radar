@@ -7,6 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "build:snap:js": "node scripts/obfuscate-snap.js",
     "postinstall": "node scripts/copy-cesium.js",
     "setup": "node scripts/copy-cesium.js",
     "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js",
@@ -46,6 +47,8 @@
   "devDependencies": {
     "cesium": "*",
     "electron": "*",
-    "electron-builder": "*"
+    "electron-builder": "*",
+    "javascript-obfuscator": "5.3.0",
+    "terser": "5.46.0"
   }
 }
