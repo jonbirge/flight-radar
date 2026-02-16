@@ -631,6 +631,7 @@ async function applyTheme() {
   }
 
   // Force re-render all aircraft entities with new colors/sizes
+  clearIconCaches();
   refreshAllEntities();
 
   // Update airport marker colors to match theme
@@ -644,12 +645,18 @@ async function applyTheme() {
 function removeTrailEntities(ac) {
   for (const e of ac.trailEntities) viewer.entities.remove(e);
   ac.trailEntities = [];
+  ac._trailHash = '';
 }
 
 function refreshAllEntities() {
-  for (const [icao, ac] of aircraft) {
-    if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
-    removeTrailEntities(ac);
+  viewer.entities.suspendEvents();
+  try {
+    for (const [icao, ac] of aircraft) {
+      if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
+      removeTrailEntities(ac);
+    }
+  } finally {
+    viewer.entities.resumeEvents();
   }
   renderAircraft();
 }
@@ -1136,6 +1143,7 @@ function updateAircraft(states) {
         granularTrack: null,  // from /tracks API
         lastTrackFetch: 0,
         lastKnownAlt: s.altitude || 0,
+        _trailHash: '',      // trail content fingerprint for dirty tracking
       };
       aircraft.set(s.icao24, ac);
     }
@@ -1175,16 +1183,21 @@ function updateAircraft(states) {
     }
   }
 
-  // Remove stale aircraft
-  for (const [icao, ac] of aircraft) {
-    if (!seen.has(icao)) {
-      const age = now - (ac.state.lastContact || 0);
-      if (age > CONFIG.staleThreshold) {
-        if (ac.entity) viewer.entities.remove(ac.entity);
-        removeTrailEntities(ac);
-        aircraft.delete(icao);
+  // Remove stale aircraft (batched to avoid per-entity scene recalc)
+  viewer.entities.suspendEvents();
+  try {
+    for (const [icao, ac] of aircraft) {
+      if (!seen.has(icao)) {
+        const age = now - (ac.state.lastContact || 0);
+        if (age > CONFIG.staleThreshold) {
+          if (ac.entity) viewer.entities.remove(ac.entity);
+          removeTrailEntities(ac);
+          aircraft.delete(icao);
+        }
       }
     }
+  } finally {
+    viewer.entities.resumeEvents();
   }
 
   // Update visual entities
@@ -1198,7 +1211,21 @@ function updateAircraft(states) {
   }
 }
 
-function renderAircraft() {
+// Trail content fingerprint to avoid unnecessary entity rebuilds
+function _computeTrailHash(ac, s) {
+  if (!CONFIG.trailEnabled) return '';
+  if (CONFIG.showVelocityVector) {
+    return `V:${(s.heading||0).toFixed(1)}:${(s.velocity||0).toFixed(0)}:${s.lon.toFixed(4)}:${s.lat.toFixed(4)}`;
+  }
+  const histLen = ac.history.length;
+  const last = histLen > 0 ? ac.history[histLen - 1] : null;
+  const granLen = ac.granularTrack && ac.granularTrack.path ? ac.granularTrack.path.length : 0;
+  return last
+    ? `T:${histLen}:${granLen}:${last.time.toFixed(0)}`
+    : `T:0:${granLen}`;
+}
+
+function renderAircraft(filterIcaos) {
   // LOD based on camera height
   const camHeight = viewer.camera.positionCartographic
     ? viewer.camera.positionCartographic.height
@@ -1206,7 +1233,10 @@ function renderAircraft() {
   const useDot = camHeight > 2000000;
   const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
 
+  viewer.entities.suspendEvents();
+  try {
   for (const [icao, ac] of aircraft) {
+    if (filterIcaos && !filterIcaos.has(icao)) continue;
     const s = ac.state;
     const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
     const isSelected = icao === selectedIcao;
@@ -1291,6 +1321,9 @@ function renderAircraft() {
     }
 
     // --- Trail polyline ---
+    // Skip trail rebuild when data hasn't changed (e.g., during camera pan/zoom)
+    const _th = _computeTrailHash(ac, s);
+    if (ac._trailHash === _th) continue;
     if (CONFIG.trailEnabled) {
       // Determine base trail width, then scale down with zoom
       let trailWidth;
@@ -1418,6 +1451,10 @@ function renderAircraft() {
     } else {
       removeTrailEntities(ac);
     }
+    ac._trailHash = _th;
+  }
+  } finally {
+    viewer.entities.resumeEvents();
   }
 }
 
@@ -1997,7 +2034,21 @@ function showAircraftInfo(icao) {
 
   // Re-render to apply highlight to newly selected and dim previously selected
   if (prevSelected !== icao) {
-    refreshAllEntities();
+    const toRefresh = new Set([icao]);
+    if (prevSelected) toRefresh.add(prevSelected);
+    viewer.entities.suspendEvents();
+    try {
+      for (const rid of toRefresh) {
+        const rac = aircraft.get(rid);
+        if (rac) {
+          if (rac.entity) { viewer.entities.remove(rac.entity); rac.entity = null; }
+          removeTrailEntities(rac);
+        }
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    renderAircraft(toRefresh);
   }
 }
 
@@ -2010,8 +2061,20 @@ function showTurbInfo(entity) {
 
   // Deselect any aircraft
   if (selectedIcao) {
+    const prevIcao = selectedIcao;
     selectedIcao = null;
-    refreshAllEntities();
+    const toRefresh = new Set([prevIcao]);
+    viewer.entities.suspendEvents();
+    try {
+      const rac = aircraft.get(prevIcao);
+      if (rac) {
+        if (rac.entity) { viewer.entities.remove(rac.entity); rac.entity = null; }
+        removeTrailEntities(rac);
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    renderAircraft(toRefresh);
   }
 
   if (type === 'PIREP') {
@@ -2053,11 +2116,22 @@ function showTurbInfo(entity) {
 }
 
 function hideAircraftInfo() {
-  const hadSelection = selectedIcao !== null;
+  const prevIcao = selectedIcao;
   selectedIcao = null;
   document.getElementById('aircraft-info').classList.add('hidden');
-  if (hadSelection) {
-    refreshAllEntities();
+  if (prevIcao) {
+    const toRefresh = new Set([prevIcao]);
+    viewer.entities.suspendEvents();
+    try {
+      const rac = aircraft.get(prevIcao);
+      if (rac) {
+        if (rac.entity) { viewer.entities.remove(rac.entity); rac.entity = null; }
+        removeTrailEntities(rac);
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    renderAircraft(toRefresh);
   }
 }
 
