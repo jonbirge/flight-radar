@@ -26,7 +26,7 @@ for (const directory of directories) {
 
 async function obfuscateFile(file) {
   const filePath = path.join(root, file);
-  if (!fs.existsSync(filePath)) return;
+  if (!fs.existsSync(filePath)) return false;
 
   const source = fs.readFileSync(filePath, 'utf8');
   const minified = await minify(source, {
@@ -50,13 +50,15 @@ async function obfuscateFile(file) {
   });
 
   fs.writeFileSync(filePath, obfuscated.getObfuscatedCode(), 'utf8');
+  return true;
 }
 
 (async () => {
+  let obfuscatedCount = 0;
   for (const file of files) {
-    await obfuscateFile(file);
+    if (await obfuscateFile(file)) obfuscatedCount += 1;
   }
-  console.log(`Obfuscated ${files.length} JavaScript files under ${root}`);
+  console.log(`Obfuscated ${obfuscatedCount} JavaScript files under ${root} (missing files skipped)`);
 })().catch((error) => {
   console.error(error.message);
   process.exit(1);

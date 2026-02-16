@@ -40,6 +40,6 @@ parts:
         --exclude='dist' \
         --exclude='snap' \
         "$CRAFT_PART_SRC/" "$CRAFT_PART_INSTALL/"
+      node "$CRAFT_PART_SRC/scripts/obfuscate-snap.js" "$CRAFT_PART_INSTALL"
       cp -a node_modules "$CRAFT_PART_INSTALL/"
       cp -a vendor "$CRAFT_PART_INSTALL/"
-      node "$CRAFT_PART_INSTALL/scripts/obfuscate-snap.js" "$CRAFT_PART_INSTALL"
