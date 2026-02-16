@@ -160,9 +160,99 @@ async function makeMapTiles(layerId) {
 // NEXRAD Weather Radar Overlay
 // ============================================================
 
+/**
+ * Imagery provider wrapper that filters NEXRAD tiles to remove ground clutter.
+ * Keeps only saturated weather colors (green/yellow/orange/red) and makes
+ * everything else transparent.
+ */
+class FilteredRadarImageryProvider {
+  constructor(innerProvider) {
+    this._inner = innerProvider;
+  }
+
+  // --- Delegated read-only properties ---
+  get rectangle()        { return this._inner.rectangle; }
+  get tileWidth()        { return this._inner.tileWidth; }
+  get tileHeight()       { return this._inner.tileHeight; }
+  get maximumLevel()     { return this._inner.maximumLevel; }
+  get minimumLevel()     { return this._inner.minimumLevel; }
+  get tilingScheme()     { return this._inner.tilingScheme; }
+  get tileDiscardPolicy(){ return this._inner.tileDiscardPolicy; }
+  get errorEvent()       { return this._inner.errorEvent; }
+  get credit()           { return this._inner.credit; }
+  get proxy()            { return this._inner.proxy; }
+  get ready()            { return this._inner.ready; }
+  get readyPromise()     { return this._inner.readyPromise; }
+  get hasAlphaChannel()  { return true; }
+
+  getTileCredits(x, y, level) {
+    return this._inner.getTileCredits(x, y, level);
+  }
+
+  pickFeatures(x, y, level, longitude, latitude) {
+    return this._inner.pickFeatures(x, y, level, longitude, latitude);
+  }
+
+  requestImage(x, y, level, request) {
+    const promise = this._inner.requestImage(x, y, level, request);
+    if (!promise) return promise;
+
+    return Promise.resolve(promise).then((image) => {
+      if (!image) return image;
+      return this._filterImage(image);
+    });
+  }
+
+  /**
+   * Filter a tile image, removing low-saturation / low-intensity pixels
+   * that represent ground clutter rather than actual precipitation.
+   */
+  _filterImage(image) {
+    const w = image.width || image.naturalWidth || 256;
+    const h = image.height || image.naturalHeight || 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(image, 0, 0, w, h);
+
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const d = imageData.data;
+
+    for (let i = 0; i < d.length; i += 4) {
+      const a = d[i + 3];
+      if (a === 0) continue; // already transparent
+
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+
+      // Convert to HSL
+      const rn = r / 255, gn = g / 255, bn = b / 255;
+      const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+      const l = (max + min) / 2;
+      let s = 0;
+      if (max !== min) {
+        const delta = max - min;
+        s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+      }
+
+      // Remove pixels that are too dark, too dim, or too desaturated.
+      // These represent ground clutter and low-level noise in the NEXRAD data.
+      // Keep only vivid weather colors: saturated greens, yellows, oranges, reds, magentas.
+      if (s < 0.3 || l < 0.12 || l > 0.92) {
+        d[i + 3] = 0; // make transparent
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return createImageBitmap(canvas);
+  }
+}
+
 function makeRadarProvider() {
-  console.log('[Radar] Loading NEXRAD WMS tiles from Iowa State Mesonet');
-  return new Cesium.WebMapServiceImageryProvider({
+  console.log('[Radar] Loading NEXRAD WMS tiles from Iowa State Mesonet (filtered)');
+  const inner = new Cesium.WebMapServiceImageryProvider({
     url: 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi?',
     layers: 'nexrad-n0q-900913',
     parameters: {
@@ -171,6 +261,7 @@ function makeRadarProvider() {
     },
     credit: new Cesium.Credit('Iowa State Mesonet'),
   });
+  return new FilteredRadarImageryProvider(inner);
 }
 
 function enableRadar() {
