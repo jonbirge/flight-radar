@@ -31,6 +31,8 @@ let lastIconSize = -1;
 let lastPollBounds = null;
 let lastPollHeight = null;          // camera height at last poll interval adjustment
 let viewChangePollDebounce = null;
+let lastUseDot = null;              // track LOD tier to detect dot↔arrow transitions
+let _zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom resizes
 const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
 const RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
 let _renderGeneration = 0;       // incremented to cancel stale chunked renders
@@ -656,6 +658,8 @@ function refreshAllEntities() {
   try {
     for (const [icao, ac] of aircraft) {
       if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
+      ac._iconKey = '';
+      ac._labelText = '';
       removeTrailEntities(ac);
     }
   } finally {
@@ -1147,6 +1151,8 @@ function updateAircraft(states) {
         lastTrackFetch: 0,
         lastKnownAlt: s.altitude || 0,
         _trailHash: '',      // trail content fingerprint for dirty tracking
+        _iconKey: '',        // billboard image fingerprint to skip redundant texture sets
+        _labelText: '',      // label text fingerprint to skip redundant updates
       };
       aircraft.set(s.icao24, ac);
     }
@@ -1243,14 +1249,17 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       altCesiumColor = Cesium.Color.fromBytes(altRgb[0], altRgb[1], altRgb[2], 255);
     }
 
-    const use3dDot = !is2D && !useDot; // in 3D, use dots instead of arrows
-    const baseSize = useDot ? 8 : (use3dDot ? 8 : 18);
-    const scaledSize = computeIconSize(camHeight, baseSize);
-    const iconImage = useDot
-      ? createDotIcon(scaledSize, isSelected, altColor)
-      : use3dDot
-        ? createDotIcon(scaledSize, isSelected, altColor)
-        : createAircraftIcon(s.heading || 0, isSelected, altColor);
+    // Icon type: dots in 3D or when zoomed out; arrows in 2D close-up.
+    // Canvas rendered at fixed resolution (cache-friendly); billboard
+    // width/height handles on-screen sizing via computeDisplaySize.
+    const use3dDot = !is2D && !useDot;
+    const usesDot = useDot || use3dDot;
+    const iconImage = usesDot
+      ? createDotIcon(8, isSelected, altColor)
+      : createAircraftIcon(s.heading || 0, isSelected, altColor);
+    const iconKey = usesDot
+      ? `D:${isSelected}:${altColor || ''}`
+      : `A:${Math.round((s.heading||0)/5)*5}:${isSelected}:${altColor || ''}`;
     const iconSize = computeDisplaySize(camHeight);
     const labelColor = altCesiumColor || (isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
@@ -1284,10 +1293,20 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         } : undefined,
         properties: { icao24: icao },
       });
+      ac._iconKey = iconKey;
+      ac._labelText = (CONFIG.labelsEnabled || isSelected)
+        ? `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`
+        : '';
     } else {
-      // Update position and icon
+      // Update position
       ac.entity.position = pos;
-      ac.entity.billboard.image = iconImage;
+
+      // Skip billboard image assignment when icon hasn't changed
+      // (avoids Cesium texture dirty-flagging / GPU re-upload)
+      if (ac._iconKey !== iconKey) {
+        ac._iconKey = iconKey;
+        ac.entity.billboard.image = iconImage;
+      }
       ac.entity.billboard.width = iconSize;
       ac.entity.billboard.height = iconSize;
 
@@ -1305,8 +1324,12 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
           });
         }
-        ac.entity.label.text = `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`;
-        ac.entity.label.fillColor = labelColor;
+        const labelText = `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`;
+        if (ac._labelText !== labelText) {
+          ac._labelText = labelText;
+          ac.entity.label.text = labelText;
+          ac.entity.label.fillColor = labelColor;
+        }
         ac.entity.label.show = isSelected || showLabels;
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
@@ -1499,6 +1522,32 @@ function renderAircraft(filterIcaos) {
   }
 
   requestAnimationFrame(renderChunk);
+}
+
+// Lightweight zoom handler: only update billboard display sizes and label
+// visibility.  Avoids the full _renderOneAircraft loop (icon regeneration,
+// trail hash computation, Cesium property churn) that causes zoom stutter.
+function resizeAircraftIcons() {
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height : 0;
+  const iconSize = computeDisplaySize(camHeight);
+  const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
+
+  viewer.entities.suspendEvents();
+  try {
+    for (const [icao, ac] of aircraft) {
+      if (!ac.entity) continue;
+      if (ac.entity.billboard) {
+        ac.entity.billboard.width = iconSize;
+        ac.entity.billboard.height = iconSize;
+      }
+      if (ac.entity.label) {
+        ac.entity.label.show = (icao === selectedIcao) || showLabels;
+      }
+    }
+  } finally {
+    viewer.entities.resumeEvents();
+  }
 }
 
 // Merge granular API track data with polled history
@@ -1708,11 +1757,29 @@ viewer.camera.changed.addEventListener(() => {
 
     const h = carto.height;
 
-    // Re-render aircraft when icon size changes (continuous LOD)
+    // Re-render aircraft only when LOD tier changes (dot ↔ arrow);
+    // otherwise do a lightweight resize that only touches billboard
+    // dimensions and label visibility, debounced to once per frame.
     const newIconSize = computeDisplaySize(h);
-    if (newIconSize !== lastIconSize) {
+    const useDot = h > 2000000;
+    if (useDot !== lastUseDot) {
+      // LOD tier changed — full re-render; cancel any pending resize
+      lastUseDot = useDot;
       lastIconSize = newIconSize;
+      if (_zoomResizeRAF) {
+        cancelAnimationFrame(_zoomResizeRAF);
+        _zoomResizeRAF = null;
+      }
       renderAircraft();
+    } else if (newIconSize !== lastIconSize) {
+      // Only display size changed — schedule lightweight resize
+      lastIconSize = newIconSize;
+      if (!_zoomResizeRAF) {
+        _zoomResizeRAF = requestAnimationFrame(() => {
+          _zoomResizeRAF = null;
+          resizeAircraftIcons();
+        });
+      }
     }
 
     // Adjust poll interval only when zoom level changes significantly (>10%)
@@ -2103,6 +2170,7 @@ function showAircraftInfo(icao) {
         const rac = aircraft.get(rid);
         if (rac) {
           if (rac.entity) { viewer.entities.remove(rac.entity); rac.entity = null; }
+          rac._iconKey = ''; rac._labelText = '';
           removeTrailEntities(rac);
         }
       }
@@ -2130,6 +2198,7 @@ function showTurbInfo(entity) {
       const rac = aircraft.get(prevIcao);
       if (rac) {
         if (rac.entity) { viewer.entities.remove(rac.entity); rac.entity = null; }
+        rac._iconKey = ''; rac._labelText = '';
         removeTrailEntities(rac);
       }
     } finally {
@@ -2187,6 +2256,7 @@ function hideAircraftInfo() {
       const rac = aircraft.get(prevIcao);
       if (rac) {
         if (rac.entity) { viewer.entities.remove(rac.entity); rac.entity = null; }
+        rac._iconKey = ''; rac._labelText = '';
         removeTrailEntities(rac);
       }
     } finally {
