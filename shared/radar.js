@@ -1543,8 +1543,22 @@ function buildTrailPositions(ac, isSelected = false) {
 // Polling Loop
 // ============================================================
 
+// Expand bounds by a fraction (0.5 = 50% larger in each direction)
+function padBounds(bounds, fraction) {
+  const latPad = (bounds.north - bounds.south) * fraction / 2;
+  const lonPad = (bounds.east - bounds.west) * fraction / 2;
+  return {
+    south: Math.max(bounds.south - latPad, -90),
+    north: Math.min(bounds.north + latPad, 90),
+    west: Math.max(bounds.west - lonPad, -180),
+    east: Math.min(bounds.east + lonPad, 180),
+  };
+}
+
 async function pollStates() {
-  const bounds = frozenBounds || getViewBounds();
+  const viewBounds = frozenBounds || getViewBounds();
+  // Fetch aircraft from a 50% larger region so small pans don't re-poll
+  const bounds = padBounds(viewBounds, 0.5);
   console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
   const data = await window.flightAPI.getStates(bounds);
   const warningEl = document.getElementById('throttle-warning');
