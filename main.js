@@ -34,7 +34,7 @@ const DEFAULT_SETTINGS = {
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
-  savedView: { lon: -98.6, lat: 39.8, height: 6000000, heading: 0, pitch: -1.2 },
+  savedView: { lon: -98.5, lat: 39.5, height: 4860000, heading: 0, pitch: -1.5708 },
 };
 
 function loadSettings() {
