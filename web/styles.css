@@ -124,25 +124,30 @@ body.theme-light #settings-container {
 }
 
 #btn-defaults {
-  background: transparent;
-  border: none;
-  color: var(--phosphor-dim);
+  background: var(--panel-bg);
+  border: 1px solid var(--phosphor-dim);
+  border-radius: 3px;
+  color: var(--phosphor);
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 5px 14px;
 }
 #btn-defaults:hover {
-  color: #c44;
+  border-color: var(--phosphor);
+  color: var(--phosphor-bright);
 }
 
 body.theme-light #btn-defaults {
-  color: rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.25);
+  color: #333;
 }
 body.theme-light #btn-defaults:hover {
-  color: #c44;
+  border-color: #1a1a1a;
+  color: #000;
 }
 
 body.theme-light #settings-container .settings-cred-input {

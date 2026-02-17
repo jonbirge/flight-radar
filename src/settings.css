@@ -51,18 +51,6 @@ body {
   background: #e8e8e8;
 }
 
-#btn-defaults {
-  color: #888;
-  font-size: 12px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 5px 8px;
-}
-#btn-defaults:hover {
-  color: #c44;
-}
-
 /* Range slider styling */
 input[type="range"] {
   flex: 1;
@@ -108,13 +96,4 @@ input[type="range"] {
     background: #4a4a4a;
   }
 
-  #btn-defaults {
-    background: transparent;
-    color: #888;
-    border: none;
-  }
-  #btn-defaults:hover {
-    background: transparent;
-    color: #c44;
-  }
 }
