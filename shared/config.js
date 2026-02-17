@@ -8,10 +8,10 @@
 // ============================================================
 
 const CONFIG = {
-  // Boston Logan Airport center
-  startLon: -71.0096,
-  startLat: 42.3656,
-  startAlt: 500000,           // initial camera height in meters
+  // CONUS center
+  startLon: -98.6,
+  startLat: 39.8,
+  startAlt: 6000000,           // initial camera height in meters
 
   pollInterval: 15000,        // ms between state polls
   trailMaxAge: 120,           // seconds of trail to keep
@@ -22,14 +22,14 @@ const CONFIG = {
   // Visual (dynamically updated by theme system)
   fontSize: 11,
   theme: 'light',             // resolved theme: always 'dark' | 'light'
-  themePref: 'light',          // user preference: 'dark' | 'light' | 'system'
-  darkColor: '#00cc44',       // user-selected dark mode color
-  lightColor: '#1a1a1a',      // user-selected light mode color
-  phosphor: '#00cc44',
-  phosphorBright: '#33ff66',
-  phosphorSelect: '#99ffbb',
-  phosphorDim: 'rgba(0, 204, 68, 0.35)',
-  trailColor: [0, 204, 68],  // RGB for trail polylines
+  themePref: 'system',          // user preference: 'dark' | 'light' | 'system'
+  darkColor: '#ffffff',       // user-selected dark mode color
+  lightColor: '#000000',      // user-selected light mode color
+  phosphor: '#ffffff',
+  phosphorBright: '#ffffff',
+  phosphorSelect: '#ffffff',
+  phosphorDim: 'rgba(255, 255, 255, 0.35)',
+  trailColor: [255, 255, 255],  // RGB for trail polylines
   labelOutlineColor: Cesium.Color.BLACK,
   colorByAltitude: true,
   thickTrailsByAltitude: false,
@@ -38,7 +38,7 @@ const CONFIG = {
   airportsEnabled: true,
   airspaceEnabled: true,
   airspace3D: false,
-  airspaceEdges: true,
+  airspaceEdges: false,
   showSmallAirports: false,
   navaidsEnabled: false,
   showFixes: false,

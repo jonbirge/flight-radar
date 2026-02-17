@@ -11,9 +11,9 @@ const http = require('http');
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 const DEFAULT_SETTINGS = {
   fontSize: 12,
-  theme: 'dark',
-  darkColor: '#00cc44',
-  lightColor: '#1a1a1a',
+  theme: 'system',
+  darkColor: '#ffffff',
+  lightColor: '#000000',
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   showVelocityVector: false,
@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   labelsEnabled: true,
   airportsEnabled: true,
   airspaceEnabled: true,
-  airspaceEdges: true,
+  airspaceEdges: false,
   airspace3D: false,
   showSmallAirports: false,
   navaidsEnabled: false,
@@ -34,7 +34,7 @@ const DEFAULT_SETTINGS = {
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
-  savedView: null,
+  savedView: { lon: -98.6, lat: 39.8, height: 6000000, heading: 0, pitch: -1.2 },
 };
 
 function loadSettings() {
