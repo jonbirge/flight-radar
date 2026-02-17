@@ -183,3 +183,9 @@ function computePollInterval(camHeight) {
   const idx = Math.min(POLL_STEPS.length - 1, Math.round(t * (POLL_STEPS.length - 1)));
   return POLL_STEPS[idx] * 1000;
 }
+
+function computePositionUpdateInterval(camHeight) {
+  const t = getZoomFraction(camHeight);
+  // Linear interpolation: 200ms at city (t=0), 1000ms at CONUS (t=1)
+  return Math.round(200 + (1000 - 200) * t);
+}
