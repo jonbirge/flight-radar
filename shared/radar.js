@@ -1453,7 +1453,8 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     // Skip trail rebuild when data hasn't changed (e.g., during camera pan/zoom)
     const _th = _computeTrailHash(ac, s);
     if (ac._trailHash === _th) return;
-    if (CONFIG.trailEnabled) {
+    // Show trails if enabled OR if this aircraft is selected (selected aircraft always show history trail)
+    if (CONFIG.trailEnabled || isSelected) {
       // Determine base trail width, then scale down with zoom
       let trailWidth;
       if (CONFIG.thickTrailsByAltitude) {
@@ -1465,7 +1466,8 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       const zoomT = getZoomFraction(camHeight);
       trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
 
-      if (CONFIG.showVelocityVector && s.heading != null && s.velocity != null) {
+      // Selected aircraft always show history trail; others follow global setting
+      if (!isSelected && CONFIG.showVelocityVector && s.heading != null && s.velocity != null) {
         // Velocity vector mode: single line behind aircraft proportional to speed
         removeTrailEntities(ac);
 
