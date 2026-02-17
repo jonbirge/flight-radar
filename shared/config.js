@@ -14,6 +14,7 @@ const CONFIG = {
   startAlt: 6000000,           // initial camera height in meters
 
   pollInterval: 15000,        // ms between state polls
+  positionUpdateInterval: 1000, // ms between position extrapolation updates
   trailMaxAge: 120,           // seconds of trail to keep
   trailEnabled: true,
   labelsEnabled: true,
