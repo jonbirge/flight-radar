@@ -4,3 +4,4 @@ dist/
 assets/*.png
 cred.json
 web/cache/
+*.snap
