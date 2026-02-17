@@ -1,6 +1,6 @@
 node_modules/
 vendor/
-dist/
+out/
 assets/*.png
 cred.json
 web/cache/
