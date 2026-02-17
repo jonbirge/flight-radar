@@ -20,6 +20,7 @@ let cachedAirportData = null;     // Cached airport JSON for rebuilds
 let cachedWaypointData = null;    // Cached waypoint JSON for rebuilds
 let pollTimer = null;
 let trackTimer = null;
+let positionUpdateTimer = null;
 let viewer = null;
 let is2D = false;
 let selectedIcao = null;
@@ -1253,6 +1254,7 @@ function updateAircraft(states) {
         granularTrack: null,  // from /tracks API
         lastTrackFetch: 0,
         lastKnownAlt: s.altitude || 0,
+        lastServerUpdate: now, // timestamp of last server data (for position extrapolation)
         _trailHash: '',      // trail content fingerprint for dirty tracking
         _iconKey: '',        // billboard image fingerprint to skip redundant texture sets
         _labelText: '',      // label text fingerprint to skip redundant updates
@@ -1262,6 +1264,7 @@ function updateAircraft(states) {
 
     // Update state
     ac.state = s;
+    ac.lastServerUpdate = now;
 
     // Append to history — skip if position hasn't moved meaningfully
     const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
@@ -1320,6 +1323,57 @@ function updateAircraft(states) {
     showAircraftInfo(selectedIcao);
   } else if (selectedIcao && !aircraft.has(selectedIcao)) {
     hideAircraftInfo();
+  }
+}
+
+// Extrapolate aircraft positions between server polls based on heading and velocity
+function extrapolatePositions() {
+  const now = Date.now() / 1000;
+  let updated = false;
+
+  for (const [icao, ac] of aircraft) {
+    // Skip if no entity created yet or missing required data
+    if (!ac.entity || !ac.state.heading || !ac.state.velocity) continue;
+
+    const s = ac.state;
+    const elapsed = now - ac.lastServerUpdate; // seconds since last server data
+
+    // Only extrapolate for recent data (within stale threshold)
+    if (elapsed > CONFIG.staleThreshold) continue;
+
+    // Compute new position based on heading and velocity
+    const speed = s.velocity; // m/s
+    const distance = speed * elapsed; // meters traveled since last update
+
+    // Use great circle calculation for new position
+    const headingRad = Cesium.Math.toRadians(s.heading);
+    const lonRad = Cesium.Math.toRadians(s.lon);
+    const latRad = Cesium.Math.toRadians(s.lat);
+    const R = 6371000; // Earth radius in meters
+    const angDist = distance / R;
+
+    const newLat = Math.asin(
+      Math.sin(latRad) * Math.cos(angDist) +
+      Math.cos(latRad) * Math.sin(angDist) * Math.cos(headingRad)
+    );
+    const newLon = lonRad + Math.atan2(
+      Math.sin(headingRad) * Math.sin(angDist) * Math.cos(latRad),
+      Math.cos(angDist) - Math.sin(latRad) * Math.sin(newLat)
+    );
+
+    // Update entity position (keep altitude from last server data)
+    const alt = s.altitude || 0;
+    ac.entity.position = Cesium.Cartesian3.fromDegrees(
+      Cesium.Math.toDegrees(newLon),
+      Cesium.Math.toDegrees(newLat),
+      alt
+    );
+    updated = true;
+  }
+
+  // If any positions were updated, trigger a scene render
+  if (updated && viewer.scene) {
+    viewer.scene.requestRender();
   }
 }
 
@@ -1834,6 +1888,10 @@ function startPolling() {
   // Periodic track fetching (one aircraft per 12s to stay within rate limits)
   if (trackTimer) clearInterval(trackTimer);
   trackTimer = setInterval(fetchNextTrack, 12000);
+
+  // Position extrapolation between server polls for smooth movement
+  if (positionUpdateTimer) clearInterval(positionUpdateTimer);
+  positionUpdateTimer = setInterval(extrapolatePositions, CONFIG.positionUpdateInterval);
 }
 
 // ============================================================
