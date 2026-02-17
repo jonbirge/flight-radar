@@ -31,6 +31,7 @@ let lastPollTime = null;
 let lastIconSize = -1;
 let lastPollBounds = null;
 let lastPollHeight = null;          // camera height at last poll interval adjustment
+let lastPositionUpdateHeight = null; // camera height at last position update interval adjustment
 let viewChangePollDebounce = null;
 let lastUseDot = null;              // track LOD tier to detect dot↔arrow transitions
 let _zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom resizes
@@ -1179,6 +1180,12 @@ function setPollInterval(ms) {
   pollTimer = setInterval(pollStates, CONFIG.pollInterval);
 }
 
+function setPositionUpdateInterval(ms) {
+  CONFIG.positionUpdateInterval = ms;
+  if (positionUpdateTimer) clearInterval(positionUpdateTimer);
+  positionUpdateTimer = setInterval(extrapolatePositions, CONFIG.positionUpdateInterval);
+}
+
 // ============================================================
 // View Bounds Computation
 // ============================================================
@@ -1266,6 +1273,9 @@ function updateAircraft(states) {
     ac.state = s;
     ac.lastServerUpdate = now;
 
+    // Clear any temporary extrapolated history points from previous update cycle
+    ac.history = ac.history.filter(p => !p.temporary);
+
     // Append to history — skip if position hasn't moved meaningfully
     const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
     if (s.altitude != null) ac.lastKnownAlt = s.altitude;
@@ -1330,10 +1340,11 @@ function updateAircraft(states) {
 function extrapolatePositions() {
   const now = Date.now() / 1000;
   let updated = false;
+  const aircraftNeedingTrailUpdate = [];
 
   for (const [icao, ac] of aircraft) {
     // Skip if no entity created yet or missing required data
-    if (!ac.entity || !ac.state.heading || !ac.state.velocity) continue;
+    if (!ac.entity || ac.state.heading == null || !ac.state.velocity) continue;
 
     const s = ac.state;
     const elapsed = now - ac.lastServerUpdate; // seconds since last server data
@@ -1361,14 +1372,41 @@ function extrapolatePositions() {
       Math.cos(angDist) - Math.sin(latRad) * Math.sin(newLat)
     );
 
-    // Update entity position (keep altitude from last server data)
+    const newLonDeg = Cesium.Math.toDegrees(newLon);
+    const newLatDeg = Cesium.Math.toDegrees(newLat);
     const alt = s.altitude || 0;
-    ac.entity.position = Cesium.Cartesian3.fromDegrees(
-      Cesium.Math.toDegrees(newLon),
-      Cesium.Math.toDegrees(newLat),
-      alt
-    );
+
+    // Update entity position (keep altitude from last server data)
+    ac.entity.position = Cesium.Cartesian3.fromDegrees(newLonDeg, newLatDeg, alt);
+
+    // Add temporary history point for trail rendering (not in velocity vector mode)
+    if (CONFIG.trailEnabled && !CONFIG.showVelocityVector) {
+      // Remove old temporary points first
+      ac.history = ac.history.filter(p => !p.temporary);
+      // Add new temporary point at extrapolated position
+      ac.history.push({ lon: newLonDeg, lat: newLatDeg, alt, time: now, temporary: true });
+      aircraftNeedingTrailUpdate.push(icao);
+    }
+
     updated = true;
+  }
+
+  // Update trails for aircraft with new temporary history points
+  if (aircraftNeedingTrailUpdate.length > 0) {
+    // Get camera height for rendering
+    const camHeight = viewer.camera.positionCartographic
+      ? viewer.camera.positionCartographic.height
+      : CONFIG.startAlt;
+
+    for (const icao of aircraftNeedingTrailUpdate) {
+      const ac = aircraft.get(icao);
+      if (ac && ac.entity) {
+        const isSelected = icao === selectedIcao;
+        const useDot = camHeight > 2000000;
+        const showLabels = CONFIG.labelsEnabled;
+        _renderOneAircraft(icao, ac, camHeight, useDot, showLabels);
+      }
+    }
   }
 
   // If any positions were updated, trigger a scene render
@@ -1880,7 +1918,9 @@ function startPolling() {
     ? viewer.camera.positionCartographic.height
     : CONFIG.startAlt;
   lastPollHeight = camHeight;
+  lastPositionUpdateHeight = camHeight;
   setPollInterval(computePollInterval(camHeight));
+  setPositionUpdateInterval(computePositionUpdateInterval(camHeight));
 
   // Initial fetch
   pollStates();
@@ -1888,10 +1928,6 @@ function startPolling() {
   // Periodic track fetching (one aircraft per 12s to stay within rate limits)
   if (trackTimer) clearInterval(trackTimer);
   trackTimer = setInterval(fetchNextTrack, 12000);
-
-  // Position extrapolation between server polls for smooth movement
-  if (positionUpdateTimer) clearInterval(positionUpdateTimer);
-  positionUpdateTimer = setInterval(extrapolatePositions, CONFIG.positionUpdateInterval);
 }
 
 // ============================================================
@@ -1968,6 +2004,15 @@ viewer.camera.changed.addEventListener(() => {
       if (newPollInterval !== CONFIG.pollInterval) {
         lastPollHeight = h;
         setPollInterval(newPollInterval);
+      }
+    }
+
+    // Adjust position update interval based on zoom (smoother updates when zoomed in)
+    if (lastPositionUpdateHeight === null || Math.abs(h - lastPositionUpdateHeight) / lastPositionUpdateHeight > 0.1) {
+      const newPositionUpdateInterval = computePositionUpdateInterval(h);
+      if (newPositionUpdateInterval !== CONFIG.positionUpdateInterval) {
+        lastPositionUpdateHeight = h;
+        setPositionUpdateInterval(newPositionUpdateInterval);
       }
     }
 
