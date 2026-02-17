@@ -1262,6 +1262,7 @@ function updateAircraft(states) {
         lastTrackFetch: 0,
         lastKnownAlt: s.altitude || 0,
         lastServerUpdate: now, // timestamp of last server data (for position extrapolation)
+        extrapolatedPos: null, // current extrapolated position (for computing deltas)
         _trailHash: '',      // trail content fingerprint for dirty tracking
         _iconKey: '',        // billboard image fingerprint to skip redundant texture sets
         _labelText: '',      // label text fingerprint to skip redundant updates
@@ -1272,9 +1273,7 @@ function updateAircraft(states) {
     // Update state
     ac.state = s;
     ac.lastServerUpdate = now;
-
-    // Clear any temporary extrapolated history points from previous update cycle
-    ac.history = ac.history.filter(p => !p.temporary);
+    ac.extrapolatedPos = null; // reset extrapolation on new server data
 
     // Append to history — skip if position hasn't moved meaningfully
     const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
@@ -1352,11 +1351,11 @@ function extrapolatePositions() {
     // Only extrapolate for recent data (within stale threshold)
     if (elapsed > CONFIG.staleThreshold) continue;
 
-    // Compute new position based on heading and velocity
+    // Compute new extrapolated position based on heading and velocity
     const speed = s.velocity; // m/s
-    const distance = speed * elapsed; // meters traveled since last update
+    const distance = speed * elapsed; // meters traveled since last server update
 
-    // Use great circle calculation for new position
+    // Use great circle calculation for new position from server state
     const headingRad = Cesium.Math.toRadians(s.heading);
     const lonRad = Cesium.Math.toRadians(s.lon);
     const latRad = Cesium.Math.toRadians(s.lat);
@@ -1375,34 +1374,33 @@ function extrapolatePositions() {
     const newLonDeg = Cesium.Math.toDegrees(newLon);
     const newLatDeg = Cesium.Math.toDegrees(newLat);
     const alt = s.altitude || 0;
-
-    // Calculate offset for trail translation
-    const oldPos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt);
     const newPos = Cesium.Cartesian3.fromDegrees(newLonDeg, newLatDeg, alt);
-    const offset = Cesium.Cartesian3.subtract(newPos, oldPos, new Cesium.Cartesian3());
 
-    // Update entity position (keep altitude from last server data)
+    // Calculate delta from previous position (extrapolated or server) to new position
+    const oldPos = ac.extrapolatedPos || ac.entity.position.getValue();
+    const delta = Cesium.Cartesian3.subtract(newPos, oldPos, new Cesium.Cartesian3());
+
+    // Apply delta to aircraft entity
     ac.entity.position = newPos;
+    ac.extrapolatedPos = newPos.clone();
 
     // Handle trails based on mode
     if (CONFIG.trailEnabled) {
       if (CONFIG.showVelocityVector) {
-        // Velocity vector mode: translate existing trail by same offset as aircraft
+        // Velocity vector mode: apply same delta to trail endpoints
         for (const trailEntity of ac.trailEntities) {
           if (trailEntity.polyline && trailEntity.polyline.positions) {
             const oldPositions = trailEntity.polyline.positions.getValue();
             if (oldPositions && oldPositions.length > 0) {
               const newPositions = oldPositions.map(pos =>
-                Cesium.Cartesian3.add(pos, offset, new Cesium.Cartesian3())
+                Cesium.Cartesian3.add(pos, delta, new Cesium.Cartesian3())
               );
               trailEntity.polyline.positions = newPositions;
             }
           }
         }
       } else {
-        // History trail mode: add temporary point and re-render trail
-        ac.history = ac.history.filter(p => !p.temporary);
-        ac.history.push({ lon: newLonDeg, lat: newLatDeg, alt, time: now, temporary: true });
+        // History trail mode: re-render to connect last history point to current position
         aircraftNeedingTrailUpdate.push(icao);
       }
     }
@@ -1410,9 +1408,8 @@ function extrapolatePositions() {
     updated = true;
   }
 
-  // Update trails for aircraft with new temporary history points
+  // Update history trails to connect to current extrapolated position
   if (aircraftNeedingTrailUpdate.length > 0) {
-    // Get camera height for rendering
     const camHeight = viewer.camera.positionCartographic
       ? viewer.camera.positionCartographic.height
       : CONFIG.startAlt;
@@ -1859,6 +1856,28 @@ function buildTrailPositions(ac, isSelected = false) {
   }
   if (segmentStart > 0) {
     points = points.slice(segmentStart);
+  }
+
+  // Always add current aircraft position as final point (may be extrapolated)
+  if (ac.entity && ac.entity.position) {
+    const currentPos = ac.entity.position.getValue();
+    if (currentPos) {
+      const carto = Cesium.Cartographic.fromCartesian(currentPos);
+      const currentPoint = {
+        lon: Cesium.Math.toDegrees(carto.longitude),
+        lat: Cesium.Math.toDegrees(carto.latitude),
+        alt: carto.height,
+        time: now,
+        granular: false
+      };
+      // Only add if different from last point
+      const lastPoint = points.length > 0 ? points[points.length - 1] : null;
+      if (!lastPoint ||
+          Math.abs(currentPoint.lon - lastPoint.lon) > 0.0001 ||
+          Math.abs(currentPoint.lat - lastPoint.lat) > 0.0001) {
+        points.push(currentPoint);
+      }
+    }
   }
 
   return smoothTrailPositions(points);
