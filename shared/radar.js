@@ -1376,16 +1376,35 @@ function extrapolatePositions() {
     const newLatDeg = Cesium.Math.toDegrees(newLat);
     const alt = s.altitude || 0;
 
-    // Update entity position (keep altitude from last server data)
-    ac.entity.position = Cesium.Cartesian3.fromDegrees(newLonDeg, newLatDeg, alt);
+    // Calculate offset for trail translation
+    const oldPos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt);
+    const newPos = Cesium.Cartesian3.fromDegrees(newLonDeg, newLatDeg, alt);
+    const offset = Cesium.Cartesian3.subtract(newPos, oldPos, new Cesium.Cartesian3());
 
-    // Add temporary history point for trail rendering (not in velocity vector mode)
-    if (CONFIG.trailEnabled && !CONFIG.showVelocityVector) {
-      // Remove old temporary points first
-      ac.history = ac.history.filter(p => !p.temporary);
-      // Add new temporary point at extrapolated position
-      ac.history.push({ lon: newLonDeg, lat: newLatDeg, alt, time: now, temporary: true });
-      aircraftNeedingTrailUpdate.push(icao);
+    // Update entity position (keep altitude from last server data)
+    ac.entity.position = newPos;
+
+    // Handle trails based on mode
+    if (CONFIG.trailEnabled) {
+      if (CONFIG.showVelocityVector) {
+        // Velocity vector mode: translate existing trail by same offset as aircraft
+        for (const trailEntity of ac.trailEntities) {
+          if (trailEntity.polyline && trailEntity.polyline.positions) {
+            const oldPositions = trailEntity.polyline.positions.getValue();
+            if (oldPositions && oldPositions.length > 0) {
+              const newPositions = oldPositions.map(pos =>
+                Cesium.Cartesian3.add(pos, offset, new Cesium.Cartesian3())
+              );
+              trailEntity.polyline.positions = newPositions;
+            }
+          }
+        }
+      } else {
+        // History trail mode: add temporary point and re-render trail
+        ac.history = ac.history.filter(p => !p.temporary);
+        ac.history.push({ lon: newLonDeg, lat: newLatDeg, alt, time: now, temporary: true });
+        aircraftNeedingTrailUpdate.push(icao);
+      }
     }
 
     updated = true;
