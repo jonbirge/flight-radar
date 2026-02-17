@@ -8,9 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install              # Install dependencies + copy CesiumJS runtime to vendor/
 npm start                # Launch the app
 npm run dev              # Launch with DevTools open
-npm run pack             # Portable folder → dist/win-unpacked/FlightRadar.exe
-npm run dist             # NSIS installer → dist/Flight Radar Setup 1.0.0.exe
+npm run pack             # Portable folder → out/flight-radar-win32-x64/FlightRadar.exe
+npm run dist             # Squirrel installer → out/make/squirrel.windows/x64/Flight Radar Setup.exe
 ```
+
+Build system: **electron-forge** (official Electron tooling). Config in `forge.config.js`.
 
 There are no tests or linting configured.
 
