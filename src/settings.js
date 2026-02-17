@@ -21,3 +21,11 @@ initSettingsPanel({
 document.getElementById('btn-done').addEventListener('click', () => {
   window.settingsAPI.close();
 });
+
+document.getElementById('btn-defaults').addEventListener('click', async () => {
+  const result = await window.settingsAPI.resetSettings();
+  if (result.reset) {
+    originalSettings = {};
+    populateSettingsForm(container, SETTINGS_DEFAULTS);
+  }
+});
