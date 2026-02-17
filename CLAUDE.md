@@ -69,4 +69,4 @@ Static JSON loaded at startup by `shared/radar.js`: `airports.json`, `airspace.j
   2. `CONFIG` defaults in `shared/config.js`
   3. `loadAndApplySettings()` in `shared/radar.js` — load the value, sync the UI element, and save on change in the event handler.
 - Optional UI elements (not present in all HTML files) must use null checks (e.g., `if (el) el.checked = ...`).
-- **Versioning**: Increment the version in `package.json` every time a change is made. Bump the major number for meaningful new features; bump the minor number for bug fixes.
+- **Versioning**: Increment the version in `package.json` every time a change is made. Uses semantic versioning (MAJOR.MINOR.PATCH): bump the first digit for major features or breaking changes, the second digit for minor features, and the third digit for bug fixes.

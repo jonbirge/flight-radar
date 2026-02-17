@@ -307,6 +307,30 @@ ipcMain.handle('update-settings', (event, settings) => {
   return true;
 });
 
+// IPC: reset all settings to defaults
+ipcMain.handle('reset-settings', async () => {
+  const parent = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : mainWindow;
+  const { response } = await dialog.showMessageBox(parent, {
+    type: 'warning',
+    title: 'Reset to Defaults',
+    message: 'Reset all settings to defaults?',
+    detail: 'This will restore all preferences, view position, and credentials to their original values. This cannot be undone.',
+    buttons: ['Reset', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+  });
+  if (response === 0) {
+    try { fs.unlinkSync(SETTINGS_FILE); } catch (_) {}
+    cachedToken = null;
+    tokenExpiresAt = 0;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('settings-changed');
+    }
+    return { reset: true };
+  }
+  return { reset: false };
+});
+
 // IPC: close settings window (Done)
 ipcMain.on('close-settings-window', () => {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
