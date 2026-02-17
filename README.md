@@ -38,28 +38,66 @@ npm run dev
 
 ## Packaging & Distribution
 
-The app uses `@electron/packager` to create standalone distributions. The
+The app uses `electron-builder` to create standalone distributions. The
 packaged output includes Electron, the app code, and all dependencies — no
-separate install is needed on the target machine.
-
-### Windows (x64)
+separate install is needed on the target machine. The build auto-detects your
+OS — the same commands work on Windows, macOS, and Linux.
 
 ```bash
-npm run pack     # outputs to dist/FlightRadar-win32-x64/
+npm run pack     # portable folder in dist/
+npm run dist     # platform installer (NSIS on Windows, DMG on macOS, AppImage on Linux)
 ```
 
-Run `FlightRadar.exe` from the output directory.
+### Snapcraft (Snap Store)
 
-### Linux (x64)
+This repository includes `snap/snapcraft.yaml` so Snapcraft's GitHub build
+integration can build a snap automatically on every push once the repository is
+connected in the Snapcraft dashboard.
+
+The snap build runs `scripts/obfuscate-snap.js` during `override-build`, which
+minifies and obfuscates the app JavaScript before packaging.
+
+#### Building and testing a snap locally
+
+Install Snapcraft and its LXD backend (one-time setup):
 
 ```bash
-npx @electron/packager . FlightRadar --platform=linux --arch=x64 --out=dist --overwrite --ignore="(dist|scripts|\.git)"
+sudo snap install snapcraft --classic
+sudo snap install lxd
+sudo lxd init --auto
+sudo usermod -aG lxd $USER
+newgrp lxd              # or log out and back in
 ```
 
-This produces `dist/FlightRadar-linux-x64/`. Run the `FlightRadar` binary:
+Build the snap from the project root:
 
 ```bash
-./dist/FlightRadar-linux-x64/FlightRadar
+snapcraft                # builds flight-radar_1.2.0_amd64.snap
+```
+
+The first build pulls a core22 container image and installs build dependencies,
+so it takes a while. Subsequent builds reuse the cached environment.
+
+Install and run the snap locally:
+
+```bash
+sudo snap install flight-radar_*.snap --dangerous   # --dangerous allows unsigned local snaps
+flight-radar                                         # launch the app
+```
+
+To iterate after making changes, rebuild and reinstall:
+
+```bash
+snapcraft --use-lxd       # rebuild (faster — reuses prior build state)
+sudo snap install flight-radar_*.snap --dangerous
+```
+
+Useful troubleshooting commands:
+
+```bash
+snapcraft clean           # wipe build state and start fresh
+snap logs flight-radar    # view runtime logs
+snap run --shell flight-radar  # open a shell inside the snap's confinement
 ```
 
 ### Cross-platform notes
@@ -185,4 +223,3 @@ Any static host works: **GitHub Pages**, **Netlify**, **Vercel**, **Cloudflare P
 - CRT scanline overlay is pure CSS (can be removed in styles.css)
 - No Cesium Ion token required — uses CartoDB dark_matter / light_all tiles
 - HUD displays UTC clock, track count, last update time, and camera center coordinates
-
