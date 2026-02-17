@@ -1257,6 +1257,7 @@ function updateAircraft(states) {
         state: s,
         entity: null,
         trailEntities: [],
+        extrapolationTrail: null, // temporary trail from last history point to extrapolated position
         history: [],         // accumulated from polling
         granularTrack: null,  // from /tracks API
         lastTrackFetch: 0,
@@ -1274,6 +1275,12 @@ function updateAircraft(states) {
     ac.state = s;
     ac.lastServerUpdate = now;
     ac.extrapolatedPos = null; // reset extrapolation on new server data
+
+    // Remove temporary extrapolation trail on new server data
+    if (ac.extrapolationTrail) {
+      viewer.entities.remove(ac.extrapolationTrail);
+      ac.extrapolationTrail = null;
+    }
 
     // Append to history — skip if position hasn't moved meaningfully
     const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
@@ -1339,7 +1346,6 @@ function updateAircraft(states) {
 function extrapolatePositions() {
   const now = Date.now() / 1000;
   let updated = false;
-  const aircraftNeedingTrailUpdate = [];
 
   for (const [icao, ac] of aircraft) {
     // Skip if no entity created yet or missing required data
@@ -1400,29 +1406,54 @@ function extrapolatePositions() {
           }
         }
       } else {
-        // History trail mode: re-render to connect last history point to current position
-        aircraftNeedingTrailUpdate.push(icao);
+        // History trail mode: draw temporary line from last history point to extrapolated position
+        const lastHistory = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+        if (lastHistory) {
+          const lastHistoryPos = Cesium.Cartesian3.fromDegrees(
+            lastHistory.lon, lastHistory.lat, lastHistory.alt
+          );
+          const positions = [lastHistoryPos, newPos];
+
+          // Determine trail color and width (matching regular trail style)
+          const isSelected = icao === selectedIcao;
+          let trailWidth = isSelected ? 4 : 3;
+          const camHeight = viewer.camera.positionCartographic
+            ? viewer.camera.positionCartographic.height
+            : CONFIG.startAlt;
+          const zoomT = getZoomFraction(camHeight);
+          trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
+
+          let rgb;
+          if (CONFIG.colorByAltitude) {
+            rgb = isSelected ? altitudeToSelectedRgb(alt) : altitudeToRgb(alt);
+          } else {
+            rgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
+          }
+          const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
+          const material = Cesium.Color.fromBytes(
+            Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
+
+          // Update or create temporary extrapolation trail
+          if (ac.extrapolationTrail) {
+            ac.extrapolationTrail.polyline.positions = positions;
+            ac.extrapolationTrail.polyline.width = trailWidth;
+            ac.extrapolationTrail.polyline.material = material;
+          } else {
+            ac.extrapolationTrail = viewer.entities.add({
+              polyline: {
+                positions: positions,
+                width: trailWidth,
+                material: material,
+                clampToGround: false,
+                distanceDisplayCondition: acDisplayCond,
+              },
+            });
+          }
+        }
       }
     }
 
     updated = true;
-  }
-
-  // Update history trails to connect to current extrapolated position
-  if (aircraftNeedingTrailUpdate.length > 0) {
-    const camHeight = viewer.camera.positionCartographic
-      ? viewer.camera.positionCartographic.height
-      : CONFIG.startAlt;
-
-    for (const icao of aircraftNeedingTrailUpdate) {
-      const ac = aircraft.get(icao);
-      if (ac && ac.entity) {
-        const isSelected = icao === selectedIcao;
-        const useDot = camHeight > 2000000;
-        const showLabels = CONFIG.labelsEnabled;
-        _renderOneAircraft(icao, ac, camHeight, useDot, showLabels);
-      }
-    }
   }
 
   // If any positions were updated, trigger a scene render
@@ -1455,7 +1486,8 @@ function computeHorizonDist(camHeight) {
 // Render a single aircraft entity (billboard + trail). Called per-aircraft by renderAircraft.
 function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
-    const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
+    // Use extrapolated position if available, otherwise compute from state
+    const pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
     const isSelected = icao === selectedIcao;
 
     // Altitude-based color computation
@@ -1856,28 +1888,6 @@ function buildTrailPositions(ac, isSelected = false) {
   }
   if (segmentStart > 0) {
     points = points.slice(segmentStart);
-  }
-
-  // Always add current aircraft position as final point (may be extrapolated)
-  if (ac.entity && ac.entity.position) {
-    const currentPos = ac.entity.position.getValue();
-    if (currentPos) {
-      const carto = Cesium.Cartographic.fromCartesian(currentPos);
-      const currentPoint = {
-        lon: Cesium.Math.toDegrees(carto.longitude),
-        lat: Cesium.Math.toDegrees(carto.latitude),
-        alt: carto.height,
-        time: now,
-        granular: false
-      };
-      // Only add if different from last point
-      const lastPoint = points.length > 0 ? points[points.length - 1] : null;
-      if (!lastPoint ||
-          Math.abs(currentPoint.lon - lastPoint.lon) > 0.0001 ||
-          Math.abs(currentPoint.lat - lastPoint.lat) > 0.0001) {
-        points.push(currentPoint);
-      }
-    }
   }
 
   return smoothTrailPositions(points);
