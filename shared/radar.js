@@ -2140,38 +2140,10 @@ document.getElementById('toggle-aircraft').addEventListener('change', async (e) 
   await window.flightAPI.saveSettings(settings);
 });
 
-document.getElementById('toggle-airports').addEventListener('change', async (e) => {
-  toggleAirports(e.target.checked);
-  const settings = await window.flightAPI.getSettings();
-  settings.airportsEnabled = CONFIG.airportsEnabled;
-  await window.flightAPI.saveSettings(settings);
-});
-
-document.getElementById('toggle-airspace').addEventListener('change', async (e) => {
-  toggleAirspace(e.target.checked);
-  const settings = await window.flightAPI.getSettings();
-  settings.airspaceEnabled = CONFIG.airspaceEnabled;
-  await window.flightAPI.saveSettings(settings);
-});
-
 const airspace3DToggle = document.getElementById('toggle-airspace-3d');
 if (airspace3DToggle) {
   airspace3DToggle.addEventListener('change', (e) => {
     toggleAirspace3D(e.target.checked);
-  });
-}
-
-const navaidToggle = document.getElementById('toggle-navaids');
-if (navaidToggle) {
-  navaidToggle.addEventListener('change', async (e) => {
-    const show = e.target.checked;
-    if (show && navaidEntities.length === 0 && cachedWaypointData) {
-      initNavaids();
-    }
-    toggleNavaids(show);
-    const settings = await window.flightAPI.getSettings();
-    settings.navaidsEnabled = CONFIG.navaidsEnabled;
-    await window.flightAPI.saveSettings(settings);
   });
 }
 
@@ -2651,7 +2623,9 @@ async function loadAndApplySettings() {
       CONFIG.openskyClientSecret = saved.openskyClientSecret || DEFAULT_SETTINGS.openskyClientSecret;
       CONFIG.aircraftEnabled = saved.aircraftEnabled !== undefined ? saved.aircraftEnabled : DEFAULT_SETTINGS.aircraftEnabled;
       CONFIG.labelsEnabled = saved.labelsEnabled !== undefined ? saved.labelsEnabled : DEFAULT_SETTINGS.labelsEnabled;
+      const prevAirports = CONFIG.airportsEnabled;
       CONFIG.airportsEnabled = saved.airportsEnabled !== undefined ? saved.airportsEnabled : DEFAULT_SETTINGS.airportsEnabled;
+      const prevAirspace = CONFIG.airspaceEnabled;
       CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : DEFAULT_SETTINGS.airspaceEnabled;
       CONFIG.radarEnabled = saved.radarEnabled || DEFAULT_SETTINGS.radarEnabled;
       CONFIG.turbulenceEnabled = saved.turbulenceEnabled || DEFAULT_SETTINGS.turbulenceEnabled;
@@ -2664,12 +2638,6 @@ async function loadAndApplySettings() {
       if (aircraftToggle) aircraftToggle.checked = CONFIG.aircraftEnabled;
       const labelsToggle = document.getElementById('toggle-labels');
       if (labelsToggle) labelsToggle.checked = CONFIG.labelsEnabled;
-      const airportsToggle = document.getElementById('toggle-airports');
-      if (airportsToggle) airportsToggle.checked = CONFIG.airportsEnabled;
-      const airspaceToggle = document.getElementById('toggle-airspace');
-      if (airspaceToggle) airspaceToggle.checked = CONFIG.airspaceEnabled;
-      const nToggle2 = document.getElementById('toggle-navaids');
-      if (nToggle2) nToggle2.checked = CONFIG.navaidsEnabled;
       const rToggle = document.getElementById('toggle-radar');
       if (rToggle) rToggle.checked = CONFIG.radarEnabled;
       // Start auto-refresh timer (applyTheme already adds the visual layer)
@@ -2709,13 +2677,17 @@ async function loadAndApplySettings() {
           removeSmallAirports();
         }
       }
+      if (prevAirports !== CONFIG.airportsEnabled) {
+        toggleAirports(CONFIG.airportsEnabled);
+      }
+      if (prevAirspace !== CONFIG.airspaceEnabled) {
+        toggleAirspace(CONFIG.airspaceEnabled);
+      }
       if (prevNavaids !== CONFIG.navaidsEnabled) {
         if (CONFIG.navaidsEnabled && navaidEntities.length === 0 && cachedWaypointData) {
           initNavaids();
         }
         toggleNavaids(CONFIG.navaidsEnabled);
-        const nToggle = document.getElementById('toggle-navaids');
-        if (nToggle) nToggle.checked = CONFIG.navaidsEnabled;
       }
       if (prevShowFixes !== CONFIG.showFixes && cachedWaypointData) {
         if (CONFIG.showFixes) {
