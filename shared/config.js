@@ -45,7 +45,9 @@ const CONFIG = {
   showFixes: DEFAULT_SETTINGS.showFixes,
   mapLayer: DEFAULT_SETTINGS.mapLayer,
   radarEnabled: DEFAULT_SETTINGS.radarEnabled,
-  turbulenceEnabled: DEFAULT_SETTINGS.turbulenceEnabled,
+  sigmetsEnabled: DEFAULT_SETTINGS.sigmetsEnabled,
+  airmetsEnabled: DEFAULT_SETTINGS.airmetsEnabled,
+  pirepsEnabled: DEFAULT_SETTINGS.pirepsEnabled,
   turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
 };
