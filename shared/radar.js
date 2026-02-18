@@ -1247,81 +1247,82 @@ function updateAircraft(states) {
   const now = Date.now() / 1000;
   const seen = new Set();
 
-  for (const raw of states) {
-    const s = parseState(raw);
-    if (s.lon == null || s.lat == null) continue;
-    if (s.onGround) continue; // skip ground traffic for cleaner display
-
-    seen.add(s.icao24);
-    let ac = aircraft.get(s.icao24);
-
-    if (!ac) {
-      // New aircraft — create entity
-      ac = {
-        state: s,
-        entity: null,
-        trailEntities: [],
-        extrapolationTrail: null, // temporary trail from last history point to extrapolated position
-        history: [],         // accumulated from polling
-        granularTrack: null,  // from /tracks API
-        lastTrackFetch: 0,
-        lastKnownAlt: s.altitude || 0,
-        lastServerUpdate: now, // timestamp of last server data (for position extrapolation)
-        extrapolatedPos: null, // current extrapolated position (for computing deltas)
-        _trailHash: '',      // trail content fingerprint for dirty tracking
-        _iconKey: '',        // billboard image fingerprint to skip redundant texture sets
-        _labelText: '',      // label text fingerprint to skip redundant updates
-      };
-      aircraft.set(s.icao24, ac);
-    }
-
-    // Update state
-    ac.state = s;
-    ac.lastServerUpdate = now;
-    // Immediately extrapolate to current time so renderAircraft() places the entity at
-    // the correct position, not the stale TIME_POS position (which would cause a visible
-    // snap-back followed by a forward jump on the next extrapolation tick).
-    ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || now, now);
-
-    // Append to history — skip if position hasn't moved meaningfully
-    const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
-    if (s.altitude != null) ac.lastKnownAlt = s.altitude;
-    const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
-    const moved = !last
-      || Math.abs(s.lon - last.lon) > 0.0005
-      || Math.abs(s.lat - last.lat) > 0.0005
-      || Math.abs(alt - last.alt) > 30;
-    if (moved) {
-      ac.history.push({ lon: s.lon, lat: s.lat, alt, time: now });
-    }
-
-    // Connect last history point to current position (extrapolated or raw server)
-    const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt);
-    updateExtrapolationTrail(s.icao24, ac, currentPos);
-
-    // Trim old history (keep all history for selected aircraft)
-    if (s.icao24 !== selectedIcao) {
-      ac.history = ac.history.filter(p => now - p.time < CONFIG.trailMaxAge);
-    }
-
-    // Clear granular track if all its points have aged out (skip for selected)
-    if (s.icao24 !== selectedIcao && ac.granularTrack && ac.granularTrack.path) {
-      const minTime = now - CONFIG.trailMaxAge;
-      const hasValid = ac.granularTrack.path.some(wp => wp[0] >= minTime);
-      if (!hasValid) ac.granularTrack = null;
-    }
-
-    // Queue selected aircraft for periodic track refresh (every 30s)
-    if (s.icao24 === selectedIcao && now - ac.lastTrackFetch > 30) {
-      if (!trackFetchQueue.includes(s.icao24)) {
-        trackFetchQueue.unshift(s.icao24);
-      }
-    }
-  }
-
-  // Remove stale aircraft (batched to avoid per-entity scene recalc)
+  // Batch all entity changes (trail updates, stale removal) into a single scene update
   viewer.entities.suspendEvents();
   try {
+    for (const raw of states) {
+      const s = parseState(raw);
+      if (s.lon == null || s.lat == null) continue;
+      if (s.onGround) continue; // skip ground traffic for cleaner display
+
+      seen.add(s.icao24);
+      let ac = aircraft.get(s.icao24);
+
+      if (!ac) {
+        // New aircraft — create entity
+        ac = {
+          state: s,
+          entity: null,
+          trailEntities: [],
+          extrapolationTrail: null, // temporary trail from last history point to extrapolated position
+          history: [],         // accumulated from polling
+          granularTrack: null,  // from /tracks API
+          lastTrackFetch: 0,
+          lastKnownAlt: s.altitude || 0,
+          lastServerUpdate: now, // timestamp of last server data (for position extrapolation)
+          extrapolatedPos: null, // current extrapolated position (for computing deltas)
+          _trailHash: '',      // trail content fingerprint for dirty tracking
+          _iconKey: '',        // billboard image fingerprint to skip redundant texture sets
+          _labelText: '',      // label text fingerprint to skip redundant updates
+        };
+        aircraft.set(s.icao24, ac);
+      }
+
+      // Update state
+      ac.state = s;
+      ac.lastServerUpdate = now;
+      // Immediately extrapolate to current time so renderAircraft() places the entity at
+      // the correct position, not the stale TIME_POS position (which would cause a visible
+      // snap-back followed by a forward jump on the next extrapolation tick).
+      ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || now, now);
+
+      // Append to history — skip if position hasn't moved meaningfully
+      const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
+      if (s.altitude != null) ac.lastKnownAlt = s.altitude;
+      const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+      const moved = !last
+        || Math.abs(s.lon - last.lon) > 0.0005
+        || Math.abs(s.lat - last.lat) > 0.0005
+        || Math.abs(alt - last.alt) > 30;
+      if (moved) {
+        ac.history.push({ lon: s.lon, lat: s.lat, alt, time: now });
+      }
+
+      // Connect last history point to current position (extrapolated or raw server)
+      const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt);
+      updateExtrapolationTrail(s.icao24, ac, currentPos);
+
+      // Trim old history (keep all history for selected aircraft)
+      if (s.icao24 !== selectedIcao) {
+        ac.history = ac.history.filter(p => now - p.time < CONFIG.trailMaxAge);
+      }
+
+      // Clear granular track if all its points have aged out (skip for selected)
+      if (s.icao24 !== selectedIcao && ac.granularTrack && ac.granularTrack.path) {
+        const minTime = now - CONFIG.trailMaxAge;
+        const hasValid = ac.granularTrack.path.some(wp => wp[0] >= minTime);
+        if (!hasValid) ac.granularTrack = null;
+      }
+
+      // Queue selected aircraft for periodic track refresh (every 30s)
+      if (s.icao24 === selectedIcao && now - ac.lastTrackFetch > 30) {
+        if (!trackFetchQueue.includes(s.icao24)) {
+          trackFetchQueue.unshift(s.icao24);
+        }
+      }
+    }
+
+    // Remove stale aircraft
     for (const [icao, ac] of aircraft) {
       if (!seen.has(icao)) {
         const age = now - (ac.state.lastContact || 0);
@@ -1951,16 +1952,17 @@ async function pollStates() {
 
   const stateCount = data.states ? data.states.length : 0;
   console.log(`[OpenSky] Got ${stateCount} aircraft`);
+
+  // Update HUD immediately so the user sees fresh data before heavy processing
+  lastPollTime = new Date();
+  lastPollBounds = bounds;
+  document.getElementById('track-count').textContent = stateCount;
+  document.getElementById('last-update').textContent =
+    lastPollTime.toLocaleTimeString('en-US', { hour12: false });
+
   if (stateCount > 0) {
     updateAircraft(data.states);
   }
-
-  // Update HUD
-  lastPollTime = new Date();
-  lastPollBounds = bounds;
-  document.getElementById('track-count').textContent = aircraft.size;
-  document.getElementById('last-update').textContent =
-    lastPollTime.toLocaleTimeString('en-US', { hour12: false });
 }
 
 async function fetchNextTrack() {
