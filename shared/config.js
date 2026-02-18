@@ -16,7 +16,7 @@ const CONFIG = {
   pollInterval: 15000,        // ms between state polls
   positionUpdateInterval: 1000, // ms between position extrapolation updates
   trailMaxAge: 120,           // seconds of trail to keep
-  trailEnabled: true,
+  trailMode: 'history',       // 'none' | 'history' | 'velocity'
   labelsEnabled: true,
   staleThreshold: 60,         // seconds before marking aircraft stale
 
@@ -34,7 +34,6 @@ const CONFIG = {
   labelOutlineColor: Cesium.Color.BLACK,
   colorByAltitude: true,
   thickTrailsByAltitude: false,
-  showVelocityVector: false,
   rotationSpeed: 6,             // degrees per second for camera rotation
   airportsEnabled: true,
   airspaceEnabled: true,

@@ -18,8 +18,8 @@ const DEFAULT_SETTINGS = {
   openskyClientSecret: '',
   savedView: null,
   colorByAltitude: true,
+  trailMode: 'history',
   thickTrailsByAltitude: false,
-  showVelocityVector: false,
   trailLength: 120,
   airspaceEdges: true,
   airspace3D: false,
@@ -216,8 +216,8 @@ const settingsPanel = initSettingsPanel({
     darkColor: CONFIG.darkColor,
     lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,
+    trailMode: CONFIG.trailMode,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
-    showVelocityVector: CONFIG.showVelocityVector,
     trailLength: CONFIG.trailMaxAge,
     airspaceEdges: CONFIG.airspaceEdges,
     airspace3D: CONFIG.airspace3D,
@@ -233,8 +233,8 @@ const settingsPanel = initSettingsPanel({
     CONFIG.darkColor = form.darkColor;
     CONFIG.lightColor = form.lightColor;
     CONFIG.colorByAltitude = form.colorByAltitude;
+    CONFIG.trailMode = form.trailMode;
     CONFIG.thickTrailsByAltitude = form.thickTrailsByAltitude;
-    CONFIG.showVelocityVector = form.showVelocityVector;
     CONFIG.trailMaxAge = form.trailLength;
     const edgesChanged = CONFIG.airspaceEdges !== form.airspaceEdges;
     CONFIG.airspaceEdges = form.airspaceEdges;
@@ -277,8 +277,8 @@ function openSettings() {
     darkColor: CONFIG.darkColor,
     lightColor: CONFIG.lightColor,
     colorByAltitude: CONFIG.colorByAltitude,
+    trailMode: CONFIG.trailMode,
     thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
-    showVelocityVector: CONFIG.showVelocityVector,
     trailLength: CONFIG.trailMaxAge,
     airspaceEdges: CONFIG.airspaceEdges,
     airspace3D: CONFIG.airspace3D,

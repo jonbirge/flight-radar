@@ -14,12 +14,12 @@ const SETTINGS_DEFAULTS = {
   darkColor: '#00cc44',
   lightColor: '#1a1a1a',
   colorByAltitude: true,
+  trailMode: 'history',
   thickTrailsByAltitude: false,
   airspaceEdges: true,
   airspace3D: false,
   showSmallAirports: false,
   showFixes: false,
-  showVelocityVector: false,
   radarEnabled: false,
   mapLayer: 'carto',
   trailLength: 120,
@@ -249,15 +249,19 @@ function createSettingsFormHTML() {
         <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
         <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
       </div>
+      <div class="settings-row" style="margin-bottom:8px;">
+        <span class="settings-toggle-label" style="cursor:default;">Trails</span>
+        <div style="display:flex;gap:4px;">
+          <button class="settings-theme-btn" id="set-trail-none" type="button">NONE</button>
+          <button class="settings-theme-btn" id="set-trail-history" type="button">HISTORY</button>
+          <button class="settings-theme-btn" id="set-trail-velocity" type="button">VELOCITY</button>
+        </div>
+      </div>
       <div class="settings-row" id="trail-length-row">
         <span class="settings-toggle-label" style="cursor:default;">History length</span>
         <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
         <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
       </div>
-      <label class="settings-toggle-label" style="margin-top:8px;">
-        <input type="checkbox" id="set-velocity-vector">
-        <span>Velocity vector trails</span>
-      </label>
       <label class="settings-toggle-label" style="margin-top:4px;">
         <input type="checkbox" id="set-color-by-alt">
         <span>Color by altitude</span>
@@ -357,7 +361,12 @@ function populateSettingsForm(container, settings) {
   // Altitude checkboxes
   container.querySelector('#set-color-by-alt').checked = s.colorByAltitude;
   container.querySelector('#set-thick-trails').checked = s.thickTrailsByAltitude;
-  container.querySelector('#set-velocity-vector').checked = s.showVelocityVector;
+
+  // Trail mode buttons
+  const trailMode = s.trailMode || 'history';
+  container.querySelector('#set-trail-none').classList.toggle('active', trailMode === 'none');
+  container.querySelector('#set-trail-history').classList.toggle('active', trailMode === 'history');
+  container.querySelector('#set-trail-velocity').classList.toggle('active', trailMode === 'velocity');
 
   // Trail length
   const trailSlider = container.querySelector('#set-trail-length');
@@ -366,8 +375,8 @@ function populateSettingsForm(container, settings) {
   trailVal.textContent = `${Math.round(s.trailLength / 60)}m`;
   const trailRow = container.querySelector('#trail-length-row');
   if (trailRow) {
-    trailRow.style.opacity = s.showVelocityVector ? '0.4' : '1';
-    trailSlider.disabled = s.showVelocityVector;
+    trailRow.style.opacity = trailMode !== 'history' ? '0.4' : '1';
+    trailSlider.disabled = trailMode !== 'history';
   }
 
   // Level of detail
@@ -416,7 +425,9 @@ function initSettingsPanel(options) {
   const lightCustomColor = container.querySelector('#set-light-custom-color');
   const colorByAlt = container.querySelector('#set-color-by-alt');
   const thickTrails = container.querySelector('#set-thick-trails');
-  const velocityVector = container.querySelector('#set-velocity-vector');
+  const btnTrailNone = container.querySelector('#set-trail-none');
+  const btnTrailHistory = container.querySelector('#set-trail-history');
+  const btnTrailVelocity = container.querySelector('#set-trail-velocity');
   const trailLengthSlider = container.querySelector('#set-trail-length');
   const trailLengthVal = container.querySelector('#set-trail-length-val');
   const trailLengthRow = container.querySelector('#trail-length-row');
@@ -440,7 +451,7 @@ function initSettingsPanel(options) {
       lightColor: formState.lightColor,
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
-      showVelocityVector: velocityVector.checked,
+      trailMode: formState.trailMode,
       trailLength: parseInt(trailLengthSlider.value),
       airspaceEdges: airspaceEdges.checked,
       airspace3D: airspace3D.checked,
@@ -542,11 +553,19 @@ function initSettingsPanel(options) {
     broadcast();
   });
 
-  velocityVector.addEventListener('change', () => {
-    trailLengthRow.style.opacity = velocityVector.checked ? '0.4' : '1';
-    trailLengthSlider.disabled = velocityVector.checked;
+  function setTrailMode(mode) {
+    formState.trailMode = mode;
+    btnTrailNone.classList.toggle('active', mode === 'none');
+    btnTrailHistory.classList.toggle('active', mode === 'history');
+    btnTrailVelocity.classList.toggle('active', mode === 'velocity');
+    trailLengthRow.style.opacity = mode !== 'history' ? '0.4' : '1';
+    trailLengthSlider.disabled = mode !== 'history';
     broadcast();
-  });
+  }
+
+  btnTrailNone.addEventListener('click', () => setTrailMode('none'));
+  btnTrailHistory.addEventListener('click', () => setTrailMode('history'));
+  btnTrailVelocity.addEventListener('click', () => setTrailMode('velocity'));
 
   trailLengthSlider.addEventListener('input', () => {
     trailLengthVal.textContent = `${Math.round(trailLengthSlider.value / 60)}m`;
