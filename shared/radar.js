@@ -2509,7 +2509,6 @@ function showTurbInfo(entity) {
       <div><span class="label">FL</span><span>${p.fltlvl.getValue()}</span></div>
       <div><span class="label">ACFT</span><span>${p.acType.getValue()}</span></div>
       <div><span class="label">TIME</span><span>${p.obsTime.getValue()}</span></div>
-      <div><span class="label">RAW</span><span style="font-size:0.85em;word-break:break-all">${p.rawOb.getValue()}</span></div>
     `;
   } else if (type === 'SIGMET' || type === 'CONVECTIVE SIGMET') {
     const hazard = p.hazard.getValue();
@@ -2524,7 +2523,6 @@ function showTurbInfo(entity) {
       <div><span class="label">BASE</span><span>${p.base.getValue()}</span></div>
       <div><span class="label">TOP</span><span>${p.top.getValue()}</span></div>
       <div><span class="label">VALID</span><span>${from} — ${to}</span></div>
-      ${p.rawText.getValue() ? `<div><span class="label">RAW</span><span style="font-size:0.85em;word-break:break-all">${p.rawText.getValue()}</span></div>` : ''}
     `;
   } else if (type === 'G-AIRMET') {
     document.getElementById('info-callsign').textContent = `G-AIRMET — ${p.hazard.getValue()}`;
