@@ -1634,11 +1634,16 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         const speed = s.velocity || 0; // m/s
         const lineLength = speed * 60; // scale factor: ~15km line at cruise speed
         if (lineLength > 100) {
+          // Use displayed position (extrapolated or server) so trail stays attached to icon
+          const acCarto = Cesium.Cartographic.fromCartesian(pos);
+          const acLon = Cesium.Math.toDegrees(acCarto.longitude);
+          const acLat = Cesium.Math.toDegrees(acCarto.latitude);
+
           // Compute endpoint behind the aircraft (heading + 180°)
           const behindDeg = (s.heading + 180) % 360;
           const behindRad = Cesium.Math.toRadians(behindDeg);
-          const acLonRad = Cesium.Math.toRadians(s.lon);
-          const acLatRad = Cesium.Math.toRadians(s.lat);
+          const acLonRad = acCarto.longitude;
+          const acLatRad = acCarto.latitude;
           const R = 6371000; // Earth radius in meters
           const angDist = lineLength / R;
 
@@ -1653,7 +1658,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
 
           const alt = s.altitude || 0;
           const positions = [
-            Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt),
+            Cesium.Cartesian3.fromDegrees(acLon, acLat, alt),
             Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(endLon), Cesium.Math.toDegrees(endLat), alt),
           ];
 
