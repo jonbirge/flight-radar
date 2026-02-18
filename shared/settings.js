@@ -8,25 +8,7 @@
 // Constants
 // ============================================================
 
-const SETTINGS_DEFAULTS = {
-  fontSize: 12,
-  theme: 'light',
-  darkColor: '#00cc44',
-  lightColor: '#1a1a1a',
-  colorByAltitude: true,
-  trailMode: 'history',
-  thickTrailsByAltitude: false,
-  airspaceEdges: true,
-  airspace3D: false,
-  showSmallAirports: false,
-  showFixes: false,
-  radarEnabled: false,
-  mapLayer: 'carto',
-  trailLength: 120,
-  rotationSpeed: 6,
-  openskyClientId: '',
-  openskyClientSecret: '',
-};
+// Use DEFAULT_SETTINGS from shared/defaults.js (loaded before this script)
 
 const COLOR_PRESETS = [
   { color: '#00cc44', label: 'Phosphor Green' },
@@ -329,7 +311,7 @@ function createSettingsFormHTML() {
 // ============================================================
 
 function populateSettingsForm(container, settings) {
-  const s = { ...SETTINGS_DEFAULTS, ...settings };
+  const s = { ...DEFAULT_SETTINGS, ...settings };
 
   const fontSlider = container.querySelector('#set-fontsize');
   const fontVal = container.querySelector('#set-fontsize-val');
@@ -441,7 +423,7 @@ function initSettingsPanel(options) {
   const clientSecret = container.querySelector('#set-client-secret');
 
   // Current form state
-  let formState = { ...SETTINGS_DEFAULTS };
+  let formState = { ...DEFAULT_SETTINGS };
 
   function readForm() {
     return {
@@ -649,7 +631,7 @@ function initSettingsPanel(options) {
   // --- Load initial settings ---
   async function loadAndPopulate() {
     const settings = await getSettings();
-    formState = { ...SETTINGS_DEFAULTS, ...settings };
+    formState = { ...DEFAULT_SETTINGS, ...settings };
     populateSettingsForm(container, formState);
   }
 
@@ -658,7 +640,7 @@ function initSettingsPanel(options) {
   // Return controller
   return {
     populate(settings) {
-      formState = { ...SETTINGS_DEFAULTS, ...settings };
+      formState = { ...DEFAULT_SETTINGS, ...settings };
       populateSettingsForm(container, formState);
     },
   };
