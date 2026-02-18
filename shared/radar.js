@@ -2015,6 +2015,7 @@ async function fetchNextTrack() {
 }
 
 function startPolling() {
+  if (!CONFIG.aircraftEnabled) return;
   // Set initial poll interval based on current zoom level
   const camHeight = viewer.camera.positionCartographic
     ? viewer.camera.positionCartographic.height
