@@ -255,23 +255,35 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-section">
-      <div class="settings-label">LEVEL OF DETAIL</div>
+      <div class="settings-label">AVIATION DATA</div>
       <div class="settings-row settings-grid-2col">
         <label class="settings-toggle-label">
+          <input type="checkbox" id="set-airports">
+          <span>Airports</span>
+        </label>
+        <label class="settings-toggle-label">
+          <input type="checkbox" id="set-airspace">
+          <span>Airspace</span>
+        </label>
+        <label class="settings-toggle-label">
+          <input type="checkbox" id="set-small-airports">
+          <span>Small airports</span>
+        </label>
+        <label class="settings-toggle-label">
           <input type="checkbox" id="set-airspace-edges">
-          <span>Show airspace edges</span>
+          <span>Airspace edges</span>
+        </label>
+        <label class="settings-toggle-label">
+          <input type="checkbox" id="set-navaids">
+          <span>Navaids</span>
         </label>
         <label class="settings-toggle-label">
           <input type="checkbox" id="set-airspace-3d">
           <span>3D airspace</span>
         </label>
         <label class="settings-toggle-label">
-          <input type="checkbox" id="set-small-airports">
-          <span>Show small airports</span>
-        </label>
-        <label class="settings-toggle-label">
           <input type="checkbox" id="set-show-fixes">
-          <span>Include waypoint fixes</span>
+          <span>Nav fixes</span>
         </label>
       </div>
     </div>
@@ -361,7 +373,10 @@ function populateSettingsForm(container, settings) {
     trailSlider.disabled = trailMode !== 'history';
   }
 
-  // Level of detail
+  // Aviation data
+  container.querySelector('#set-airports').checked = s.airportsEnabled;
+  container.querySelector('#set-airspace').checked = s.airspaceEnabled;
+  container.querySelector('#set-navaids').checked = s.navaidsEnabled;
   container.querySelector('#set-airspace-edges').checked = s.airspaceEdges;
   container.querySelector('#set-airspace-3d').checked = s.airspace3D;
   container.querySelector('#set-small-airports').checked = s.showSmallAirports;
@@ -413,6 +428,9 @@ function initSettingsPanel(options) {
   const trailLengthSlider = container.querySelector('#set-trail-length');
   const trailLengthVal = container.querySelector('#set-trail-length-val');
   const trailLengthRow = container.querySelector('#trail-length-row');
+  const airportsEnabled = container.querySelector('#set-airports');
+  const airspaceEnabled = container.querySelector('#set-airspace');
+  const navaidsEnabled = container.querySelector('#set-navaids');
   const airspaceEdges = container.querySelector('#set-airspace-edges');
   const airspace3D = container.querySelector('#set-airspace-3d');
   const smallAirports = container.querySelector('#set-small-airports');
@@ -435,6 +453,9 @@ function initSettingsPanel(options) {
       thickTrailsByAltitude: thickTrails.checked,
       trailMode: formState.trailMode,
       trailLength: parseInt(trailLengthSlider.value),
+      airportsEnabled: airportsEnabled.checked,
+      airspaceEnabled: airspaceEnabled.checked,
+      navaidsEnabled: navaidsEnabled.checked,
       airspaceEdges: airspaceEdges.checked,
       airspace3D: airspace3D.checked,
       showSmallAirports: smallAirports.checked,
@@ -554,21 +575,13 @@ function initSettingsPanel(options) {
     debouncedBroadcast();
   });
 
-  airspaceEdges.addEventListener('change', () => {
-    broadcast();
-  });
-
-  airspace3D.addEventListener('change', () => {
-    broadcast();
-  });
-
-  smallAirports.addEventListener('change', () => {
-    broadcast();
-  });
-
-  showFixes.addEventListener('change', () => {
-    broadcast();
-  });
+  airportsEnabled.addEventListener('change', broadcast);
+  airspaceEnabled.addEventListener('change', broadcast);
+  navaidsEnabled.addEventListener('change', broadcast);
+  airspaceEdges.addEventListener('change', broadcast);
+  airspace3D.addEventListener('change', broadcast);
+  smallAirports.addEventListener('change', broadcast);
+  showFixes.addEventListener('change', broadcast);
 
   // --- Rotation speed slider ---
   rotSlider.addEventListener('input', () => {
