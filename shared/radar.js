@@ -801,6 +801,8 @@ function toggleAircraft(show) {
   } else {
     startPolling();
   }
+  const labelsToggle = document.getElementById('toggle-labels');
+  if (labelsToggle) labelsToggle.disabled = !show;
 }
 
 // ============================================================
