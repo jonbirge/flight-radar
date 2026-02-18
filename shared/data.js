@@ -92,6 +92,7 @@ function parseState(s) {
     heading: s[IDX.HEADING],
     verticalRate: s[IDX.VERT_RATE],
     squawk: s[IDX.SQUAWK],
+    timePosition: s[IDX.TIME_POS],
     lastContact: s[IDX.LAST_CONTACT],
     origin: s[IDX.ORIGIN],
   };

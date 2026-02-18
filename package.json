@@ -1,6 +1,6 @@
 {
   "name": "flight-radar",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Real-time US flight tracker with FAA radar center aesthetic",
   "main": "main.js",
   "author": "Jonathan Birge",
