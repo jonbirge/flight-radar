@@ -1352,7 +1352,7 @@ function updateAircraft(states) {
 // aircraft's current position.  Called after every position change (server update or
 // extrapolation tick) so the trail never visually detaches from the icon.
 function updateExtrapolationTrail(icao, ac, currentPos) {
-  if (!CONFIG.trailEnabled || CONFIG.showVelocityVector) return;
+  if (CONFIG.trailMode !== 'history') return;
   const lastHistory = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
   if (!lastHistory) return;
 
@@ -1453,24 +1453,22 @@ function extrapolatePositions() {
     ac.extrapolatedPos = newPos.clone();
 
     // Handle trails based on mode
-    if (CONFIG.trailEnabled) {
-      if (CONFIG.showVelocityVector) {
-        // Velocity vector mode: apply same delta to trail endpoints
-        for (const trailEntity of ac.trailEntities) {
-          if (trailEntity.polyline && trailEntity.polyline.positions) {
-            const oldPositions = trailEntity.polyline.positions.getValue();
-            if (oldPositions && oldPositions.length > 0) {
-              const newPositions = oldPositions.map(pos =>
-                Cesium.Cartesian3.add(pos, delta, new Cesium.Cartesian3())
-              );
-              trailEntity.polyline.positions = newPositions;
-            }
+    if (CONFIG.trailMode === 'velocity') {
+      // Velocity vector mode: apply same delta to trail endpoints
+      for (const trailEntity of ac.trailEntities) {
+        if (trailEntity.polyline && trailEntity.polyline.positions) {
+          const oldPositions = trailEntity.polyline.positions.getValue();
+          if (oldPositions && oldPositions.length > 0) {
+            const newPositions = oldPositions.map(pos =>
+              Cesium.Cartesian3.add(pos, delta, new Cesium.Cartesian3())
+            );
+            trailEntity.polyline.positions = newPositions;
           }
         }
-      } else {
-        // History trail mode: connect last history point to extrapolated position
-        updateExtrapolationTrail(icao, ac, newPos);
       }
+    } else if (CONFIG.trailMode === 'history') {
+      // History trail mode: connect last history point to extrapolated position
+      updateExtrapolationTrail(icao, ac, newPos);
     }
 
     updated = true;
@@ -1484,8 +1482,8 @@ function extrapolatePositions() {
 
 // Trail content fingerprint to avoid unnecessary entity rebuilds
 function _computeTrailHash(ac, s) {
-  if (!CONFIG.trailEnabled) return '';
-  if (CONFIG.showVelocityVector) {
+  if (CONFIG.trailMode === 'none') return '';
+  if (CONFIG.trailMode === 'velocity') {
     return `V:${(s.heading||0).toFixed(1)}:${(s.velocity||0).toFixed(0)}:${s.lon.toFixed(4)}:${s.lat.toFixed(4)}`;
   }
   const histLen = ac.history.length;
@@ -1614,7 +1612,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const _th = _computeTrailHash(ac, s);
     if (ac._trailHash === _th) return;
     // Show trails if enabled OR if this aircraft is selected (selected aircraft always show history trail)
-    if (CONFIG.trailEnabled || isSelected) {
+    if (CONFIG.trailMode !== 'none' || isSelected) {
       // Determine base trail width, then scale down with zoom
       let trailWidth;
       if (CONFIG.thickTrailsByAltitude) {
@@ -1627,7 +1625,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
 
       // Selected aircraft always show history trail; others follow global setting
-      if (!isSelected && CONFIG.showVelocityVector && s.heading != null && s.velocity != null) {
+      if (!isSelected && CONFIG.trailMode === 'velocity' && s.heading != null && s.velocity != null) {
         // Velocity vector mode: single line behind aircraft proportional to speed
         removeTrailEntities(ac);
 
@@ -2102,14 +2100,6 @@ viewer.camera.percentageChanged = 0.01;
 // ============================================================
 // UI Controls
 // ============================================================
-
-document.getElementById('toggle-trails').addEventListener('change', async (e) => {
-  CONFIG.trailEnabled = e.target.checked;
-  renderAircraft();
-  const settings = await window.flightAPI.getSettings();
-  settings.trailsEnabled = CONFIG.trailEnabled;
-  await window.flightAPI.saveSettings(settings);
-});
 
 document.getElementById('toggle-airports').addEventListener('change', async (e) => {
   toggleAirports(e.target.checked);
@@ -2595,7 +2585,16 @@ async function loadAndApplySettings() {
       CONFIG.lightColor = saved.lightColor || '#1a1a1a';
       CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
       CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
-      CONFIG.showVelocityVector = saved.showVelocityVector || false;
+      // Trail mode: new unified setting; fall back to legacy booleans
+      if (saved.trailMode) {
+        CONFIG.trailMode = saved.trailMode;
+      } else if (saved.trailsEnabled === false) {
+        CONFIG.trailMode = 'none';
+      } else if (saved.showVelocityVector) {
+        CONFIG.trailMode = 'velocity';
+      } else {
+        CONFIG.trailMode = 'history';
+      }
       CONFIG.trailMaxAge = saved.trailLength || 120;
       CONFIG.rotationSpeed = saved.rotationSpeed || 3;
       const prevEdges = CONFIG.airspaceEdges;
@@ -2611,7 +2610,6 @@ async function loadAndApplySettings() {
       CONFIG.showFixes = saved.showFixes || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
-      CONFIG.trailEnabled = saved.trailsEnabled !== undefined ? saved.trailsEnabled : true;
       CONFIG.labelsEnabled = saved.labelsEnabled !== undefined ? saved.labelsEnabled : true;
       CONFIG.airportsEnabled = saved.airportsEnabled !== undefined ? saved.airportsEnabled : true;
       CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : true;
@@ -2621,8 +2619,6 @@ async function loadAndApplySettings() {
       CONFIG.savedView = saved.savedView || null;
       await applyTheme(); // adds turb + radar layers on top if enabled
       // Sync main window checkboxes
-      const trailsToggle = document.getElementById('toggle-trails');
-      if (trailsToggle) trailsToggle.checked = CONFIG.trailEnabled;
       const labelsToggle = document.getElementById('toggle-labels');
       if (labelsToggle) labelsToggle.checked = CONFIG.labelsEnabled;
       const airportsToggle = document.getElementById('toggle-airports');
