@@ -26,6 +26,6 @@ document.getElementById('btn-defaults').addEventListener('click', async () => {
   const result = await window.settingsAPI.resetSettings();
   if (result.reset) {
     originalSettings = {};
-    populateSettingsForm(container, SETTINGS_DEFAULTS);
+    populateSettingsForm(container, DEFAULT_SETTINGS);
   }
 });

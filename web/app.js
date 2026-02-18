@@ -190,84 +190,20 @@ settingsContainer.innerHTML = createSettingsFormHTML();
 
 const settingsPanel = initSettingsPanel({
   container: settingsContainer,
-  getSettings: () => Promise.resolve({
-    fontSize: CONFIG.fontSize,
-    theme: CONFIG.themePref,
-    darkColor: CONFIG.darkColor,
-    lightColor: CONFIG.lightColor,
-    colorByAltitude: CONFIG.colorByAltitude,
-    trailMode: CONFIG.trailMode,
-    thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
-    trailLength: CONFIG.trailMaxAge,
-    airspaceEdges: CONFIG.airspaceEdges,
-    airspace3D: CONFIG.airspace3D,
-    showSmallAirports: CONFIG.showSmallAirports,
-    showFixes: CONFIG.showFixes,
-    rotationSpeed: CONFIG.rotationSpeed,
-    openskyClientId: CONFIG.openskyClientId || '',
-    openskyClientSecret: CONFIG.openskyClientSecret || '',
-  }),
+  getSettings: () => window.flightAPI.getSettings(),
   onChanged: async (form) => {
-    CONFIG.fontSize = form.fontSize;
-    CONFIG.themePref = form.theme;
-    CONFIG.darkColor = form.darkColor;
-    CONFIG.lightColor = form.lightColor;
-    CONFIG.colorByAltitude = form.colorByAltitude;
-    CONFIG.trailMode = form.trailMode;
-    CONFIG.thickTrailsByAltitude = form.thickTrailsByAltitude;
-    CONFIG.trailMaxAge = form.trailLength;
-    const edgesChanged = CONFIG.airspaceEdges !== form.airspaceEdges;
-    CONFIG.airspaceEdges = form.airspaceEdges;
-    const airspace3DChanged = CONFIG.airspace3D !== form.airspace3D;
-    CONFIG.airspace3D = form.airspace3D;
-    const smallAirportsChanged = CONFIG.showSmallAirports !== form.showSmallAirports;
-    CONFIG.showSmallAirports = form.showSmallAirports;
-    const showFixesChanged = CONFIG.showFixes !== form.showFixes;
-    CONFIG.showFixes = form.showFixes;
-    CONFIG.rotationSpeed = form.rotationSpeed;
-    CONFIG.openskyClientId = form.openskyClientId;
-    CONFIG.openskyClientSecret = form.openskyClientSecret;
-    await applyTheme();
-    if (edgesChanged) toggleAirspaceEdges(form.airspaceEdges);
-    if (airspace3DChanged) toggleAirspace3D(form.airspace3D);
-    if (smallAirportsChanged && cachedAirportData) {
-      if (form.showSmallAirports) {
-        initSmallAirports(cachedAirportData);
-      } else {
-        removeSmallAirports();
-      }
-    }
-    if (showFixesChanged && cachedWaypointData) {
-      if (form.showFixes) {
-        initFixes();
-      } else {
-        removeFixes();
-      }
-    }
-    // Merge with existing settings to preserve savedView and other non-form fields
+    // Merge with existing settings to preserve savedView and other non-form fields,
+    // then let loadAndApplySettings handle all CONFIG updates and side effects
+    // (same flow as Electron: save → reload)
     const existing = loadSettings();
     saveSettings({ ...existing, ...form });
+    await loadAndApplySettings();
   },
 });
 
-function openSettings() {
-  settingsPanel.populate({
-    fontSize: CONFIG.fontSize,
-    theme: CONFIG.themePref,
-    darkColor: CONFIG.darkColor,
-    lightColor: CONFIG.lightColor,
-    colorByAltitude: CONFIG.colorByAltitude,
-    trailMode: CONFIG.trailMode,
-    thickTrailsByAltitude: CONFIG.thickTrailsByAltitude,
-    trailLength: CONFIG.trailMaxAge,
-    airspaceEdges: CONFIG.airspaceEdges,
-    airspace3D: CONFIG.airspace3D,
-    showSmallAirports: CONFIG.showSmallAirports,
-    showFixes: CONFIG.showFixes,
-    rotationSpeed: CONFIG.rotationSpeed,
-    openskyClientId: CONFIG.openskyClientId || '',
-    openskyClientSecret: CONFIG.openskyClientSecret || '',
-  });
+async function openSettings() {
+  const settings = await window.flightAPI.getSettings();
+  settingsPanel.populate(settings);
   settingsOverlay.classList.remove('hidden');
 }
 
