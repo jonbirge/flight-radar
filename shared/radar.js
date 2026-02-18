@@ -43,8 +43,12 @@ let radarLayer = null;
 let radarRefreshTimer = null;
 let turbLayer = null;
 let turbRefreshTimer = null;
-let turbDataRefreshTimer = null;
-const turbEntities = [];
+let pirepRefreshTimer = null;
+let sigmetRefreshTimer = null;
+let airmetRefreshTimer = null;
+const pirepEntities = [];
+const sigmetEntities = [];
+const airmetEntities = [];
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -424,11 +428,25 @@ function removeTurbLayer() {
   }
 }
 
-function removeTurbEntities() {
-  for (const entity of turbEntities) {
+function removePirepEntities() {
+  for (const entity of pirepEntities) {
     viewer.entities.remove(entity);
   }
-  turbEntities.length = 0;
+  pirepEntities.length = 0;
+}
+
+function removeSigmetEntities() {
+  for (const entity of sigmetEntities) {
+    viewer.entities.remove(entity);
+  }
+  sigmetEntities.length = 0;
+}
+
+function removeAirmetEntities() {
+  for (const entity of airmetEntities) {
+    viewer.entities.remove(entity);
+  }
+  airmetEntities.length = 0;
 }
 
 const PIREP_COLORS = {
@@ -458,18 +476,12 @@ function pirepSize(intensity) {
   return 12;
 }
 
-async function fetchTurbulenceData() {
-  console.log('[Weather] Fetching PIREPs, SIGMETs, G-AIRMETs...');
+async function fetchPireps() {
+  console.log('[Weather] Fetching PIREPs...');
   try {
-    const [pirepResp, sigmetResp, airmetResp] = await Promise.all([
-      fetch(awcUrl('pirep?format=geojson&type=turb&age=12&bbox=15,-180,75,-50')).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; }),
-      fetch(awcUrl('sigmet?format=geojson')).catch((err) => { console.warn('[Weather] SIGMET fetch failed:', err.message); return null; }),
-      fetch(awcUrl('gairmet?format=geojson')).catch((err) => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; }),
-    ]);
-
-    // PIREPs — turbulence-related only
-    if (pirepResp && pirepResp.ok) {
-      const data = await pirepResp.json();
+    const resp = await fetch(awcUrl('pirep?format=geojson&type=turb&age=12&bbox=15,-180,75,-50')).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; });
+    if (resp && resp.ok) {
+      const data = await resp.json();
       console.log(`[Weather] PIREPs response: ${(data.features || []).length} total reports`);
       let pirepCount = 0;
       if (data.features) {
@@ -503,18 +515,25 @@ async function fetchTurbulenceData() {
               rawOb: props.rawOb || '',
             },
           });
-          turbEntities.push(entity);
+          pirepEntities.push(entity);
           pirepCount++;
         }
         console.log(`[Weather] Added ${pirepCount} turbulence PIREP entities`);
       }
     } else {
-      console.warn(`[Weather] PIREPs response not ok: ${pirepResp ? pirepResp.status : 'null'}`);
+      console.warn(`[Weather] PIREPs response not ok: ${resp ? resp.status : 'null'}`);
     }
+  } catch (err) {
+    console.warn('[Weather] Error fetching PIREPs:', err);
+  }
+}
 
-    // SIGMETs — turbulence, convective, and thunderstorm
-    if (sigmetResp && sigmetResp.ok) {
-      const data = await sigmetResp.json();
+async function fetchSigmets() {
+  console.log('[Weather] Fetching SIGMETs...');
+  try {
+    const resp = await fetch(awcUrl('sigmet?format=geojson')).catch((err) => { console.warn('[Weather] SIGMET fetch failed:', err.message); return null; });
+    if (resp && resp.ok) {
+      const data = await resp.json();
       const validHazards = ['TURB', 'CONVECTIVE', 'TS'];
       const sigmetFeatures = (data.features || []).filter(f => {
         const hazard = (f.properties || {}).hazard || '';
@@ -563,17 +582,24 @@ async function fetchTurbulenceData() {
                 rawText: sp.rawAirSigmet || sp.rawSigmet || '',
               },
             });
-            turbEntities.push(entity);
+            sigmetEntities.push(entity);
             count++;
           }
         }
         console.log(`[Weather] Added ${count} SIGMET polygons`);
       }
     }
+  } catch (err) {
+    console.warn('[Weather] Error fetching SIGMETs:', err);
+  }
+}
 
-    // G-AIRMETs (fetch all, filter client-side for TURB-HI and TURB-LO)
-    if (airmetResp && airmetResp.ok) {
-      const data = await airmetResp.json();
+async function fetchAirmets() {
+  console.log('[Weather] Fetching G-AIRMETs...');
+  try {
+    const resp = await fetch(awcUrl('gairmet?format=geojson')).catch((err) => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; });
+    if (resp && resp.ok) {
+      const data = await resp.json();
       const turbFeatures = (data.features || []).filter(f => {
         const hazard = (f.properties || {}).hazard || '';
         return hazard === 'TURB-HI' || hazard === 'TURB-LO';
@@ -611,7 +637,7 @@ async function fetchTurbulenceData() {
                 validTo: ap.validTimeTo || '?',
               },
             });
-            turbEntities.push(entity);
+            airmetEntities.push(entity);
             count++;
           }
         }
@@ -619,30 +645,71 @@ async function fetchTurbulenceData() {
       }
     }
   } catch (err) {
-    console.warn('[Weather] Error fetching data:', err);
+    console.warn('[Weather] Error fetching G-AIRMETs:', err);
   }
 }
 
-// TURB toggle: PIREPs, SIGMETs, G-AIRMETs (entities only)
-function enableTurbulence() {
-  CONFIG.turbulenceEnabled = true;
-  console.log('[Weather] PIREPs/SIGMETs/G-AIRMETs enabled');
-  fetchTurbulenceData();
-  if (turbDataRefreshTimer) clearInterval(turbDataRefreshTimer);
-  turbDataRefreshTimer = setInterval(() => {
-    removeTurbEntities();
-    fetchTurbulenceData();
+function enablePireps() {
+  CONFIG.pirepsEnabled = true;
+  console.log('[Weather] PIREPs enabled');
+  fetchPireps();
+  if (pirepRefreshTimer) clearInterval(pirepRefreshTimer);
+  pirepRefreshTimer = setInterval(() => {
+    removePirepEntities();
+    fetchPireps();
   }, 5 * 60 * 1000);
 }
 
-function disableTurbulence() {
-  removeTurbEntities();
-  CONFIG.turbulenceEnabled = false;
-  if (turbDataRefreshTimer) {
-    clearInterval(turbDataRefreshTimer);
-    turbDataRefreshTimer = null;
+function disablePireps() {
+  removePirepEntities();
+  CONFIG.pirepsEnabled = false;
+  if (pirepRefreshTimer) {
+    clearInterval(pirepRefreshTimer);
+    pirepRefreshTimer = null;
   }
-  console.log('[Weather] PIREPs/SIGMETs/G-AIRMETs disabled');
+  console.log('[Weather] PIREPs disabled');
+}
+
+function enableSigmets() {
+  CONFIG.sigmetsEnabled = true;
+  console.log('[Weather] SIGMETs enabled');
+  fetchSigmets();
+  if (sigmetRefreshTimer) clearInterval(sigmetRefreshTimer);
+  sigmetRefreshTimer = setInterval(() => {
+    removeSigmetEntities();
+    fetchSigmets();
+  }, 5 * 60 * 1000);
+}
+
+function disableSigmets() {
+  removeSigmetEntities();
+  CONFIG.sigmetsEnabled = false;
+  if (sigmetRefreshTimer) {
+    clearInterval(sigmetRefreshTimer);
+    sigmetRefreshTimer = null;
+  }
+  console.log('[Weather] SIGMETs disabled');
+}
+
+function enableAirmets() {
+  CONFIG.airmetsEnabled = true;
+  console.log('[Weather] AIRMETs enabled');
+  fetchAirmets();
+  if (airmetRefreshTimer) clearInterval(airmetRefreshTimer);
+  airmetRefreshTimer = setInterval(() => {
+    removeAirmetEntities();
+    fetchAirmets();
+  }, 5 * 60 * 1000);
+}
+
+function disableAirmets() {
+  removeAirmetEntities();
+  CONFIG.airmetsEnabled = false;
+  if (airmetRefreshTimer) {
+    clearInterval(airmetRefreshTimer);
+    airmetRefreshTimer = null;
+  }
+  console.log('[Weather] AIRMETs disabled');
 }
 
 // GTG forecast dropdown: heatmap imagery layer (independent of TURB toggle)
@@ -2163,16 +2230,44 @@ if (radarToggle) {
   });
 }
 
-const turbToggle = document.getElementById('toggle-turbulence');
-if (turbToggle) {
-  turbToggle.addEventListener('change', async (e) => {
+const sigmetsToggle = document.getElementById('toggle-sigmets');
+if (sigmetsToggle) {
+  sigmetsToggle.addEventListener('change', async (e) => {
     if (e.target.checked) {
-      enableTurbulence();
+      enableSigmets();
     } else {
-      disableTurbulence();
+      disableSigmets();
     }
     const settings = await window.flightAPI.getSettings();
-    settings.turbulenceEnabled = CONFIG.turbulenceEnabled;
+    settings.sigmetsEnabled = CONFIG.sigmetsEnabled;
+    await window.flightAPI.saveSettings(settings);
+  });
+}
+
+const airmetsToggle = document.getElementById('toggle-airmets');
+if (airmetsToggle) {
+  airmetsToggle.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      enableAirmets();
+    } else {
+      disableAirmets();
+    }
+    const settings = await window.flightAPI.getSettings();
+    settings.airmetsEnabled = CONFIG.airmetsEnabled;
+    await window.flightAPI.saveSettings(settings);
+  });
+}
+
+const pirepsToggle = document.getElementById('toggle-pireps');
+if (pirepsToggle) {
+  pirepsToggle.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      enablePireps();
+    } else {
+      disablePireps();
+    }
+    const settings = await window.flightAPI.getSettings();
+    settings.pirepsEnabled = CONFIG.pirepsEnabled;
     await window.flightAPI.saveSettings(settings);
   });
 }
@@ -2630,7 +2725,9 @@ async function loadAndApplySettings() {
       const prevAirspace = CONFIG.airspaceEnabled;
       CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : DEFAULT_SETTINGS.airspaceEnabled;
       CONFIG.radarEnabled = saved.radarEnabled || DEFAULT_SETTINGS.radarEnabled;
-      CONFIG.turbulenceEnabled = saved.turbulenceEnabled || DEFAULT_SETTINGS.turbulenceEnabled;
+      CONFIG.sigmetsEnabled = saved.sigmetsEnabled || DEFAULT_SETTINGS.sigmetsEnabled;
+      CONFIG.airmetsEnabled = saved.airmetsEnabled || DEFAULT_SETTINGS.airmetsEnabled;
+      CONFIG.pirepsEnabled = saved.pirepsEnabled || DEFAULT_SETTINGS.pirepsEnabled;
       CONFIG.turbulenceLevel = saved.turbulenceLevel || DEFAULT_SETTINGS.turbulenceLevel;
       CONFIG.savedView = saved.savedView !== undefined ? saved.savedView : DEFAULT_SETTINGS.savedView;
       await applyTheme(); // adds turb + radar layers on top if enabled
@@ -2647,9 +2744,13 @@ async function loadAndApplySettings() {
         if (radarRefreshTimer) clearInterval(radarRefreshTimer);
         radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
       }
-      // Turbulence UI state and timers
-      const tToggle = document.getElementById('toggle-turbulence');
-      if (tToggle) tToggle.checked = CONFIG.turbulenceEnabled;
+      // Weather hazard UI state and timers
+      const sToggle = document.getElementById('toggle-sigmets');
+      if (sToggle) sToggle.checked = CONFIG.sigmetsEnabled;
+      const aToggle = document.getElementById('toggle-airmets');
+      if (aToggle) aToggle.checked = CONFIG.airmetsEnabled;
+      const pToggle = document.getElementById('toggle-pireps');
+      if (pToggle) pToggle.checked = CONFIG.pirepsEnabled;
       const tLevel = document.getElementById('turb-level');
       if (tLevel) tLevel.value = CONFIG.turbulenceLevel;
       // GTG forecast: applyTheme already added the imagery layer if level !== 'none';
@@ -2658,13 +2759,29 @@ async function loadAndApplySettings() {
         if (turbRefreshTimer) clearInterval(turbRefreshTimer);
         turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
       }
-      // TURB toggle: PIREPs/SIGMETs/G-AIRMETs (entities)
-      if (CONFIG.turbulenceEnabled) {
-        fetchTurbulenceData();
-        if (turbDataRefreshTimer) clearInterval(turbDataRefreshTimer);
-        turbDataRefreshTimer = setInterval(() => {
-          removeTurbEntities();
-          fetchTurbulenceData();
+      // Individual weather hazard toggles
+      if (CONFIG.sigmetsEnabled) {
+        fetchSigmets();
+        if (sigmetRefreshTimer) clearInterval(sigmetRefreshTimer);
+        sigmetRefreshTimer = setInterval(() => {
+          removeSigmetEntities();
+          fetchSigmets();
+        }, 5 * 60 * 1000);
+      }
+      if (CONFIG.airmetsEnabled) {
+        fetchAirmets();
+        if (airmetRefreshTimer) clearInterval(airmetRefreshTimer);
+        airmetRefreshTimer = setInterval(() => {
+          removeAirmetEntities();
+          fetchAirmets();
+        }, 5 * 60 * 1000);
+      }
+      if (CONFIG.pirepsEnabled) {
+        fetchPireps();
+        if (pirepRefreshTimer) clearInterval(pirepRefreshTimer);
+        pirepRefreshTimer = setInterval(() => {
+          removePirepEntities();
+          fetchPireps();
         }, 5 * 60 * 1000);
       }
       const mapLayerSel = document.getElementById('map-layer');

@@ -40,8 +40,12 @@
     <li><strong>NAVAIDS</strong> — Show/hide VOR, NDB, and other navigation aids.</li>
     <li><strong>RADAR</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
       Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.</li>
-    <li><strong>TURB</strong> — Toggle weather hazard overlays: Pilot Reports (PIREPs),
-      turbulence SIGMETs, convective SIGMETs, and G-AIRMETs. Data refreshes every 5 minutes.</li>
+    <li><strong>SIGMETs</strong> — Toggle turbulence and convective SIGMET polygon overlays.
+      Data refreshes every 5 minutes.</li>
+    <li><strong>AIRMETs</strong> — Toggle G-AIRMET turbulence polygon overlays (TURB-HI and TURB-LO).
+      Data refreshes every 5 minutes.</li>
+    <li><strong>PIREPs</strong> — Toggle Pilot Report (PIREP) turbulence dot overlays.
+      Data refreshes every 5 minutes.</li>
   </ul>
   <p>All toggle states are saved and persist between sessions.</p>
 
@@ -53,7 +57,7 @@
       VFR Terminal, IFR Low Enroute, or IFR High Enroute charts (FAA).</li>
     <li><strong>TURB FORECAST</strong> — GTG (Graphical Turbulence Guidance) forecast heatmap
       at a selected flight level. Choose a specific level (FL100&ndash;FL450), MAX (HI),
-      MAX (LO), or None to disable. This is independent of the TURB toggle above.</li>
+      MAX (LO), or None to disable. This is independent of the SIGMETs/AIRMETs/PIREPs toggles above.</li>
   </ul>
 
   <h3>Buttons</h3>
@@ -74,10 +78,10 @@
     from the Iowa State Mesonet. The overlay refreshes automatically every 5 minutes.
   </p>
 
-  <h3>Weather Hazard Overlays (TURB toggle)</h3>
+  <h3>Weather Hazard Overlays (SIGMETs / AIRMETs / PIREPs toggles)</h3>
   <p>
-    The TURB toggle enables weather hazard overlays sourced from the
-    FAA Aviation Weather Center (AWC):
+    The SIGMETs, AIRMETs, and PIREPs toggles independently enable weather hazard overlays
+    sourced from the FAA Aviation Weather Center (AWC):
   </p>
   <ul>
     <li><strong>PIREPs (Pilot Reports)</strong> — Colored dots indicating pilot-reported
@@ -120,7 +124,7 @@
     The TURB FORECAST dropdown overlays the Graphical Turbulence Guidance (GTG) model
     forecast as a heatmap image covering CONUS and Alaska. Select a flight level to see
     the forecast at that altitude, or "None" to hide it. The forecast image refreshes
-    every 15 minutes. This layer is independent of the TURB toggle.
+    every 15 minutes. This layer is independent of the SIGMETs/AIRMETs/PIREPs toggles.
   </p>
 
   <h2>Aircraft Info Panel</h2>
