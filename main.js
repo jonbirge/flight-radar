@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = {
   trailMode: 'history',
   thickTrailsByAltitude: false,
   trailLength: 120,
-  aircraftEnabled: true,
+  aircraftEnabled: false,
   labelsEnabled: true,
   airportsEnabled: true,
   airspaceEnabled: true,
