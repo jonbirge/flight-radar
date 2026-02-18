@@ -777,6 +777,15 @@ function refreshAllEntities() {
   renderAircraft();
 }
 
+function toggleAircraft(show) {
+  CONFIG.aircraftEnabled = show;
+  for (const [, ac] of aircraft) {
+    if (ac.entity) ac.entity.show = show;
+    for (const e of ac.trailEntities) e.show = show;
+    if (ac.extrapolationTrail) ac.extrapolationTrail.show = show;
+  }
+}
+
 // ============================================================
 // Airport Markers
 // ============================================================
@@ -1563,6 +1572,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         } : undefined,
         properties: { icao24: icao },
       });
+      if (!CONFIG.aircraftEnabled) ac.entity.show = false;
       ac._iconKey = iconKey;
       ac._labelText = (CONFIG.labelsEnabled || isSelected)
         ? `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`
@@ -2101,6 +2111,13 @@ viewer.camera.percentageChanged = 0.01;
 // UI Controls
 // ============================================================
 
+document.getElementById('toggle-aircraft').addEventListener('change', async (e) => {
+  toggleAircraft(e.target.checked);
+  const settings = await window.flightAPI.getSettings();
+  settings.aircraftEnabled = CONFIG.aircraftEnabled;
+  await window.flightAPI.saveSettings(settings);
+});
+
 document.getElementById('toggle-airports').addEventListener('change', async (e) => {
   toggleAirports(e.target.checked);
   const settings = await window.flightAPI.getSettings();
@@ -2610,6 +2627,7 @@ async function loadAndApplySettings() {
       CONFIG.showFixes = saved.showFixes || false;
       CONFIG.openskyClientId = saved.openskyClientId || '';
       CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
+      CONFIG.aircraftEnabled = saved.aircraftEnabled !== undefined ? saved.aircraftEnabled : true;
       CONFIG.labelsEnabled = saved.labelsEnabled !== undefined ? saved.labelsEnabled : true;
       CONFIG.airportsEnabled = saved.airportsEnabled !== undefined ? saved.airportsEnabled : true;
       CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : true;
@@ -2618,7 +2636,10 @@ async function loadAndApplySettings() {
       CONFIG.turbulenceLevel = saved.turbulenceLevel || 'none';
       CONFIG.savedView = saved.savedView || null;
       await applyTheme(); // adds turb + radar layers on top if enabled
+      if (!CONFIG.aircraftEnabled) toggleAircraft(false);
       // Sync main window checkboxes
+      const aircraftToggle = document.getElementById('toggle-aircraft');
+      if (aircraftToggle) aircraftToggle.checked = CONFIG.aircraftEnabled;
       const labelsToggle = document.getElementById('toggle-labels');
       if (labelsToggle) labelsToggle.checked = CONFIG.labelsEnabled;
       const airportsToggle = document.getElementById('toggle-airports');

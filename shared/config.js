@@ -35,6 +35,7 @@ const CONFIG = {
   colorByAltitude: true,
   thickTrailsByAltitude: false,
   rotationSpeed: 6,             // degrees per second for camera rotation
+  aircraftEnabled: true,
   airportsEnabled: true,
   airspaceEnabled: true,
   airspace3D: false,
