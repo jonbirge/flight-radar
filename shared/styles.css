@@ -9,6 +9,7 @@
   --bg: #0a0a0a;
   --panel-bg: rgba(0, 10, 2, 0.85);
   --border: rgba(0, 204, 68, 0.3);
+  --phosphor-disabled: rgba(0, 204, 68, 0.2);
 }
 
 * {
@@ -169,6 +170,22 @@ body {
   transform: rotate(45deg);
 }
 
+.toggle-label input[type="checkbox"]:disabled {
+  border-color: var(--phosphor-disabled);
+  background: transparent;
+  cursor: default;
+}
+
+.toggle-label input[type="checkbox"]:checked:disabled {
+  background: var(--phosphor-disabled);
+  border-color: var(--phosphor-disabled);
+}
+
+.toggle-label:has(input[type="checkbox"]:disabled) {
+  color: var(--phosphor-disabled);
+  cursor: default;
+}
+
 .range-label {
   display: flex;
   align-items: center;
@@ -319,6 +336,7 @@ body.theme-light {
   --bg: #e8e8e8;
   --panel-bg: rgba(240, 240, 240, 0.92);
   --border: rgba(0, 0, 0, 0.2);
+  --phosphor-disabled: rgba(0, 0, 0, 0.15);
 }
 
 body.theme-light .scope-btn {
