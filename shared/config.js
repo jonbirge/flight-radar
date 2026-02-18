@@ -15,38 +15,38 @@ const CONFIG = {
 
   pollInterval: 15000,        // ms between state polls
   positionUpdateInterval: 1000, // ms between position extrapolation updates
-  trailMaxAge: 120,           // seconds of trail to keep
-  trailMode: 'history',       // 'none' | 'history' | 'velocity'
-  labelsEnabled: true,
+  trailMaxAge: DEFAULT_SETTINGS.trailLength,
+  trailMode: DEFAULT_SETTINGS.trailMode,
+  labelsEnabled: DEFAULT_SETTINGS.labelsEnabled,
   staleThreshold: 60,         // seconds before marking aircraft stale
 
   // Visual (dynamically updated by theme system)
-  fontSize: 11,
+  fontSize: DEFAULT_SETTINGS.fontSize,
   theme: 'light',             // resolved theme: always 'dark' | 'light'
-  themePref: 'system',          // user preference: 'dark' | 'light' | 'system'
-  darkColor: '#ffffff',       // user-selected dark mode color
-  lightColor: '#000000',      // user-selected light mode color
+  themePref: DEFAULT_SETTINGS.theme,
+  darkColor: DEFAULT_SETTINGS.darkColor,
+  lightColor: DEFAULT_SETTINGS.lightColor,
   phosphor: '#ffffff',
   phosphorBright: '#ffffff',
   phosphorSelect: '#ffffff',
   phosphorDim: 'rgba(255, 255, 255, 0.35)',
   trailColor: [255, 255, 255],  // RGB for trail polylines
   labelOutlineColor: Cesium.Color.BLACK,
-  colorByAltitude: true,
-  thickTrailsByAltitude: false,
-  rotationSpeed: 6,             // degrees per second for camera rotation
-  aircraftEnabled: false,
-  airportsEnabled: true,
-  airspaceEnabled: true,
-  airspace3D: false,
-  airspaceEdges: false,
-  showSmallAirports: false,
-  navaidsEnabled: false,
-  showFixes: false,
-  mapLayer: 'carto',
-  radarEnabled: false,
-  turbulenceEnabled: false,
-  turbulenceLevel: 'none',
+  colorByAltitude: DEFAULT_SETTINGS.colorByAltitude,
+  thickTrailsByAltitude: DEFAULT_SETTINGS.thickTrailsByAltitude,
+  rotationSpeed: DEFAULT_SETTINGS.rotationSpeed,
+  aircraftEnabled: DEFAULT_SETTINGS.aircraftEnabled,
+  airportsEnabled: DEFAULT_SETTINGS.airportsEnabled,
+  airspaceEnabled: DEFAULT_SETTINGS.airspaceEnabled,
+  airspace3D: DEFAULT_SETTINGS.airspace3D,
+  airspaceEdges: DEFAULT_SETTINGS.airspaceEdges,
+  showSmallAirports: DEFAULT_SETTINGS.showSmallAirports,
+  navaidsEnabled: DEFAULT_SETTINGS.navaidsEnabled,
+  showFixes: DEFAULT_SETTINGS.showFixes,
+  mapLayer: DEFAULT_SETTINGS.mapLayer,
+  radarEnabled: DEFAULT_SETTINGS.radarEnabled,
+  turbulenceEnabled: DEFAULT_SETTINGS.turbulenceEnabled,
+  turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
 };
 

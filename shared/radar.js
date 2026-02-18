@@ -2618,12 +2618,12 @@ async function loadAndApplySettings() {
   try {
     const saved = await window.flightAPI.getSettings();
     if (saved) {
-      CONFIG.fontSize = saved.fontSize || 11;
-      CONFIG.themePref = saved.theme || 'dark';
-      CONFIG.darkColor = saved.darkColor || '#00cc44';
-      CONFIG.lightColor = saved.lightColor || '#1a1a1a';
-      CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : true;
-      CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || false;
+      CONFIG.fontSize = saved.fontSize || DEFAULT_SETTINGS.fontSize;
+      CONFIG.themePref = saved.theme || DEFAULT_SETTINGS.theme;
+      CONFIG.darkColor = saved.darkColor || DEFAULT_SETTINGS.darkColor;
+      CONFIG.lightColor = saved.lightColor || DEFAULT_SETTINGS.lightColor;
+      CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : DEFAULT_SETTINGS.colorByAltitude;
+      CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || DEFAULT_SETTINGS.thickTrailsByAltitude;
       // Trail mode: new unified setting; fall back to legacy booleans
       if (saved.trailMode) {
         CONFIG.trailMode = saved.trailMode;
@@ -2632,31 +2632,31 @@ async function loadAndApplySettings() {
       } else if (saved.showVelocityVector) {
         CONFIG.trailMode = 'velocity';
       } else {
-        CONFIG.trailMode = 'history';
+        CONFIG.trailMode = DEFAULT_SETTINGS.trailMode;
       }
-      CONFIG.trailMaxAge = saved.trailLength || 120;
-      CONFIG.rotationSpeed = saved.rotationSpeed || 3;
+      CONFIG.trailMaxAge = saved.trailLength || DEFAULT_SETTINGS.trailLength;
+      CONFIG.rotationSpeed = saved.rotationSpeed || DEFAULT_SETTINGS.rotationSpeed;
       const prevEdges = CONFIG.airspaceEdges;
-      CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : true;
+      CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : DEFAULT_SETTINGS.airspaceEdges;
       const prev3D = CONFIG.airspace3D;
-      CONFIG.airspace3D = saved.airspace3D || false;
+      CONFIG.airspace3D = saved.airspace3D || DEFAULT_SETTINGS.airspace3D;
       const prevSmallAirports = CONFIG.showSmallAirports;
-      CONFIG.showSmallAirports = saved.showSmallAirports || false;
-      CONFIG.mapLayer = saved.mapLayer || 'carto';
+      CONFIG.showSmallAirports = saved.showSmallAirports || DEFAULT_SETTINGS.showSmallAirports;
+      CONFIG.mapLayer = saved.mapLayer || DEFAULT_SETTINGS.mapLayer;
       const prevNavaids = CONFIG.navaidsEnabled;
-      CONFIG.navaidsEnabled = saved.navaidsEnabled || false;
+      CONFIG.navaidsEnabled = saved.navaidsEnabled || DEFAULT_SETTINGS.navaidsEnabled;
       const prevShowFixes = CONFIG.showFixes;
-      CONFIG.showFixes = saved.showFixes || false;
-      CONFIG.openskyClientId = saved.openskyClientId || '';
-      CONFIG.openskyClientSecret = saved.openskyClientSecret || '';
-      CONFIG.aircraftEnabled = saved.aircraftEnabled !== undefined ? saved.aircraftEnabled : true;
-      CONFIG.labelsEnabled = saved.labelsEnabled !== undefined ? saved.labelsEnabled : true;
-      CONFIG.airportsEnabled = saved.airportsEnabled !== undefined ? saved.airportsEnabled : true;
-      CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : true;
-      CONFIG.radarEnabled = saved.radarEnabled || false;
-      CONFIG.turbulenceEnabled = saved.turbulenceEnabled || false;
-      CONFIG.turbulenceLevel = saved.turbulenceLevel || 'none';
-      CONFIG.savedView = saved.savedView || null;
+      CONFIG.showFixes = saved.showFixes || DEFAULT_SETTINGS.showFixes;
+      CONFIG.openskyClientId = saved.openskyClientId || DEFAULT_SETTINGS.openskyClientId;
+      CONFIG.openskyClientSecret = saved.openskyClientSecret || DEFAULT_SETTINGS.openskyClientSecret;
+      CONFIG.aircraftEnabled = saved.aircraftEnabled !== undefined ? saved.aircraftEnabled : DEFAULT_SETTINGS.aircraftEnabled;
+      CONFIG.labelsEnabled = saved.labelsEnabled !== undefined ? saved.labelsEnabled : DEFAULT_SETTINGS.labelsEnabled;
+      CONFIG.airportsEnabled = saved.airportsEnabled !== undefined ? saved.airportsEnabled : DEFAULT_SETTINGS.airportsEnabled;
+      CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : DEFAULT_SETTINGS.airspaceEnabled;
+      CONFIG.radarEnabled = saved.radarEnabled || DEFAULT_SETTINGS.radarEnabled;
+      CONFIG.turbulenceEnabled = saved.turbulenceEnabled || DEFAULT_SETTINGS.turbulenceEnabled;
+      CONFIG.turbulenceLevel = saved.turbulenceLevel || DEFAULT_SETTINGS.turbulenceLevel;
+      CONFIG.savedView = saved.savedView !== undefined ? saved.savedView : DEFAULT_SETTINGS.savedView;
       await applyTheme(); // adds turb + radar layers on top if enabled
       if (!CONFIG.aircraftEnabled) toggleAircraft(false);
       // Sync main window checkboxes
