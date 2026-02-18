@@ -779,10 +779,27 @@ function refreshAllEntities() {
 
 function toggleAircraft(show) {
   CONFIG.aircraftEnabled = show;
-  for (const [, ac] of aircraft) {
-    if (ac.entity) ac.entity.show = show;
-    for (const e of ac.trailEntities) e.show = show;
-    if (ac.extrapolationTrail) ac.extrapolationTrail.show = show;
+  if (!show) {
+    // Remove all aircraft entities and trails from Cesium
+    viewer.entities.suspendEvents();
+    try {
+      for (const [, ac] of aircraft) {
+        if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
+        removeTrailEntities(ac);
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    aircraft.clear();
+    hideAircraftInfo();
+    document.getElementById('track-count').textContent = '0';
+    // Stop all polling timers
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (trackTimer) { clearInterval(trackTimer); trackTimer = null; }
+    if (positionUpdateTimer) { clearInterval(positionUpdateTimer); positionUpdateTimer = null; }
+    if (viewChangePollDebounce) { clearTimeout(viewChangePollDebounce); viewChangePollDebounce = null; }
+  } else {
+    startPolling();
   }
 }
 
@@ -1189,12 +1206,14 @@ function setPollInterval(ms) {
   CONFIG.pollInterval = ms;
   const sel = document.getElementById('poll-interval');
   if (sel) sel.value = String(ms / 1000);
+  if (!CONFIG.aircraftEnabled) return;
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(pollStates, CONFIG.pollInterval);
 }
 
 function setPositionUpdateInterval(ms) {
   CONFIG.positionUpdateInterval = ms;
+  if (!CONFIG.aircraftEnabled) return;
   if (positionUpdateTimer) clearInterval(positionUpdateTimer);
   positionUpdateTimer = setInterval(extrapolatePositions, CONFIG.positionUpdateInterval);
 }
@@ -1572,7 +1591,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         } : undefined,
         properties: { icao24: icao },
       });
-      if (!CONFIG.aircraftEnabled) ac.entity.show = false;
       ac._iconKey = iconKey;
       ac._labelText = (CONFIG.labelsEnabled || isSelected)
         ? `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`
@@ -2035,6 +2053,7 @@ function boundsContain(outer, inner) {
 }
 
 function scheduleViewportPoll() {
+  if (!CONFIG.aircraftEnabled) return;
   if (viewChangePollDebounce) clearTimeout(viewChangePollDebounce);
   // Wait at least until the rate limit window has passed
   const elapsed = lastPollTime ? Date.now() - lastPollTime.getTime() : Infinity;
