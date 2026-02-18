@@ -756,6 +756,10 @@ function removeTrailEntities(ac) {
   for (const e of ac.trailEntities) viewer.entities.remove(e);
   ac.trailEntities = [];
   ac._trailHash = '';
+  if (ac.extrapolationTrail) {
+    viewer.entities.remove(ac.extrapolationTrail);
+    ac.extrapolationTrail = null;
+  }
 }
 
 function refreshAllEntities() {
@@ -1274,13 +1278,10 @@ function updateAircraft(states) {
     // Update state
     ac.state = s;
     ac.lastServerUpdate = now;
-    ac.extrapolatedPos = null; // reset extrapolation on new server data
-
-    // Remove temporary extrapolation trail on new server data
-    if (ac.extrapolationTrail) {
-      viewer.entities.remove(ac.extrapolationTrail);
-      ac.extrapolationTrail = null;
-    }
+    // Immediately extrapolate to current time so renderAircraft() places the entity at
+    // the correct position, not the stale TIME_POS position (which would cause a visible
+    // snap-back followed by a forward jump on the next extrapolation tick).
+    ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || now, now);
 
     // Append to history — skip if position hasn't moved meaningfully
     const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
@@ -1293,6 +1294,10 @@ function updateAircraft(states) {
     if (moved) {
       ac.history.push({ lon: s.lon, lat: s.lat, alt, time: now });
     }
+
+    // Connect last history point to current position (extrapolated or raw server)
+    const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt);
+    updateExtrapolationTrail(s.icao24, ac, currentPos);
 
     // Trim old history (keep all history for selected aircraft)
     if (s.icao24 !== selectedIcao) {
@@ -1342,6 +1347,86 @@ function updateAircraft(states) {
   }
 }
 
+// Update or create the temporary polyline connecting the last history point to the
+// aircraft's current position.  Called after every position change (server update or
+// extrapolation tick) so the trail never visually detaches from the icon.
+function updateExtrapolationTrail(icao, ac, currentPos) {
+  if (!CONFIG.trailEnabled || CONFIG.showVelocityVector) return;
+  const lastHistory = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+  if (!lastHistory) return;
+
+  const lastHistoryPos = Cesium.Cartesian3.fromDegrees(
+    lastHistory.lon, lastHistory.lat, lastHistory.alt
+  );
+  const positions = [lastHistoryPos, currentPos];
+
+  const isSelected = icao === selectedIcao;
+  let trailWidth = isSelected ? 4 : 3;
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height
+    : CONFIG.startAlt;
+  const zoomT = getZoomFraction(camHeight);
+  trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
+
+  const alt = ac.state.altitude || 0;
+  let rgb;
+  if (CONFIG.colorByAltitude) {
+    rgb = isSelected ? altitudeToSelectedRgb(alt) : altitudeToRgb(alt);
+  } else {
+    rgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
+  }
+  const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
+  const material = Cesium.Color.fromBytes(
+    Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
+
+  if (ac.extrapolationTrail) {
+    ac.extrapolationTrail.polyline.positions = positions;
+    ac.extrapolationTrail.polyline.width = trailWidth;
+    ac.extrapolationTrail.polyline.material = material;
+  } else {
+    ac.extrapolationTrail = viewer.entities.add({
+      polyline: {
+        positions: positions,
+        width: trailWidth,
+        material: material,
+        clampToGround: false,
+        distanceDisplayCondition: acDisplayCond,
+      },
+    });
+  }
+}
+
+// Compute extrapolated position from a state's observed position, heading, and velocity.
+// Returns Cartesian3 or null if extrapolation isn't possible.
+function computeExtrapolatedPosition(s, baseTime, now) {
+  if (s.heading == null || !s.velocity) return null;
+  const elapsed = now - baseTime;
+  if (elapsed < 0 || elapsed > CONFIG.staleThreshold) return null;
+
+  const speed = s.velocity; // m/s
+  const distance = speed * elapsed; // meters traveled since observed position
+
+  // Great circle destination from observed (lon, lat)
+  const headingRad = Cesium.Math.toRadians(s.heading);
+  const lonRad = Cesium.Math.toRadians(s.lon);
+  const latRad = Cesium.Math.toRadians(s.lat);
+  const R = 6371000; // Earth radius in meters
+  const angDist = distance / R;
+
+  const newLat = Math.asin(
+    Math.sin(latRad) * Math.cos(angDist) +
+    Math.cos(latRad) * Math.sin(angDist) * Math.cos(headingRad)
+  );
+  const newLon = lonRad + Math.atan2(
+    Math.sin(headingRad) * Math.sin(angDist) * Math.cos(latRad),
+    Math.cos(angDist) - Math.sin(latRad) * Math.sin(newLat)
+  );
+
+  return Cesium.Cartesian3.fromDegrees(
+    Cesium.Math.toDegrees(newLon), Cesium.Math.toDegrees(newLat), s.altitude || 0
+  );
+}
+
 // Extrapolate aircraft positions between server polls based on heading and velocity
 function extrapolatePositions() {
   const now = Date.now() / 1000;
@@ -1352,35 +1437,11 @@ function extrapolatePositions() {
     if (!ac.entity || ac.state.heading == null || !ac.state.velocity) continue;
 
     const s = ac.state;
-    const elapsed = now - ac.lastServerUpdate; // seconds since last server data
+    const baseTime = s.timePosition || ac.lastServerUpdate;
+    const newPos = computeExtrapolatedPosition(s, baseTime, now);
+    if (!newPos) continue;
 
-    // Only extrapolate for recent data (within stale threshold)
-    if (elapsed > CONFIG.staleThreshold) continue;
-
-    // Compute new extrapolated position based on heading and velocity
-    const speed = s.velocity; // m/s
-    const distance = speed * elapsed; // meters traveled since last server update
-
-    // Use great circle calculation for new position from server state
-    const headingRad = Cesium.Math.toRadians(s.heading);
-    const lonRad = Cesium.Math.toRadians(s.lon);
-    const latRad = Cesium.Math.toRadians(s.lat);
-    const R = 6371000; // Earth radius in meters
-    const angDist = distance / R;
-
-    const newLat = Math.asin(
-      Math.sin(latRad) * Math.cos(angDist) +
-      Math.cos(latRad) * Math.sin(angDist) * Math.cos(headingRad)
-    );
-    const newLon = lonRad + Math.atan2(
-      Math.sin(headingRad) * Math.sin(angDist) * Math.cos(latRad),
-      Math.cos(angDist) - Math.sin(latRad) * Math.sin(newLat)
-    );
-
-    const newLonDeg = Cesium.Math.toDegrees(newLon);
-    const newLatDeg = Cesium.Math.toDegrees(newLat);
     const alt = s.altitude || 0;
-    const newPos = Cesium.Cartesian3.fromDegrees(newLonDeg, newLatDeg, alt);
 
     // Calculate delta from previous position (extrapolated or server) to new position
     const oldPos = ac.extrapolatedPos || ac.entity.position.getValue();
@@ -1406,50 +1467,8 @@ function extrapolatePositions() {
           }
         }
       } else {
-        // History trail mode: draw temporary line from last history point to extrapolated position
-        const lastHistory = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
-        if (lastHistory) {
-          const lastHistoryPos = Cesium.Cartesian3.fromDegrees(
-            lastHistory.lon, lastHistory.lat, lastHistory.alt
-          );
-          const positions = [lastHistoryPos, newPos];
-
-          // Determine trail color and width (matching regular trail style)
-          const isSelected = icao === selectedIcao;
-          let trailWidth = isSelected ? 4 : 3;
-          const camHeight = viewer.camera.positionCartographic
-            ? viewer.camera.positionCartographic.height
-            : CONFIG.startAlt;
-          const zoomT = getZoomFraction(camHeight);
-          trailWidth = Math.max(1, trailWidth * (1 - zoomT) + 1 * zoomT);
-
-          let rgb;
-          if (CONFIG.colorByAltitude) {
-            rgb = isSelected ? altitudeToSelectedRgb(alt) : altitudeToRgb(alt);
-          } else {
-            rgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
-          }
-          const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
-          const material = Cesium.Color.fromBytes(
-            Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
-
-          // Update or create temporary extrapolation trail
-          if (ac.extrapolationTrail) {
-            ac.extrapolationTrail.polyline.positions = positions;
-            ac.extrapolationTrail.polyline.width = trailWidth;
-            ac.extrapolationTrail.polyline.material = material;
-          } else {
-            ac.extrapolationTrail = viewer.entities.add({
-              polyline: {
-                positions: positions,
-                width: trailWidth,
-                material: material,
-                clampToGround: false,
-                distanceDisplayCondition: acDisplayCond,
-              },
-            });
-          }
-        }
+        // History trail mode: connect last history point to extrapolated position
+        updateExtrapolationTrail(icao, ac, newPos);
       }
     }
 
