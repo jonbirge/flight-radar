@@ -9,26 +9,6 @@
 // ============================================================
 
 const SETTINGS_STORAGE_KEY = 'flightRadar_settings';
-const DEFAULT_SETTINGS = {
-  fontSize: 12,
-  theme: 'dark',
-  darkColor: '#00cc44',
-  lightColor: '#1a1a1a',
-  openskyClientId: '',
-  openskyClientSecret: '',
-  savedView: null,
-  colorByAltitude: true,
-  trailMode: 'history',
-  thickTrailsByAltitude: false,
-  trailLength: 120,
-  airspaceEdges: true,
-  airspace3D: false,
-  showFixes: false,
-  navaidsEnabled: false,
-  radarEnabled: false,
-  mapLayer: 'carto',
-};
-
 function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);

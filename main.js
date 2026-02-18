@@ -9,33 +9,7 @@ const http = require('http');
 
 // --- Settings Persistence ---
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
-const DEFAULT_SETTINGS = {
-  fontSize: 12,
-  theme: 'system',
-  darkColor: '#ffffff',
-  lightColor: '#000000',
-  colorByAltitude: true,
-  trailMode: 'history',
-  thickTrailsByAltitude: false,
-  trailLength: 120,
-  aircraftEnabled: false,
-  labelsEnabled: true,
-  airportsEnabled: true,
-  airspaceEnabled: true,
-  airspaceEdges: false,
-  airspace3D: false,
-  showSmallAirports: false,
-  navaidsEnabled: false,
-  showFixes: false,
-  mapLayer: 'carto',
-  radarEnabled: false,
-  turbulenceEnabled: false,
-  turbulenceLevel: 'none',
-  rotationSpeed: 6,
-  openskyClientId: '',
-  openskyClientSecret: '',
-  savedView: { lon: -98.5, lat: 39.5, height: 4860000, heading: 0, pitch: -1.5708 },
-};
+const DEFAULT_SETTINGS = require('./shared/defaults');
 
 function loadSettings() {
   try {
