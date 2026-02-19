@@ -44,6 +44,7 @@ const CONFIG = {
   navaidsEnabled: DEFAULT_SETTINGS.navaidsEnabled,
   showFixes: DEFAULT_SETTINGS.showFixes,
   mapLayer: DEFAULT_SETTINGS.mapLayer,
+  muteMapColors: DEFAULT_SETTINGS.muteMapColors,
   radarEnabled: DEFAULT_SETTINGS.radarEnabled,
   sigmetsEnabled: DEFAULT_SETTINGS.sigmetsEnabled,
   airmetsEnabled: DEFAULT_SETTINGS.airmetsEnabled,

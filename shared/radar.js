@@ -189,19 +189,48 @@ function makeNightTiles() {
   });
 }
 
+// VFRMap.com chart tiles — date folder changes each FAA chart cycle
+// Uses TMS (y-flipped); CesiumJS handles this via {reverseY}
+const VFRMAP_DATE = '20251225';
+
+function makeVfrMapTiles(chartType, maxZoom) {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: `https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`,
+    credit: new Cesium.Credit('VFRMap.com'),
+    minimumLevel: 1, maximumLevel: maxZoom,
+  });
+}
+
 // Layers that have limited zoom and need a CartoDB base underneath
 const OVERLAY_LAYERS = new Set(['sectional', 'terminal', 'ifrLow', 'ifrHigh']);
 
+// Apply theme-appropriate brightness/saturation to map imagery layers
+function styleMapLayer(layer, layerId) {
+  if (!CONFIG.muteMapColors || layerId === 'carto') return;
+  const isDark = CONFIG.theme === 'dark';
+  if (isDark) {
+    layer.brightness = 0.6;
+    layer.saturation = 0.4;
+    if (OVERLAY_LAYERS.has(layerId)) layer.alpha = 0.8;
+  } else {
+    layer.brightness = 1.5;
+    layer.saturation = 0.3;
+  }
+}
+
 async function makeMapTiles(layerId) {
   switch (layerId) {
-    case 'sectional': return await makeSectionalTiles();
-    case 'terminal':  return await makeTerminalTiles();
-    case 'ifrLow':    return await makeIfrLowTiles();
-    case 'ifrHigh':   return await makeIfrHighTiles();
+    case 'sectional':  return await makeSectionalTiles();
+    case 'terminal':   return await makeTerminalTiles();
+    case 'ifrLow':     return await makeIfrLowTiles();
+    case 'ifrHigh':    return await makeIfrHighTiles();
     case 'satellite':  return makeSatelliteTiles();
     case 'osm':        return makeOsmTiles();
     case 'topo':       return makeTopoTiles();
     case 'night':      return makeNightTiles();
+    case 'vfrHybrid':  return makeVfrMapTiles('vfrc', 12);
+    case 'vfrIfrLow':  return makeVfrMapTiles('ifrlc', 11);
+    case 'vfrIfrHigh': return makeVfrMapTiles('ehc', 10);
     default:           return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
   }
 }
@@ -804,7 +833,8 @@ async function applyTheme() {
     if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
       layers.addImageryProvider(makeBaseTiles());
     }
-    layers.addImageryProvider(provider);
+    const mapLayer = layers.addImageryProvider(provider);
+    styleMapLayer(mapLayer, CONFIG.mapLayer);
     // Layer order: [base] → map → turbulence forecast → radar
     if (CONFIG.turbulenceLevel !== 'none') {
       const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
@@ -2357,7 +2387,8 @@ document.getElementById('map-layer').addEventListener('change', async (e) => {
   if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
     layers.addImageryProvider(makeBaseTiles());
   }
-  layers.addImageryProvider(provider);
+  const mapLayer = layers.addImageryProvider(provider);
+  styleMapLayer(mapLayer, CONFIG.mapLayer);
   // Layer order: [base] → map → turbulence forecast → radar
   if (CONFIG.turbulenceLevel !== 'none') {
     const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
@@ -2757,6 +2788,7 @@ async function loadAndApplySettings() {
       const prevSmallAirports = CONFIG.showSmallAirports;
       CONFIG.showSmallAirports = saved.showSmallAirports || DEFAULT_SETTINGS.showSmallAirports;
       CONFIG.mapLayer = saved.mapLayer || DEFAULT_SETTINGS.mapLayer;
+      CONFIG.muteMapColors = saved.muteMapColors !== undefined ? saved.muteMapColors : DEFAULT_SETTINGS.muteMapColors;
       const prevNavaids = CONFIG.navaidsEnabled;
       CONFIG.navaidsEnabled = saved.navaidsEnabled || DEFAULT_SETTINGS.navaidsEnabled;
       const prevShowFixes = CONFIG.showFixes;

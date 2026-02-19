@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
   navaidsEnabled: false,
   showFixes: false,
   mapLayer: 'carto',
+  muteMapColors: true,
   radarEnabled: false,
   sigmetsEnabled: false,
   airmetsEnabled: false,
