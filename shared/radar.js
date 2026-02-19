@@ -2462,6 +2462,15 @@ document.getElementById('btn-save-view').addEventListener('click', async () => {
   setTimeout(() => btn.classList.remove('active'), 600);
 });
 
+// North Up — rotate heading to 0 while keeping current position and pitch
+document.getElementById('btn-north').addEventListener('click', () => {
+  viewer.camera.flyTo({
+    destination: viewer.camera.positionWC,
+    orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 },
+    duration: 0.5,
+  });
+});
+
 // CONUS button (Electron only — absent from web HTML, so guard with null check)
 const conusBtn = document.getElementById('btn-conus');
 if (conusBtn) {
