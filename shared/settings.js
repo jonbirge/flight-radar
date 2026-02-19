@@ -35,6 +35,17 @@ const LIGHT_COLOR_PRESETS = [
 // ============================================================
 
 const SETTINGS_CSS = `
+.settings-columns {
+  display: flex;
+}
+.settings-column {
+  flex: 1;
+  min-width: 0;
+}
+.settings-column:first-child {
+  border-right: 1px solid var(--settings-border, #ccc);
+}
+
 .settings-section {
   padding: 14px 16px;
   border-bottom: 1px solid var(--settings-border, #ccc);
@@ -201,102 +212,108 @@ function createSettingsFormHTML() {
   ).join('\n          ');
 
   return `
-    <div class="settings-section">
-      <div class="settings-label">DISPLAY MODE</div>
-      <div class="settings-row">
-        <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
-        <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
-        <button class="settings-theme-btn" id="set-theme-system" type="button">SYSTEM</button>
-      </div>
-      <label class="settings-toggle-label" style="margin-top:8px;">
-        <input type="checkbox" id="set-mute-map-colors">
-        <span>Mute map colors</span>
-      </label>
-    </div>
+    <div class="settings-columns">
+      <div class="settings-column">
+        <div class="settings-section">
+          <div class="settings-label">DISPLAY MODE</div>
+          <div class="settings-row">
+            <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
+            <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
+            <button class="settings-theme-btn" id="set-theme-system" type="button">SYSTEM</button>
+          </div>
+          <label class="settings-toggle-label" style="margin-top:8px;">
+            <input type="checkbox" id="set-mute-map-colors">
+            <span>Mute map colors</span>
+          </label>
+        </div>
 
-    <div class="settings-section" id="color-section">
-      <div class="settings-label">UI COLOR</div>
-      <div class="settings-color-label">Dark Mode</div>
-      <div class="settings-row settings-color-row" style="margin-bottom:12px;">
-          ${darkSwatchesHTML}
-          <input type="color" id="set-custom-color" value="#00cc44" title="Custom color">
-      </div>
-      <div class="settings-color-label">Light Mode</div>
-      <div class="settings-row settings-color-row">
-          ${lightSwatchesHTML}
-          <input type="color" id="set-light-custom-color" value="#1a1a1a" title="Custom color">
-      </div>
-    </div>
+        <div class="settings-section" id="color-section">
+          <div class="settings-label">UI COLOR</div>
+          <div class="settings-color-label">Dark Mode</div>
+          <div class="settings-row settings-color-row" style="margin-bottom:12px;">
+              ${darkSwatchesHTML}
+              <input type="color" id="set-custom-color" value="#00cc44" title="Custom color">
+          </div>
+          <div class="settings-color-label">Light Mode</div>
+          <div class="settings-row settings-color-row">
+              ${lightSwatchesHTML}
+              <input type="color" id="set-light-custom-color" value="#1a1a1a" title="Custom color">
+          </div>
+        </div>
 
-    <div class="settings-section">
-      <div class="settings-label">AIRCRAFT DISPLAY</div>
-      <div class="settings-row" style="margin-bottom:8px;">
-        <span class="settings-toggle-label" style="cursor:default;">Font size</span>
-        <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
-        <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
-      </div>
-      <div class="settings-row" style="margin-bottom:8px;">
-        <span class="settings-toggle-label" style="cursor:default;">Trails</span>
-        <div style="display:flex;gap:4px;">
-          <button class="settings-theme-btn" id="set-trail-none" type="button">NONE</button>
-          <button class="settings-theme-btn" id="set-trail-history" type="button">HISTORY</button>
-          <button class="settings-theme-btn" id="set-trail-velocity" type="button">VELOCITY</button>
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-label">ROTATION SPEED</div>
+          <div class="settings-row">
+            <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
+            <span class="settings-fontsize-val" id="set-rotation-speed-val">3 &deg;/s</span>
+          </div>
         </div>
       </div>
-      <div class="settings-row" id="trail-length-row">
-        <span class="settings-toggle-label" style="cursor:default;">History length</span>
-        <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
-        <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
-      </div>
-      <label class="settings-toggle-label" style="margin-top:4px;">
-        <input type="checkbox" id="set-color-by-alt">
-        <span>Color by altitude</span>
-      </label>
-      <label class="settings-toggle-label" style="margin-top:4px;">
-        <input type="checkbox" id="set-thick-trails">
-        <span>Trail thickness by altitude</span>
-      </label>
-    </div>
 
-    <div class="settings-section">
-      <div class="settings-label">AVIATION DATA</div>
-      <div class="settings-row settings-grid-2col">
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-airports">
-          <span>Airports</span>
-        </label>
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-airspace">
-          <span>Airspace</span>
-        </label>
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-small-airports">
-          <span>Small airports</span>
-        </label>
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-airspace-edges">
-          <span>Airspace edges</span>
-        </label>
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-navaids">
-          <span>Navaids</span>
-        </label>
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-airspace-3d">
-          <span>3D airspace</span>
-        </label>
-        <label class="settings-toggle-label">
-          <input type="checkbox" id="set-show-fixes">
-          <span>Nav fixes</span>
-        </label>
-      </div>
-    </div>
+      <div class="settings-column">
+        <div class="settings-section">
+          <div class="settings-label">AIRCRAFT DISPLAY</div>
+          <div class="settings-row" style="margin-bottom:8px;">
+            <span class="settings-toggle-label" style="cursor:default;">Font size</span>
+            <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
+            <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
+          </div>
+          <div class="settings-row" style="margin-bottom:8px;">
+            <span class="settings-toggle-label" style="cursor:default;">Trails</span>
+            <div style="display:flex;gap:4px;">
+              <button class="settings-theme-btn" id="set-trail-none" type="button">NONE</button>
+              <button class="settings-theme-btn" id="set-trail-history" type="button">HISTORY</button>
+              <button class="settings-theme-btn" id="set-trail-velocity" type="button">VELOCITY</button>
+            </div>
+          </div>
+          <div class="settings-row" id="trail-length-row">
+            <span class="settings-toggle-label" style="cursor:default;">History length</span>
+            <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
+            <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
+          </div>
+          <label class="settings-toggle-label" style="margin-top:4px;">
+            <input type="checkbox" id="set-color-by-alt">
+            <span>Color by altitude</span>
+          </label>
+          <label class="settings-toggle-label" style="margin-top:4px;">
+            <input type="checkbox" id="set-thick-trails">
+            <span>Trail thickness by altitude</span>
+          </label>
+        </div>
 
-    <div class="settings-section">
-      <div class="settings-label">ROTATION SPEED</div>
-      <div class="settings-row">
-        <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
-        <span class="settings-fontsize-val" id="set-rotation-speed-val">3 &deg;/s</span>
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-label">AVIATION DATA</div>
+          <div class="settings-row settings-grid-2col">
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airports">
+              <span>Airports</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airspace">
+              <span>Airspace</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-small-airports">
+              <span>Small airports</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airspace-edges">
+              <span>Airspace edges</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-navaids">
+              <span>Navaids</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airspace-3d">
+              <span>3D airspace</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-show-fixes">
+              <span>Nav fixes</span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
 
