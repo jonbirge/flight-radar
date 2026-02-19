@@ -153,14 +153,61 @@ function makeIfrHighTiles() {
   );
 }
 
+function makeSatelliteTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, Maxar, Earthstar Geographics'),
+    minimumLevel: 0, maximumLevel: 19,
+  });
+}
+
+function makeOsmTiles() {
+  return new Cesium.OpenStreetMapImageryProvider({
+    url: 'https://tile.openstreetmap.org/',
+    credit: new Cesium.Credit('OpenStreetMap contributors'),
+  });
+}
+
+function makeTopoTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c'],
+    credit: new Cesium.Credit('OpenTopoMap, OpenStreetMap contributors'),
+    minimumLevel: 0, maximumLevel: 17,
+  });
+}
+
+function makeNightTiles() {
+  return new Cesium.WebMapTileServiceImageryProvider({
+    url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi',
+    layer: 'VIIRS_Black_Marble',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSetID: 'GoogleMapsCompatible_Level8',
+    maximumLevel: 8,
+    credit: new Cesium.Credit('NASA EOSDIS GIBS'),
+  });
+}
+
+// Layers that have limited zoom and need a CartoDB base underneath
+const OVERLAY_LAYERS = new Set(['sectional', 'terminal', 'ifrLow', 'ifrHigh']);
+
 async function makeMapTiles(layerId) {
   switch (layerId) {
     case 'sectional': return await makeSectionalTiles();
     case 'terminal':  return await makeTerminalTiles();
     case 'ifrLow':    return await makeIfrLowTiles();
     case 'ifrHigh':   return await makeIfrHighTiles();
-    default:          return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
+    case 'satellite':  return makeSatelliteTiles();
+    case 'osm':        return makeOsmTiles();
+    case 'topo':       return makeTopoTiles();
+    case 'night':      return makeNightTiles();
+    default:           return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
   }
+}
+
+function makeBaseTiles() {
+  return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
 }
 
 // ============================================================
@@ -753,8 +800,12 @@ async function applyTheme() {
   radarLayer = null; // cleared by removeAll
   turbLayer = null;  // cleared by removeAll
   makeMapTiles(CONFIG.mapLayer).then(async (provider) => {
+    // FAA chart layers have limited zoom — add CartoDB base underneath
+    if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
+      layers.addImageryProvider(makeBaseTiles());
+    }
     layers.addImageryProvider(provider);
-    // Layer order: base → turbulence forecast → radar
+    // Layer order: [base] → map → turbulence forecast → radar
     if (CONFIG.turbulenceLevel !== 'none') {
       const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
       if (turbProvider) {
@@ -2302,8 +2353,12 @@ document.getElementById('map-layer').addEventListener('change', async (e) => {
   radarLayer = null; // cleared by removeAll
   turbLayer = null;  // cleared by removeAll
   const provider = await makeMapTiles(CONFIG.mapLayer);
+  // FAA chart layers have limited zoom — add CartoDB base underneath
+  if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
+    layers.addImageryProvider(makeBaseTiles());
+  }
   layers.addImageryProvider(provider);
-  // Layer order: base → turbulence forecast → radar
+  // Layer order: [base] → map → turbulence forecast → radar
   if (CONFIG.turbulenceLevel !== 'none') {
     const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
     if (turbProvider) {
