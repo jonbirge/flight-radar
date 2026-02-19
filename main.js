@@ -237,8 +237,8 @@ function openSettingsWindow() {
     return;
   }
   settingsWindow = new BrowserWindow({
-    width: 440,
-    height: 540,
+    width: 700,
+    height: 420,
     useContentSize: true,
     resizable: false,
     parent: mainWindow,
@@ -259,7 +259,7 @@ function openSettingsWindow() {
       '(() => { document.body.style.height = "auto"; document.body.style.overflow = "hidden"; return JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight }); })()'
     ).then(json => {
       const { width, height } = JSON.parse(json);
-      settingsWindow.setContentSize(Math.max(width, 440), height);
+      settingsWindow.setContentSize(Math.max(width, 700), height);
       settingsWindow.show();
     }).catch(() => settingsWindow.show());
   });
