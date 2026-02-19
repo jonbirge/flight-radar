@@ -187,6 +187,9 @@ window.flightAPI = {
 const settingsOverlay = document.getElementById('settings-overlay');
 const settingsContainer = document.getElementById('settings-container');
 settingsContainer.innerHTML = createSettingsFormHTML();
+// Hide OpenSky credentials in web mode (credentials are handled server-side)
+const credSection = settingsContainer.querySelector('#cred-drop-zone');
+if (credSection) credSection.closest('.settings-section').style.display = 'none';
 
 const settingsPanel = initSettingsPanel({
   container: settingsContainer,
