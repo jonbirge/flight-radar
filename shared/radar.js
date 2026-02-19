@@ -275,7 +275,7 @@ function enableRadar() {
   if (radarLayer) return;
   const provider = makeRadarProvider();
   radarLayer = viewer.imageryLayers.addImageryProvider(provider);
-  radarLayer.alpha = 0.6;
+  radarLayer.alpha = 0.5;
   CONFIG.radarEnabled = true;
   console.log('[Radar] NEXRAD overlay enabled');
   // Auto-refresh every 5 minutes
@@ -304,7 +304,7 @@ function refreshRadar() {
   }
   const provider = makeRadarProvider();
   radarLayer = viewer.imageryLayers.addImageryProvider(provider);
-  radarLayer.alpha = 0.6;
+  radarLayer.alpha = 0.5;
   console.log('[Radar] NEXRAD overlay refreshed');
 }
 
@@ -774,7 +774,7 @@ async function applyTheme() {
     }
     if (CONFIG.radarEnabled) {
       radarLayer = layers.addImageryProvider(makeRadarProvider());
-      radarLayer.alpha = 0.6;
+      radarLayer.alpha = 0.5;
     }
   });
 
@@ -2323,7 +2323,7 @@ document.getElementById('map-layer').addEventListener('change', async (e) => {
   }
   if (CONFIG.radarEnabled) {
     radarLayer = layers.addImageryProvider(makeRadarProvider());
-    radarLayer.alpha = 0.6;
+    radarLayer.alpha = 0.5;
   }
   // Persist the selection
   const settings = await window.flightAPI.getSettings();
