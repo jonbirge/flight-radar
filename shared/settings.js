@@ -208,6 +208,10 @@ function createSettingsFormHTML() {
         <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
         <button class="settings-theme-btn" id="set-theme-system" type="button">SYSTEM</button>
       </div>
+      <label class="settings-toggle-label" style="margin-top:8px;">
+        <input type="checkbox" id="set-mute-map-colors">
+        <span>Mute map colors</span>
+      </label>
     </div>
 
     <div class="settings-section" id="color-section">
@@ -338,6 +342,9 @@ function populateSettingsForm(container, settings) {
   btnSystem.classList.toggle('active', s.theme === 'system');
   btnLight.classList.toggle('active', s.theme === 'light');
 
+  // Mute map colors
+  container.querySelector('#set-mute-map-colors').checked = s.muteMapColors;
+
   // Dark color swatches
   const darkSwatches = container.querySelectorAll('.dark-color-swatch');
   darkSwatches.forEach(sw => {
@@ -416,6 +423,7 @@ function initSettingsPanel(options) {
   const btnDark = container.querySelector('#set-theme-dark');
   const btnSystem = container.querySelector('#set-theme-system');
   const btnLight = container.querySelector('#set-theme-light');
+  const muteMapColors = container.querySelector('#set-mute-map-colors');
   const darkSwatches = container.querySelectorAll('.dark-color-swatch');
   const customColor = container.querySelector('#set-custom-color');
   const lightSwatches = container.querySelectorAll('.light-color-swatch');
@@ -447,6 +455,7 @@ function initSettingsPanel(options) {
     return {
       fontSize: parseInt(fontSlider.value),
       theme: formState.theme,
+      muteMapColors: muteMapColors.checked,
       darkColor: formState.darkColor,
       lightColor: formState.lightColor,
       colorByAltitude: colorByAlt.checked,
@@ -512,6 +521,8 @@ function initSettingsPanel(options) {
   btnDark.addEventListener('click', () => setThemeButton('dark'));
   btnSystem.addEventListener('click', () => setThemeButton('system'));
   btnLight.addEventListener('click', () => setThemeButton('light'));
+
+  muteMapColors.addEventListener('change', broadcast);
 
   // --- Dark color swatches ---
   darkSwatches.forEach(sw => {
