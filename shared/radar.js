@@ -449,31 +449,22 @@ function removeAirmetEntities() {
   airmetEntities.length = 0;
 }
 
-const PIREP_COLORS = {
-  NEG:   new Cesium.Color(0.2, 0.5, 1.0, 0.7),
-  'SMT': new Cesium.Color(0.2, 0.5, 1.0, 0.7),
-  LGT:   new Cesium.Color(0.0, 0.8, 0.0, 0.8),
-  MOD:   new Cesium.Color(1.0, 0.6, 0.0, 0.9),
-  SEV:   new Cesium.Color(1.0, 0.0, 0.0, 1.0),
-  EXTRM: new Cesium.Color(1.0, 0.0, 1.0, 1.0),
+const PIREP_CSS_COLORS = {
+  NEG:   'rgba(51, 128, 255, 0.7)',
+  SMT:   'rgba(51, 128, 255, 0.7)',
+  LGT:   'rgba(0, 204, 0, 0.8)',
+  MOD:   'rgba(255, 153, 0, 0.9)',
+  SEV:   'rgba(255, 0, 0, 1.0)',
+  EXTRM: 'rgba(255, 0, 255, 1.0)',
 };
 
-function pirepColor(intensity) {
-  if (!intensity) return PIREP_COLORS.LGT;
+function pirepCssColor(intensity) {
+  if (!intensity) return PIREP_CSS_COLORS.LGT;
   const upper = intensity.toUpperCase().replace(/-/g, '');
-  // Handle combined intensities like "MOD-SEV" → take the higher
   for (const key of ['EXTRM', 'SEV', 'MOD', 'LGT', 'NEG', 'SMT']) {
-    if (upper.includes(key)) return PIREP_COLORS[key] || PIREP_COLORS.LGT;
+    if (upper.includes(key)) return PIREP_CSS_COLORS[key] || PIREP_CSS_COLORS.LGT;
   }
-  return PIREP_COLORS.LGT;
-}
-
-function pirepSize(intensity) {
-  if (!intensity) return 12;
-  const upper = intensity.toUpperCase();
-  if (upper.includes('SEV') || upper.includes('EXTRM')) return 20;
-  if (upper.includes('MOD')) return 16;
-  return 12;
+  return PIREP_CSS_COLORS.LGT;
 }
 
 async function fetchPireps() {
@@ -492,18 +483,17 @@ async function fetchPireps() {
           const lon = coords[0], lat = coords[1];
           const alt = (props.fltlvl || 0) * 100 * 0.3048; // FL to meters
           const intensity = props.tbInt1 || 'LGT';
-          const color = pirepColor(intensity);
-          const size = pirepSize(intensity);
+          const cssColor = pirepCssColor(intensity);
+          const icon = createPirepIcon(intensity, cssColor);
 
           const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 25) + 'Z' : '?';
           const entity = viewer.entities.add({
             id: `turb-pirep-${pirepCount}`,
             position: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
-            point: {
-              pixelSize: size,
-              color: color,
-              outlineColor: Cesium.Color.BLACK,
-              outlineWidth: 1,
+            billboard: {
+              image: icon,
+              width: 36,
+              height: 36,
               scaleByDistance: new Cesium.NearFarScalar(1e5, 1.0, 6e6, 0.3),
             },
             properties: {
