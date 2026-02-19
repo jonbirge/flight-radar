@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>3D Flight Radar</title>
-  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=1.12.1">
-  <link rel="stylesheet" href="../shared/styles.css?v=1.12.1">
-  <link rel="stylesheet" href="styles.css?v=1.12.1">
-  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=1.12.1"></script>
+  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=1.13.0">
+  <link rel="stylesheet" href="../shared/styles.css?v=1.13.0">
+  <link rel="stylesheet" href="styles.css?v=1.13.0">
+  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=1.13.0"></script>
 </head>
 <body>
   <div id="cesiumContainer"></div>
@@ -70,6 +70,10 @@
         MAP
         <select id="map-layer">
           <option value="carto">CartoDB</option>
+          <option value="satellite">Satellite</option>
+          <option value="osm">OpenStreetMap</option>
+          <option value="topo">Topographic</option>
+          <option value="night">Night Lights</option>
           <option value="sectional">VFR Sectional</option>
           <option value="terminal">VFR Terminal</option>
           <option value="ifrLow">IFR Low</option>
@@ -131,13 +135,13 @@
   </div>
 
   <!-- Shared modules -->
-  <script src="../shared/defaults.js?v=1.12.1"></script>
-  <script src="../shared/config.js?v=1.12.1"></script>
-  <script src="../shared/data.js?v=1.12.1"></script>
-  <script src="../shared/icons.js?v=1.12.1"></script>
-  <script src="../shared/settings.js?v=1.12.1"></script>
-  <script src="../shared/radar.js?v=1.12.1"></script>
+  <script src="../shared/defaults.js?v=1.13.0"></script>
+  <script src="../shared/config.js?v=1.13.0"></script>
+  <script src="../shared/data.js?v=1.13.0"></script>
+  <script src="../shared/icons.js?v=1.13.0"></script>
+  <script src="../shared/settings.js?v=1.13.0"></script>
+  <script src="../shared/radar.js?v=1.13.0"></script>
   <!-- Web-specific (API shim + settings panel + init) -->
-  <script src="app.js?v=1.12.1"></script>
+  <script src="app.js?v=1.13.0"></script>
 </body>
 </html>
