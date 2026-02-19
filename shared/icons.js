@@ -4,12 +4,13 @@
 'use strict';
 
 // Icon caches: avoid creating new canvas elements (and GPU texture uploads) on every render
-const _iconCache = { aircraft: new Map(), dot: new Map(), navaid: new Map() };
+const _iconCache = { aircraft: new Map(), dot: new Map(), navaid: new Map(), pirep: new Map() };
 
 function clearIconCaches() {
   _iconCache.aircraft.clear();
   _iconCache.dot.clear();
   _iconCache.navaid.clear();
+  _iconCache.pirep.clear();
 }
 
 // Create a canvas-based aircraft symbol (small chevron/arrow)
@@ -98,5 +99,75 @@ function createDotIcon(size, bright = false, colorOverride = null) {
   ctx.fill();
   if (_iconCache.dot.size > 500) _iconCache.dot.clear();
   _iconCache.dot.set(key, canvas);
+  return canvas;
+}
+
+// Standard turbulence symbology for PIREPs
+// NEG/SMT = open circle, LGT = 1 bump, MOD = 2 bumps, SEV = 3 bumps, EXTRM = 3 bumps + bar
+function createPirepIcon(intensity, cssColor) {
+  const key = `${intensity}:${cssColor}`;
+  const cached = _iconCache.pirep.get(key);
+  if (cached) return cached;
+
+  const scale = 4;
+  const size = 36;
+  const res = size * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = res;
+  canvas.height = res;
+  const ctx = canvas.getContext('2d');
+
+  ctx.strokeStyle = cssColor;
+  ctx.fillStyle = cssColor;
+  ctx.lineWidth = scale * 4.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  const cx = res / 2;
+  const cy = res / 2;
+  const upper = (intensity || '').toUpperCase().replace(/-/g, '');
+
+  let bumps = 1; // default LGT
+  if (upper.includes('EXTRM'))     bumps = 4; // 3 bumps + bar
+  else if (upper.includes('SEV'))  bumps = 3;
+  else if (upper.includes('MOD'))  bumps = 2;
+  else if (upper.includes('NEG') || upper.includes('SMT')) bumps = 0;
+
+  if (bumps === 0) {
+    // NEG/Smooth: open circle
+    const r = res * 0.3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    // Draw bump pattern (carets stacked vertically)
+    const count = Math.min(bumps, 3);
+    const bumpW = res * 0.35;  // half-width of each bump
+    const bumpH = res * 0.18;  // height of each bump
+    const gap = scale * 4.5;
+    const totalH = count * bumpH + (count - 1) * gap;
+    const startY = cy - totalH / 2 + bumpH / 2;
+
+    for (let i = 0; i < count; i++) {
+      const y = startY + i * (bumpH + gap);
+      ctx.beginPath();
+      ctx.moveTo(cx - bumpW, y + bumpH / 2);
+      ctx.lineTo(cx, y - bumpH / 2);
+      ctx.lineTo(cx + bumpW, y + bumpH / 2);
+      ctx.stroke();
+    }
+
+    // EXTRM: add horizontal bar below the bumps
+    if (bumps === 4) {
+      const barY = startY + count * (bumpH + gap);
+      ctx.beginPath();
+      ctx.moveTo(cx - bumpW, barY);
+      ctx.lineTo(cx + bumpW, barY);
+      ctx.stroke();
+    }
+  }
+
+  if (_iconCache.pirep.size > 200) _iconCache.pirep.clear();
+  _iconCache.pirep.set(key, canvas);
   return canvas;
 }
