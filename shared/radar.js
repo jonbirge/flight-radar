@@ -205,13 +205,16 @@ function makeVfrMapTiles(chartType, maxZoom) {
 const OVERLAY_LAYERS = new Set(['sectional', 'terminal', 'ifrLow', 'ifrHigh']);
 
 // Apply theme-appropriate brightness/saturation to map imagery layers.
-// Dark mode always darkens (except CartoDB & Night Lights which are already dark).
+// Dark mode always darkens (except CartoDB which is already dark).
 // Light mode only mutes when the user has "Mute map colors" enabled.
 function styleMapLayer(layer, layerId) {
   const isDark = CONFIG.theme === 'dark';
-  const ALREADY_DARK = new Set(['carto', 'night']);
   if (isDark) {
-    if (ALREADY_DARK.has(layerId)) return;
+    if (layerId === 'carto') return;
+    if (layerId === 'night') {
+      layer.brightness = 0.7;
+      return;
+    }
     layer.brightness = 0.6;
     layer.saturation = 0.4;
     if (OVERLAY_LAYERS.has(layerId)) layer.alpha = 0.8;

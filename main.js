@@ -39,6 +39,14 @@ ipcMain.handle('save-settings', (event, settings) => {
 });
 
 // --- System Theme ---
+
+// Sync Electron's native theme (window frames, menus, CSS prefers-color-scheme)
+// with the app's theme setting ('dark', 'light', or 'system').
+function syncNativeTheme() {
+  const settings = loadSettings();
+  nativeTheme.themeSource = settings.theme || 'system';
+}
+
 ipcMain.handle('get-system-theme', () => nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 
 nativeTheme.on('updated', () => {
@@ -244,7 +252,7 @@ function openSettingsWindow() {
     parent: mainWindow,
     modal: false,
     show: false,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#2d2d2d' : '#f0f0f0',
     webPreferences: {
       preload: path.join(__dirname, 'settings-preload.js'),
       contextIsolation: true,
@@ -275,6 +283,7 @@ ipcMain.handle('open-settings-window', () => {
 // IPC: update settings live — save and notify renderer, but keep window open
 ipcMain.handle('update-settings', (event, settings) => {
   saveSettings(settings);
+  syncNativeTheme();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('settings-changed');
   }
@@ -297,6 +306,7 @@ ipcMain.handle('reset-settings', async () => {
     try { fs.unlinkSync(SETTINGS_FILE); } catch (_) {}
     cachedToken = null;
     tokenExpiresAt = 0;
+    syncNativeTheme();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('settings-changed');
     }
@@ -344,6 +354,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  syncNativeTheme();
   createWindow();
   buildMenu();
 });
