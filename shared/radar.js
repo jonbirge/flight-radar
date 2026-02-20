@@ -858,34 +858,42 @@ async function applyTheme() {
   });
 
   // Globe & scene background
-  const bgColor = isDark ? '#0a0a0a' : '#e8e8e8';
+  const bgColor = isDark ? '#121212' : '#f7f7f7';
   viewer.scene.backgroundColor = Cesium.Color.fromCssColorString(bgColor);
   viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(bgColor);
 
   // CSS body class for HUD/controls styling
   document.body.classList.toggle('theme-light', !isDark);
 
-  // Update CSS custom properties for dynamic dark mode colors
+  // Update CSS custom properties (M3 color roles)
+  const root = document.documentElement;
   if (isDark) {
-    const root = document.documentElement;
     const [r, g, b] = hexToRgb(CONFIG.darkColor);
-    root.style.setProperty('--phosphor', CONFIG.phosphor);
-    root.style.setProperty('--phosphor-bright', CONFIG.phosphorBright);
-    root.style.setProperty('--phosphor-dim', CONFIG.phosphorDim);
-    root.style.setProperty('--phosphor-faint', withAlpha(CONFIG.darkColor, 0.15));
-    root.style.setProperty('--phosphor-disabled', withAlpha(CONFIG.darkColor, 0.2));
-    root.style.setProperty('--border', withAlpha(CONFIG.darkColor, 0.3));
-    root.style.setProperty('--panel-bg', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.85)`);
+    root.style.setProperty('--md-primary', CONFIG.phosphor);
+    root.style.setProperty('--md-on-primary', '#ffffff');
+    root.style.setProperty('--md-primary-container', withAlpha(CONFIG.darkColor, 0.15));
+    root.style.setProperty('--md-on-primary-container', CONFIG.phosphor);
+    root.style.setProperty('--md-surface', '#121212');
+    root.style.setProperty('--md-surface-container', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.85)`);
+    root.style.setProperty('--md-surface-container-highest', withAlpha(CONFIG.darkColor, 0.15));
+    root.style.setProperty('--md-on-surface', CONFIG.phosphorBright);
+    root.style.setProperty('--md-on-surface-variant', CONFIG.phosphorDim);
+    root.style.setProperty('--md-on-surface-disabled', withAlpha(CONFIG.darkColor, 0.2));
+    root.style.setProperty('--md-outline', withAlpha(CONFIG.darkColor, 0.3));
+    root.style.setProperty('--md-outline-variant', withAlpha(CONFIG.darkColor, 0.12));
   } else {
-    // Light mode: set CSS variables from user-selected light color
-    const root = document.documentElement;
-    root.style.setProperty('--phosphor', CONFIG.phosphor);
-    root.style.setProperty('--phosphor-bright', CONFIG.phosphorBright);
-    root.style.setProperty('--phosphor-dim', CONFIG.phosphorDim);
-    root.style.setProperty('--phosphor-faint', withAlpha(CONFIG.lightColor, 0.1));
-    root.style.setProperty('--phosphor-disabled', withAlpha(CONFIG.lightColor, 0.15));
-    root.style.setProperty('--border', withAlpha(CONFIG.lightColor, 0.2));
-    root.style.removeProperty('--panel-bg');
+    root.style.setProperty('--md-primary', CONFIG.phosphor);
+    root.style.setProperty('--md-on-primary', '#ffffff');
+    root.style.setProperty('--md-primary-container', withAlpha(CONFIG.lightColor, 0.18));
+    root.style.setProperty('--md-on-primary-container', CONFIG.phosphor);
+    root.style.setProperty('--md-surface', '#f7f7f7');
+    root.style.setProperty('--md-surface-container', 'rgba(240, 240, 240, 0.92)');
+    root.style.setProperty('--md-surface-container-highest', withAlpha(CONFIG.lightColor, 0.08));
+    root.style.setProperty('--md-on-surface', CONFIG.phosphorBright);
+    root.style.setProperty('--md-on-surface-variant', CONFIG.phosphorDim);
+    root.style.setProperty('--md-on-surface-disabled', withAlpha(CONFIG.lightColor, 0.15));
+    root.style.setProperty('--md-outline', withAlpha(CONFIG.lightColor, 0.2));
+    root.style.setProperty('--md-outline-variant', withAlpha(CONFIG.lightColor, 0.1));
   }
 
   // Force re-render all aircraft entities with new colors/sizes
@@ -996,7 +1004,7 @@ function initAirports(airports) {
       },
       label: {
         text: label,
-        font: '14px Consolas, monospace',
+        font: '14px Roboto Flex, sans-serif',
         fillColor: labelColor,
         outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
         outlineWidth: 2,
@@ -1042,7 +1050,7 @@ function initSmallAirports(airports) {
       },
       label: {
         text: label,
-        font: '12px Consolas, monospace',
+        font: '12px Roboto Flex, sans-serif',
         fillColor: labelColor,
         outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
         outlineWidth: 2,
@@ -1245,7 +1253,7 @@ function initNavaids(data) {
       },
       label: {
         text: labelText,
-        font: '11px Consolas, monospace',
+        font: '11px Roboto Flex, sans-serif',
         fillColor: color,
         outlineColor: outlineColor,
         outlineWidth: 2,
@@ -1290,7 +1298,7 @@ function initFixes() {
       },
       label: {
         text: fix.id,
-        font: '10px Consolas, monospace',
+        font: '10px Roboto Flex, sans-serif',
         fillColor: fixLabelColor,
         outlineColor: outlineColor,
         outlineWidth: 1,
@@ -1726,7 +1734,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         },
         label: (CONFIG.labelsEnabled || isSelected) ? {
           text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
-          font: `${CONFIG.fontSize}px Consolas, monospace`,
+          font: `${CONFIG.fontSize}px Roboto Flex, sans-serif`,
           fillColor: labelColor,
           outlineColor: CONFIG.labelOutlineColor,
           outlineWidth: 2,
@@ -1762,7 +1770,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         if (!ac.entity.label) {
           ac.entity.label = new Cesium.LabelGraphics({
             text: '',
-            font: `${CONFIG.fontSize}px Consolas, monospace`,
+            font: `${CONFIG.fontSize}px Roboto Flex, sans-serif`,
             fillColor: labelColor,
             outlineColor: CONFIG.labelOutlineColor,
             outlineWidth: 2,

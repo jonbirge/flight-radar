@@ -207,11 +207,11 @@ const settingsPanel = initSettingsPanel({
 async function openSettings() {
   const settings = await window.flightAPI.getSettings();
   settingsPanel.populate(settings);
-  settingsOverlay.classList.remove('hidden');
+  settingsOverlay.classList.add('visible');
 }
 
 function closeSettings() {
-  settingsOverlay.classList.add('hidden');
+  settingsOverlay.classList.remove('visible');
 }
 
 document.getElementById('settings-close').addEventListener('click', closeSettings);

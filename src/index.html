@@ -10,16 +10,16 @@
 <body>
   <div id="cesiumContainer"></div>
 
-  <!-- HUD overlay - FAA scope aesthetic -->
+  <!-- HUD overlay -->
   <span id="clock"></span>
   <div id="hud">
     <div id="hud-stats">
-      <span>TRKS: <span id="track-count">0</span></span>
-      <span>UPD: <span id="last-update">--:--:--</span></span>
-      <span>LAT: <span id="center-lat">--</span></span>
-      <span>LON: <span id="center-lon">--</span></span>
+      <span>Tracks: <span id="track-count">0</span></span>
+      <span>Updated: <span id="last-update">--:--:--</span></span>
+      <span>Lat: <span id="center-lat">--</span></span>
+      <span>Lon: <span id="center-lon">--</span></span>
     </div>
-    <div id="throttle-warning" class="hidden">API RATE LIMITED — DISPLAYING LAST KNOWN POSITIONS</div>
+    <div id="throttle-warning" class="hidden">API rate limited — displaying last known positions</div>
   </div>
 
   <div id="hud-instructions">
@@ -32,15 +32,15 @@
     <div class="control-group">
       <label class="toggle-label">
         <input type="checkbox" id="toggle-aircraft">
-        <span>AIRCRAFT</span>
+        <span>Aircraft</span>
       </label>
       <label class="toggle-label">
         <input type="checkbox" id="toggle-labels" checked disabled>
-        <span>DATA BLOCKS</span>
+        <span>Data blocks</span>
       </label>
       <label class="toggle-label">
         <input type="checkbox" id="toggle-radar">
-        <span>RADAR</span>
+        <span>Radar</span>
       </label>
       <label class="toggle-label">
         <input type="checkbox" id="toggle-sigmets">
@@ -57,7 +57,7 @@
     </div>
     <div class="control-group">
       <label class="range-label">
-        POLL INTERVAL
+        Poll interval
         <select id="poll-interval">
           <option value="10">10s</option>
           <option value="20">20s</option>
@@ -66,7 +66,7 @@
         </select>
       </label>
       <label class="range-label">
-        MAP
+        Map
         <select id="map-layer">
           <option value="carto">CartoDB</option>
           <option value="satellite">Satellite</option>
@@ -76,7 +76,7 @@
         </select>
       </label>
       <label class="range-label">
-        TURB FORECAST
+        Turb forecast
         <select id="turb-level">
           <option value="none" selected>None</option>
           <option value="100">FL100</option>
@@ -98,14 +98,14 @@
       </label>
     </div>
     <div class="control-group">
-      <button id="btn-home" class="scope-btn">HOME</button>
-      <button id="btn-save-view" class="scope-btn">SAVE VIEW</button>
-      <button id="btn-north" class="scope-btn">NORTH UP</button>
+      <button id="btn-home" class="scope-btn">Home</button>
+      <button id="btn-save-view" class="scope-btn">Save view</button>
+      <button id="btn-north" class="scope-btn">North up</button>
       <button id="btn-conus" class="scope-btn">CONUS</button>
       <button id="btn-2d" class="scope-btn">2D</button>
       <button id="btn-3d" class="scope-btn active">3D</button>
-      <button id="btn-rotate" class="scope-btn">ROTATE</button>
-      <button id="btn-settings" class="scope-btn">SETTINGS</button>
+      <button id="btn-rotate" class="scope-btn">Rotate</button>
+      <button id="btn-settings" class="scope-btn">Settings</button>
     </div>
   </div>
 

@@ -12,7 +12,7 @@
   <p>
     3D Flight Radar displays real-time aircraft positions on an interactive 3D globe
     using ADS-B data from the <strong>OpenSky Network</strong>. Aircraft within the
-    current viewport are polled automatically and displayed with FAA-style data blocks.
+    current viewport are polled automatically and displayed with data blocks.
     Weather overlays including NEXRAD radar and turbulence data from the
     <strong>AWC (Aviation Weather Center)</strong> can be layered on the map.
   </p>
@@ -33,12 +33,12 @@
 
   <h3>Toggles</h3>
   <ul>
-    <li><strong>AIRCRAFT</strong> — Show/hide all aircraft icons, trails, and data blocks.</li>
-    <li><strong>DATA BLOCKS</strong> — Show/hide callsign and flight data labels on aircraft.</li>
-    <li><strong>AIRPORTS</strong> — Show/hide airport marker dots and IATA/ICAO labels.</li>
-    <li><strong>AIRSPACE</strong> — Show/hide Class B, C, and D airspace boundaries.</li>
-    <li><strong>NAVAIDS</strong> — Show/hide VOR, NDB, and other navigation aids.</li>
-    <li><strong>RADAR</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
+    <li><strong>Aircraft</strong> — Show/hide all aircraft icons, trails, and data blocks.</li>
+    <li><strong>Data blocks</strong> — Show/hide callsign and flight data labels on aircraft.</li>
+    <li><strong>Airports</strong> — Show/hide airport marker dots and IATA/ICAO labels.</li>
+    <li><strong>Airspace</strong> — Show/hide Class B, C, and D airspace boundaries.</li>
+    <li><strong>Navaids</strong> — Show/hide VOR, NDB, and other navigation aids.</li>
+    <li><strong>Radar</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
       Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.</li>
     <li><strong>SIGMETs</strong> — Toggle turbulence and convective SIGMET polygon overlays.
       Data refreshes every 5 minutes.</li>
@@ -51,32 +51,32 @@
 
   <h3>Dropdowns</h3>
   <ul>
-    <li><strong>POLL INTERVAL</strong> — How often aircraft positions are refreshed (10s&ndash;60s).
+    <li><strong>Poll interval</strong> — How often aircraft positions are refreshed (10s&ndash;60s).
       This adjusts automatically based on zoom level.</li>
-    <li><strong>MAP</strong> — Base map layer. Choose from CartoDB (dark/light), Satellite (ESRI),
+    <li><strong>Map</strong> — Base map layer. Choose from CartoDB (dark/light), Satellite (ESRI),
       OpenStreetMap, Topographic, Night Lights (NASA VIIRS), VFR/IFR Charts (VFRMap.com),
       or FAA Sectional, Terminal, IFR Low, and IFR High charts.</li>
-    <li><strong>TURB FORECAST</strong> — GTG (Graphical Turbulence Guidance) forecast heatmap
+    <li><strong>Turb forecast</strong> — GTG (Graphical Turbulence Guidance) forecast heatmap
       at a selected flight level. Choose a specific level (FL100&ndash;FL450), MAX (HI),
       MAX (LO), or None to disable. This is independent of the SIGMETs/AIRMETs/PIREPs toggles above.</li>
   </ul>
 
   <h3>Buttons</h3>
   <ul>
-    <li><strong>HOME</strong> — Return to your saved view, or the default starting location.</li>
-    <li><strong>SAVE VIEW</strong> — Save the current camera position as your home view.</li>
-    <li><strong>NORTH UP</strong> — Rotate the view so that north is up.</li>
+    <li><strong>Home</strong> — Return to your saved view, or the default starting location.</li>
+    <li><strong>Save view</strong> — Save the current camera position as your home view.</li>
+    <li><strong>North up</strong> — Rotate the view so that north is up.</li>
     <li><strong>CONUS</strong> — Zoom out to show the continental United States.</li>
     <li><strong>2D / 3D</strong> — Switch between 2D map and 3D globe view.</li>
-    <li><strong>ROTATE</strong> — Toggle automatic camera rotation around the current viewpoint (3D only).</li>
-    <li><strong>SETTINGS</strong> — Open the settings window.</li>
+    <li><strong>Rotate</strong> — Toggle automatic camera rotation around the current viewpoint (3D only).</li>
+    <li><strong>Settings</strong> — Open the settings window.</li>
   </ul>
 
   <h2>Weather &amp; Turbulence</h2>
 
   <h3>NEXRAD Radar</h3>
   <p>
-    The RADAR toggle displays composite NEXRAD reflectivity over CONUS via WMS tiles
+    The Radar toggle displays composite NEXRAD reflectivity over CONUS via WMS tiles
     from the Iowa State Mesonet. The overlay refreshes automatically every 5 minutes.
   </p>
 
@@ -121,9 +121,9 @@
     </tr>
   </table>
 
-  <h3>GTG Turbulence Forecast (TURB FORECAST dropdown)</h3>
+  <h3>GTG Turbulence Forecast (Turb forecast dropdown)</h3>
   <p>
-    The TURB FORECAST dropdown overlays the Graphical Turbulence Guidance (GTG) model
+    The Turb forecast dropdown overlays the Graphical Turbulence Guidance (GTG) model
     forecast as a heatmap image covering CONUS and Alaska. Select a flight level to see
     the forecast at that altitude, or "None" to hide it. The forecast image refreshes
     every 15 minutes. This layer is independent of the SIGMETs/AIRMETs/PIREPs toggles.
@@ -157,9 +157,9 @@
   <p>The top bar shows:</p>
   <ul>
     <li><strong>Clock</strong> — Current UTC time.</li>
-    <li><strong>TRKS</strong> — Number of aircraft currently tracked.</li>
-    <li><strong>UPD</strong> — Time of the last data update.</li>
-    <li><strong>LAT / LON</strong> — Camera center coordinates.</li>
+    <li><strong>Tracks</strong> — Number of aircraft currently tracked.</li>
+    <li><strong>Updated</strong> — Time of the last data update.</li>
+    <li><strong>Lat / Lon</strong> — Camera center coordinates.</li>
   </ul>
 
   <h2>Airspace Colors</h2>
@@ -197,19 +197,19 @@
   </table>
 
   <h2>Settings</h2>
-  <p>Open via <strong>Edit &gt; Settings</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) or the SETTINGS button.</p>
+  <p>Open via <strong>Edit &gt; Settings</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) or the Settings button.</p>
 
   <h3>Display Mode</h3>
   <ul>
-    <li><strong>Dark / System / Light</strong> — Dark mode uses a phosphor-green (or custom color) aesthetic;
+    <li><strong>Dark / System / Light</strong> — Dark mode uses a custom accent color aesthetic;
       light mode uses a clean white basemap. System mode automatically follows your OS dark/light preference.</li>
   </ul>
 
   <h3>UI Color</h3>
   <ul>
-    <li><strong>Dark Mode Color</strong> — Customize the accent color used in dark mode.
+    <li><strong>Dark mode color</strong> — Customize the accent color used in dark mode.
       Choose from presets or pick a custom color.</li>
-    <li><strong>Light Mode Color</strong> — Customize the accent color used in light mode.
+    <li><strong>Light mode color</strong> — Customize the accent color used in light mode.
       Choose from presets or pick a custom color.</li>
   </ul>
 

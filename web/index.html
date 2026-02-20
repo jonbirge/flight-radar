@@ -3,24 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <title>3D Flight Radar</title>
-  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=1.16.1">
-  <link rel="stylesheet" href="../shared/styles.css?v=1.16.1">
-  <link rel="stylesheet" href="styles.css?v=1.16.1">
-  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=1.16.1"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap">
+  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=2.0.2">
+  <link rel="stylesheet" href="../shared/styles.css?v=2.0.2">
+  <link rel="stylesheet" href="styles.css?v=2.0.2">
+  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=2.0.2"></script>
 </head>
 <body>
   <div id="cesiumContainer"></div>
 
-  <!-- HUD overlay - FAA scope aesthetic -->
+  <!-- HUD overlay -->
   <span id="clock"></span>
   <div id="hud">
     <div id="hud-stats">
-      <span>TRKS: <span id="track-count">0</span></span>
-      <span>UPD: <span id="last-update">--:--:--</span></span>
-      <span>LAT: <span id="center-lat">--</span></span>
-      <span>LON: <span id="center-lon">--</span></span>
+      <span>Tracks: <span id="track-count">0</span></span>
+      <span>Updated: <span id="last-update">--:--:--</span></span>
+      <span>Lat: <span id="center-lat">--</span></span>
+      <span>Lon: <span id="center-lon">--</span></span>
     </div>
-    <div id="throttle-warning" class="hidden">API RATE LIMITED — DISPLAYING LAST KNOWN POSITIONS</div>
+    <div id="throttle-warning" class="hidden">API rate limited — displaying last known positions</div>
   </div>
 
   <div id="hud-instructions">
@@ -33,15 +36,15 @@
     <div class="control-group">
       <label class="toggle-label">
         <input type="checkbox" id="toggle-aircraft">
-        <span>AIRCRAFT</span>
+        <span>Aircraft</span>
       </label>
       <label class="toggle-label">
         <input type="checkbox" id="toggle-labels" checked disabled>
-        <span>DATA BLOCKS</span>
+        <span>Data blocks</span>
       </label>
       <label class="toggle-label">
         <input type="checkbox" id="toggle-radar">
-        <span>RADAR</span>
+        <span>Radar</span>
       </label>
       <label class="toggle-label">
         <input type="checkbox" id="toggle-sigmets">
@@ -58,7 +61,7 @@
     </div>
     <div class="control-group">
       <label class="range-label">
-        POLL INTERVAL
+        Poll interval
         <select id="poll-interval">
           <option value="10">10s</option>
           <option value="20">20s</option>
@@ -67,7 +70,7 @@
         </select>
       </label>
       <label class="range-label">
-        MAP
+        Map
         <select id="map-layer">
           <option value="carto">CartoDB</option>
           <option value="satellite">Satellite</option>
@@ -81,7 +84,7 @@
         </select>
       </label>
       <label class="range-label">
-        TURB FORECAST
+        Turb forecast
         <select id="turb-level">
           <option value="none" selected>None</option>
           <option value="100">FL100</option>
@@ -103,14 +106,14 @@
       </label>
     </div>
     <div class="control-group">
-      <button id="btn-home" class="scope-btn">HOME</button>
-      <button id="btn-save-view" class="scope-btn">SAVE VIEW</button>
-      <button id="btn-north" class="scope-btn">NORTH UP</button>
+      <button id="btn-home" class="scope-btn">Home</button>
+      <button id="btn-save-view" class="scope-btn">Save view</button>
+      <button id="btn-north" class="scope-btn">North up</button>
       <button id="btn-conus" class="scope-btn">CONUS</button>
       <button id="btn-2d" class="scope-btn">2D</button>
       <button id="btn-3d" class="scope-btn active">3D</button>
-      <button id="btn-rotate" class="scope-btn">ROTATE</button>
-      <button id="btn-settings" class="scope-btn">SETTINGS</button>
+      <button id="btn-rotate" class="scope-btn">Rotate</button>
+      <button id="btn-settings" class="scope-btn">Settings</button>
     </div>
   </div>
 
@@ -122,10 +125,10 @@
   </div>
 
   <!-- Settings Modal (web-specific shell; form injected by shared/settings.js) -->
-  <div id="settings-overlay" class="hidden">
+  <div id="settings-overlay">
     <div id="settings-panel">
       <div id="settings-header">
-        <span>PREFERENCES</span>
+        <span>Preferences</span>
         <span id="settings-close">&times;</span>
       </div>
       <div id="settings-container"></div>
@@ -136,13 +139,13 @@
   </div>
 
   <!-- Shared modules -->
-  <script src="../shared/defaults.js?v=1.16.1"></script>
-  <script src="../shared/config.js?v=1.16.1"></script>
-  <script src="../shared/data.js?v=1.16.1"></script>
-  <script src="../shared/icons.js?v=1.16.1"></script>
-  <script src="../shared/settings.js?v=1.16.1"></script>
-  <script src="../shared/radar.js?v=1.16.1"></script>
+  <script src="../shared/defaults.js?v=2.0.2"></script>
+  <script src="../shared/config.js?v=2.0.2"></script>
+  <script src="../shared/data.js?v=2.0.2"></script>
+  <script src="../shared/icons.js?v=2.0.2"></script>
+  <script src="../shared/settings.js?v=2.0.2"></script>
+  <script src="../shared/radar.js?v=2.0.2"></script>
   <!-- Web-specific (API shim + settings panel + init) -->
-  <script src="app.js?v=1.16.1"></script>
+  <script src="app.js?v=2.0.2"></script>
 </body>
 </html>
