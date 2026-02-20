@@ -3,158 +3,138 @@
 /* Form-internal styles are injected by shared/settings.js */
 
 /* ============================================================
-   Settings Modal Shell
+   Settings Modal Shell (M3 Expressive)
    ============================================================ */
 
 #settings-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.5);
   z-index: 500;
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--md-motion-duration-medium, 300ms) var(--md-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+              visibility var(--md-motion-duration-medium, 300ms);
 }
 
-#settings-overlay.hidden { display: none; }
+#settings-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
 
 #settings-panel {
-  background: var(--panel-bg);
-  border: 1px solid var(--phosphor);
-  border-radius: 6px;
+  background: var(--md-surface-container);
+  border-radius: var(--md-shape-xl, 28px);
   width: 680px;
-  font-size: 11px;
+  font-size: 14px;
+  font-family: 'Roboto Flex', sans-serif;
+  box-shadow: var(--md-elevation-3);
+  transform: scale(0.92);
+  opacity: 0;
+  transition: transform var(--md-motion-duration-medium, 300ms) var(--md-motion-easing-emphasized, cubic-bezier(0.2, 0, 0, 1)),
+              opacity var(--md-motion-duration-medium, 300ms) var(--md-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+
+#settings-overlay.visible #settings-panel {
+  transform: scale(1);
+  opacity: 1;
 }
 
 #settings-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: var(--phosphor-bright);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--md-outline-variant);
+  font: var(--md-typescale-title-medium, 500 16px/24px 'Roboto Flex', sans-serif);
+  color: var(--md-on-surface);
 }
 
 #settings-close {
   cursor: pointer;
-  font-size: 20px;
-  color: var(--phosphor-dim);
+  font-size: 22px;
+  color: var(--md-on-surface-variant);
   line-height: 1;
+  transition: color var(--md-motion-duration-short, 150ms);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
-#settings-close:hover { color: var(--phosphor-bright); }
+#settings-close:hover {
+  color: var(--md-on-surface);
+  background: var(--md-surface-container-highest, rgba(255,255,255,0.08));
+}
 
 /* ============================================================
-   Phosphor-themed overrides for shared settings form
+   M3 variable mapping for shared settings form
    ============================================================ */
 
 #settings-container {
-  --settings-border: var(--border);
-  --settings-label-color: var(--phosphor-dim);
-  --settings-text-color: var(--phosphor-bright);
-  --settings-input-bg: rgba(0, 0, 0, 0.4);
-  --settings-input-color: var(--phosphor-bright);
-  --settings-btn-bg: var(--panel-bg);
-  --settings-btn-color: var(--phosphor);
-  --settings-btn-hover-bg: rgba(255, 255, 255, 0.05);
-  --settings-btn-active-bg: var(--phosphor);
-  --settings-btn-active-color: #000;
-  --settings-btn-active-border: var(--phosphor);
-  --swatch-active-border: #ffffff;
+  --settings-border: var(--md-outline-variant);
+  --settings-label-color: var(--md-on-surface-variant);
+  --settings-text-color: var(--md-on-surface);
+  --settings-input-bg: rgba(0, 0, 0, 0.2);
+  --settings-input-color: var(--md-on-surface);
+  --settings-btn-bg: var(--md-primary-container);
+  --settings-btn-color: var(--md-on-primary-container);
+  --settings-btn-hover-bg: var(--md-surface-container-highest);
+  --settings-btn-active-bg: var(--md-primary);
+  --settings-btn-active-color: var(--md-on-primary);
+  --settings-btn-active-border: var(--md-primary);
+  --swatch-active-border: var(--md-on-surface);
   --swatch-active-shadow: rgba(255, 255, 255, 0.3);
 }
 
-#settings-container .settings-theme-btn {
-  border-color: var(--phosphor-dim);
-  font-family: 'Consolas', 'Courier New', monospace;
+#settings-container .settings-toggle-label {
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 14px;
 }
 
 #settings-container .settings-cred-input {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  color: var(--phosphor-bright);
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
-  letter-spacing: 1px;
-  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 8px;
+  color: var(--md-on-surface);
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 14px;
+  padding: 8px 12px;
 }
 
 #settings-container .settings-cred-input:focus {
-  border-color: var(--phosphor);
+  border-color: var(--md-primary);
   outline: none;
 }
 
 #settings-container .settings-cred-input::placeholder {
-  color: var(--phosphor-dim);
-}
-
-#settings-container .settings-toggle-label {
-  font-family: 'Consolas', 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-size: 11px;
-}
-
-/* Light mode overrides for settings */
-body.theme-light #settings-panel {
-  background: rgba(240, 240, 240, 0.95);
-  border-color: rgba(0, 0, 0, 0.3);
-}
-
-body.theme-light #settings-container {
-  --settings-border: rgba(0, 0, 0, 0.15);
-  --settings-label-color: rgba(0, 0, 0, 0.5);
-  --settings-text-color: #000;
-  --settings-input-bg: rgba(255, 255, 255, 0.6);
-  --settings-input-color: #000;
-  --settings-btn-bg: rgba(255, 255, 255, 0.6);
-  --settings-btn-color: #000;
-  --settings-btn-hover-bg: rgba(0, 0, 0, 0.05);
-  --settings-btn-active-bg: #1a1a1a;
-  --settings-btn-active-color: #fff;
-  --settings-btn-active-border: #1a1a1a;
-  --swatch-active-border: #333;
-  --swatch-active-shadow: rgba(0, 0, 0, 0.25);
+  color: var(--md-on-surface-variant);
 }
 
 #settings-footer {
-  padding: 8px 16px 12px;
+  padding: 12px 20px 16px;
 }
 
 #btn-defaults {
-  background: var(--panel-bg);
-  border: 1px solid var(--phosphor-dim);
-  border-radius: 3px;
-  color: var(--phosphor);
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 11px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  background: var(--md-primary-container);
+  border: none;
+  border-radius: 9999px;
+  color: var(--md-on-primary-container);
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 5px 14px;
+  padding: 8px 20px;
+  min-height: 36px;
+  transition: background var(--md-motion-duration-short, 150ms),
+              transform var(--md-motion-duration-short, 150ms) cubic-bezier(0.35, 1.5, 0.65, 1),
+              box-shadow var(--md-motion-duration-short, 150ms);
 }
 #btn-defaults:hover {
-  border-color: var(--phosphor);
-  color: var(--phosphor-bright);
-}
-
-body.theme-light #btn-defaults {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(0, 0, 0, 0.25);
-  color: #333;
-}
-body.theme-light #btn-defaults:hover {
-  border-color: #1a1a1a;
-  color: #000;
-}
-
-body.theme-light #settings-container .settings-cred-input {
-  background: rgba(255, 255, 255, 0.6);
-  color: #000;
-  border-color: rgba(0, 0, 0, 0.25);
-}
-body.theme-light #settings-container .settings-cred-input:focus {
-  border-color: #1a1a1a;
+  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
+  transform: scale(1.03);
 }

@@ -15,19 +15,15 @@ const COLOR_PRESETS = [
   { color: '#00cccc', label: 'Cyan' },
   { color: '#cc8800', label: 'Amber' },
   { color: '#cc4444', label: 'Red' },
-  { color: '#8888ff', label: 'Lavender' },
   { color: '#cccccc', label: 'White' },
-  { color: '#ff44cc', label: 'Hot Pink' },
 ];
 
 const LIGHT_COLOR_PRESETS = [
-  { color: '#1a1a1a', label: 'Charcoal' },
-  { color: '#1a5276', label: 'Steel Blue' },
-  { color: '#117864', label: 'Teal' },
-  { color: '#922b21', label: 'Brick Red' },
-  { color: '#6c3483', label: 'Royal Purple' },
-  { color: '#1e8449', label: 'Emerald' },
-  { color: '#b9770e', label: 'Goldenrod' },
+  { color: '#1a1a1a', label: 'Black' },
+  { color: '#2563eb', label: 'Cobalt' },
+  { color: '#0d9488', label: 'Teal' },
+  { color: '#dc2626', label: 'Crimson' },
+  { color: '#7c3aed', label: 'Violet' },
 ];
 
 // ============================================================
@@ -52,12 +48,10 @@ const SETTINGS_CSS = `
 }
 
 .settings-label {
-  font-size: 12px;
-  letter-spacing: 1.5px;
+  font-size: 14px;
   color: var(--settings-label-color, #666);
   margin-bottom: 8px;
-  text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .settings-row {
@@ -72,13 +66,13 @@ const SETTINGS_CSS = `
 }
 
 .color-swatch {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0;
-  transition: border-color 0.2s, transform 0.1s;
+  transition: border-color 0.2s, transform 0.15s cubic-bezier(0.35, 1.5, 0.65, 1);
 }
 .color-swatch:hover { transform: scale(1.15); }
 .color-swatch.active {
@@ -87,46 +81,49 @@ const SETTINGS_CSS = `
 
 #set-custom-color,
 #set-light-custom-color {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--settings-border, #ccc);
-  border-radius: 4px;
+  border-radius: 8px;
   background: transparent;
   cursor: pointer;
   padding: 0;
 }
 
 .settings-hint {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--settings-label-color, #666);
-  letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
 
 .settings-field-label {
-  font-size: 10px;
-  letter-spacing: 1px;
+  font-size: 13px;
   color: var(--settings-label-color, #666);
   width: 65px;
   flex-shrink: 0;
-  text-transform: uppercase;
 }
 
 .settings-cred-input {
   flex: 1;
-  padding: 3px 6px;
-  font-size: 12px;
+  padding: 8px 12px;
+  font-size: 14px;
   border: 1px solid var(--settings-border, #ccc);
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--settings-input-bg, #fff);
   color: var(--settings-input-color, #000);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
+  transition: border-color 0.15s;
+}
+
+.settings-cred-input:focus {
+  outline: none;
+  border-color: var(--settings-btn-active-bg, #333);
 }
 
 .settings-cred-section {
   transition: background 0.15s, border-color 0.15s;
   border: 2px dashed transparent;
-  border-radius: 6px;
+  border-radius: 12px;
   margin: -6px;
   padding: 6px;
 }
@@ -136,25 +133,26 @@ const SETTINGS_CSS = `
 }
 
 .settings-theme-btn {
-  padding: 5px 14px;
-  font-size: 11px;
-  letter-spacing: 1px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--settings-border, #ccc);
-  border-radius: 3px;
+  border: none;
+  border-radius: 9999px;
   background: var(--settings-btn-bg, #f0f0f0);
   color: var(--settings-btn-color, #333);
-  text-transform: uppercase;
-  font-weight: 600;
-  transition: background 0.15s, border-color 0.15s;
+  font-family: 'Roboto Flex', system-ui, sans-serif;
+  transition: background 0.15s, transform 0.15s cubic-bezier(0.35, 1.5, 0.65, 1),
+              box-shadow 0.15s;
 }
 .settings-theme-btn:hover {
-  background: var(--settings-btn-hover-bg, #e0e0e0);
+  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
+  transform: scale(1.03);
 }
 .settings-theme-btn.active {
   background: var(--settings-btn-active-bg, #333);
   color: var(--settings-btn-active-color, #fff);
-  border-color: var(--settings-btn-active-border, #333);
+  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
 }
 
 
@@ -163,12 +161,13 @@ const SETTINGS_CSS = `
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--settings-text-color, #333);
+  font-family: 'Roboto Flex', system-ui, sans-serif;
 }
 
 .settings-fontsize-val {
-  font-size: 12px;
+  font-size: 14px;
   min-width: 32px;
   color: var(--settings-text-color, #333);
 }
@@ -180,11 +179,9 @@ const SETTINGS_CSS = `
 }
 
 .settings-color-label {
-  font-size: 11px;
-  letter-spacing: 0.5px;
+  font-size: 13px;
   color: var(--settings-label-color, #666);
   margin-bottom: 6px;
-  text-transform: uppercase;
 }
 `;
 
@@ -215,11 +212,11 @@ function createSettingsFormHTML() {
     <div class="settings-columns">
       <div class="settings-column">
         <div class="settings-section">
-          <div class="settings-label">DISPLAY MODE</div>
+          <div class="settings-label">Display mode</div>
           <div class="settings-row">
-            <button class="settings-theme-btn" id="set-theme-dark" type="button">DARK</button>
-            <button class="settings-theme-btn active" id="set-theme-light" type="button">LIGHT</button>
-            <button class="settings-theme-btn" id="set-theme-system" type="button">SYSTEM</button>
+            <button class="settings-theme-btn" id="set-theme-dark" type="button">Dark</button>
+            <button class="settings-theme-btn active" id="set-theme-light" type="button">Light</button>
+            <button class="settings-theme-btn" id="set-theme-system" type="button">System</button>
           </div>
           <label class="settings-toggle-label" style="margin-top:8px;">
             <input type="checkbox" id="set-mute-map-colors">
@@ -228,13 +225,13 @@ function createSettingsFormHTML() {
         </div>
 
         <div class="settings-section" id="color-section">
-          <div class="settings-label">UI COLOR</div>
-          <div class="settings-color-label">Dark Mode</div>
+          <div class="settings-label">UI color</div>
+          <div class="settings-color-label">Dark mode</div>
           <div class="settings-row settings-color-row" style="margin-bottom:12px;">
               ${darkSwatchesHTML}
               <input type="color" id="set-custom-color" value="#00cc44" title="Custom color">
           </div>
-          <div class="settings-color-label">Light Mode</div>
+          <div class="settings-color-label">Light mode</div>
           <div class="settings-row settings-color-row">
               ${lightSwatchesHTML}
               <input type="color" id="set-light-custom-color" value="#1a1a1a" title="Custom color">
@@ -242,7 +239,7 @@ function createSettingsFormHTML() {
         </div>
 
         <div class="settings-section" style="border-bottom:none;">
-          <div class="settings-label">ROTATION SPEED</div>
+          <div class="settings-label">Rotation speed</div>
           <div class="settings-row">
             <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
             <span class="settings-fontsize-val" id="set-rotation-speed-val">3 &deg;/s</span>
@@ -252,7 +249,7 @@ function createSettingsFormHTML() {
 
       <div class="settings-column">
         <div class="settings-section">
-          <div class="settings-label">AIRCRAFT DISPLAY</div>
+          <div class="settings-label">Aircraft display</div>
           <div class="settings-row" style="margin-bottom:8px;">
             <span class="settings-toggle-label" style="cursor:default;">Font size</span>
             <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
@@ -261,9 +258,9 @@ function createSettingsFormHTML() {
           <div class="settings-row" style="margin-bottom:8px;">
             <span class="settings-toggle-label" style="cursor:default;">Trails</span>
             <div style="display:flex;gap:4px;">
-              <button class="settings-theme-btn" id="set-trail-none" type="button">NONE</button>
-              <button class="settings-theme-btn" id="set-trail-history" type="button">HISTORY</button>
-              <button class="settings-theme-btn" id="set-trail-velocity" type="button">VELOCITY</button>
+              <button class="settings-theme-btn" id="set-trail-none" type="button">None</button>
+              <button class="settings-theme-btn" id="set-trail-history" type="button">History</button>
+              <button class="settings-theme-btn" id="set-trail-velocity" type="button">Velocity</button>
             </div>
           </div>
           <div class="settings-row" id="trail-length-row">
@@ -282,7 +279,7 @@ function createSettingsFormHTML() {
         </div>
 
         <div class="settings-section" style="border-bottom:none;">
-          <div class="settings-label">AVIATION DATA</div>
+          <div class="settings-label">Aviation data</div>
           <div class="settings-row settings-grid-2col">
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-airports">
@@ -319,18 +316,18 @@ function createSettingsFormHTML() {
 
     <div class="settings-section" style="border-bottom:none;">
       <div class="settings-cred-section" id="cred-drop-zone">
-        <div class="settings-label">OPENSKY NETWORK CREDENTIALS</div>
+        <div class="settings-label">OpenSky Network credentials</div>
         <div class="settings-hint">
           OAuth2 Client ID &amp; Secret from your OpenSky account. Leave blank for anonymous access (lower rate limits).
           You can also drag &amp; drop a credentials JSON file here.
         </div>
         <div class="settings-row" style="margin-bottom:6px">
-          <span class="settings-field-label">CLIENT ID</span>
+          <span class="settings-field-label">Client ID</span>
           <input type="text" id="set-client-id" class="settings-cred-input"
                  placeholder="client_id" spellcheck="false" autocomplete="off">
         </div>
         <div class="settings-row">
-          <span class="settings-field-label">SECRET</span>
+          <span class="settings-field-label">Secret</span>
           <input type="text" id="set-client-secret" class="settings-cred-input"
                  placeholder="client_secret" autocomplete="off">
         </div>

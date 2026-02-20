@@ -1,16 +1,25 @@
-/* Settings window — native OS styling with dark/light mode */
+/* Settings window — M3 Expressive styling with dark/light mode */
+
+/* Roboto Flex — variable font, bundled locally */
+@font-face {
+  font-family: 'Roboto Flex';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url('../shared/fonts/roboto-flex.woff2') format('woff2');
+}
 
 /* ============================================================
    Light mode (default)
    ============================================================ */
 
 :root {
-  --settings-border: #ccc;
+  --settings-border: #ddd;
   --settings-label-color: #666;
   --settings-text-color: #333;
   --settings-input-bg: #fff;
   --settings-input-color: #000;
-  --settings-btn-bg: #f0f0f0;
+  --settings-btn-bg: #dcdcdc;
   --settings-btn-color: #333;
   --settings-btn-hover-bg: #e0e0e0;
   --settings-btn-active-bg: #333;
@@ -21,8 +30,8 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 13px;
+  font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
   margin: 0;
   padding: 12px 16px;
   user-select: none;
@@ -33,22 +42,27 @@ body {
 .actions {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 10px;
   padding: 0 4px;
 }
 
 .actions button {
-  padding: 5px 16px;
-  font-size: 13px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Roboto Flex', system-ui, sans-serif;
   cursor: pointer;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #fff;
-  color: #333;
+  border: none;
+  border-radius: 9999px;
+  background: var(--settings-btn-bg, #ebebeb);
+  color: var(--settings-btn-color, #333);
+  transition: background 0.15s, transform 0.15s cubic-bezier(0.35, 1.5, 0.65, 1),
+              box-shadow 0.15s;
 }
 
 .actions button:hover {
-  background: #e8e8e8;
+  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
+  transform: scale(1.03);
 }
 
 /* Range slider styling */
@@ -87,13 +101,8 @@ input[type="range"] {
   }
 
   .actions button {
-    background: #3a3a3a;
-    color: #e0e0e0;
-    border-color: #555;
-  }
-
-  .actions button:hover {
-    background: #4a4a4a;
+    background: var(--settings-btn-bg);
+    color: var(--settings-btn-color);
   }
 
 }

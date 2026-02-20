@@ -1,4 +1,13 @@
-/* Help window — native OS styling with dark/light mode */
+/* Help window — M3 Expressive styling with dark/light mode */
+
+/* Roboto Flex — variable font, bundled locally */
+@font-face {
+  font-family: 'Roboto Flex';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url('../shared/fonts/roboto-flex.woff2') format('woff2');
+}
 
 /* ============================================================
    Light mode (default)
@@ -9,8 +18,8 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 13px;
+  font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
   line-height: 1.5;
   margin: 0;
   padding: 16px 24px 24px;
@@ -20,28 +29,28 @@ body {
 }
 
 h1 {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 23px;
+  font-weight: 500;
   margin: 0 0 4px;
 }
 
 .version {
-  font-size: 12px;
+  font-size: 13px;
   color: #888;
   margin: 0 0 16px;
 }
 
 h2 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 500;
   margin: 20px 0 8px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #ddd;
 }
 
 h3 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   margin: 14px 0 4px;
 }
 
@@ -61,46 +70,45 @@ li {
 kbd {
   display: inline-block;
   padding: 1px 5px;
-  font-family: Consolas, monospace;
-  font-size: 12px;
+  font-family: 'Roboto Mono', Consolas, monospace;
+  font-size: 13px;
   background: #e0e0e0;
   border: 1px solid #bbb;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
   margin: 8px 0;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 th, td {
   text-align: left;
-  padding: 4px 8px;
+  padding: 6px 8px;
   border-bottom: 1px solid #ddd;
 }
 
 th {
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 500;
+  font-size: 13px;
   color: #666;
-  text-transform: uppercase;
 }
 
 code {
-  font-family: Consolas, monospace;
-  font-size: 12px;
+  font-family: 'Roboto Mono', Consolas, monospace;
+  font-size: 13px;
   background: #e8e8e8;
   padding: 1px 4px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .color-swatch {
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 3px;
   vertical-align: middle;
   margin-right: 4px;
 }
