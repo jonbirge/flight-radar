@@ -38,7 +38,7 @@ let _zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom
 const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
 const RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
 let _renderGeneration = 0;       // incremented to cancel stale chunked renders
-let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft
+let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft/PIREPs
 let radarLayer = null;
 let radarRefreshTimer = null;
 let turbLayer = null;
@@ -571,6 +571,8 @@ async function fetchPireps() {
           const icon = createPirepIcon(intensity, cssColor);
 
           const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 25) + 'Z' : '?';
+          const camH = viewer.camera.positionCartographic ? viewer.camera.positionCartographic.height : 1e7;
+          const pirepDisplayCond = acDisplayCond || new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camH));
           const entity = viewer.entities.add({
             id: `turb-pirep-${pirepCount}`,
             position: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
@@ -579,6 +581,7 @@ async function fetchPireps() {
               width: 36,
               height: 36,
               scaleByDistance: new Cesium.NearFarScalar(1e5, 1.0, 6e6, 0.3),
+              distanceDisplayCondition: pirepDisplayCond,
             },
             properties: {
               turbType: 'PIREP',
@@ -2013,6 +2016,11 @@ function resizeAircraftIcons() {
       if (ac.entity.label) {
         ac.entity.label.show = (icao === selectedIcao) || showLabels;
         ac.entity.label.distanceDisplayCondition = acDisplayCond;
+      }
+    }
+    for (const entity of pirepEntities) {
+      if (entity.billboard) {
+        entity.billboard.distanceDisplayCondition = acDisplayCond;
       }
     }
   } finally {
