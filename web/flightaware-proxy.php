@@ -32,7 +32,7 @@ if (empty($apiKey)) {
 
 $endpoint = $_GET['endpoint'] ?? '';
 // Allowed endpoints (whitelist for security)
-$ALLOWED_ENDPOINTS = ['flights', 'flights/search'];
+$ALLOWED_ENDPOINTS = ['flights', 'flights/search', 'flights/route', 'flights/track'];
 if (!in_array($endpoint, $ALLOWED_ENDPOINTS, true)) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid or missing endpoint parameter']);
@@ -57,6 +57,29 @@ if ($endpoint === 'flights') {
     $flightId = preg_replace('/[^a-zA-Z0-9]/', '', $flightId);
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/flights/$flightId" . ($query ? "?$query" : '');
+} else if ($endpoint === 'flights/route') {
+    $faFlightId = $params['fa_flight_id'] ?? '';
+    unset($params['fa_flight_id']);
+    if (empty($faFlightId)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing fa_flight_id parameter']);
+        exit;
+    }
+    $faFlightId = preg_replace('/[^a-zA-Z0-9\-_]/', '', $faFlightId);
+    $query = http_build_query($params);
+    $upstreamUrl = "$AEROAPI_BASE/flights/$faFlightId/route" . ($query ? "?$query" : '');
+} else if ($endpoint === 'flights/track') {
+    $faFlightId = $params['fa_flight_id'] ?? '';
+    unset($params['fa_flight_id']);
+    if (empty($faFlightId)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing fa_flight_id parameter']);
+        exit;
+    }
+    // Sanitize: fa_flight_id contains alphanumeric, hyphens, underscores
+    $faFlightId = preg_replace('/[^a-zA-Z0-9\-_]/', '', $faFlightId);
+    $query = http_build_query($params);
+    $upstreamUrl = "$AEROAPI_BASE/flights/$faFlightId/track" . ($query ? "?$query" : '');
 } else {
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/$endpoint" . ($query ? "?$query" : '');

@@ -261,6 +261,45 @@ ipcMain.handle('get-flight-plan', async (event, ident) => {
   }
 });
 
+// IPC handler: get decoded filed route with waypoint coordinates from FlightAware
+ipcMain.handle('get-flight-route', async (event, faFlightId) => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) {
+    return { error: 'FlightAware API key not configured' };
+  }
+
+  try {
+    const safeId = faFlightId.replace(/[^a-zA-Z0-9\-_]/g, '');
+    const url = `${FA_AEROAPI_BASE}/flights/${safeId}/route`;
+    const data = await httpGetFA(url, apiKey);
+    return data;
+  } catch (err) {
+    console.error(`[FlightAware] Route error for ${faFlightId}:`, err.message);
+    return { error: err.message };
+  }
+});
+
+// IPC handler: get actual flown track from FlightAware
+ipcMain.handle('get-flight-track', async (event, faFlightId) => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) {
+    return { error: 'FlightAware API key not configured' };
+  }
+
+  try {
+    // fa_flight_id contains alphanumeric, hyphens, and underscores
+    const safeId = faFlightId.replace(/[^a-zA-Z0-9\-_]/g, '');
+    const url = `${FA_AEROAPI_BASE}/flights/${safeId}/track`;
+    const data = await httpGetFA(url, apiKey);
+    return data;
+  } catch (err) {
+    console.error(`[FlightAware] Track error for ${faFlightId}:`, err.message);
+    return { error: err.message };
+  }
+});
+
 // --- Help Window ---
 let helpWindow = null;
 

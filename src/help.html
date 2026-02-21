@@ -77,19 +77,33 @@
     Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) in the
     search box at the bottom of the controls panel and press <strong>Search</strong> or
     <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s AeroAPI for current and upcoming flights
-    matching that identifier, then displays the planned route on the map with a dashed line
-    from origin to destination.
+    matching that identifier, then displays the planned route and flight status on the map.
   </p>
   <ul>
+    <li><strong>Filed route</strong> — Dashed line from origin to destination through decoded
+      waypoints fetched from FlightAware&rsquo;s route API with actual coordinates.</li>
     <li><strong>Origin</strong> — Green dot with airport code label.</li>
     <li><strong>Destination</strong> — Red dot with airport code label.</li>
-    <li><strong>Waypoints</strong> — Blue dots along the filed route (when waypoint data is available).</li>
-    <li><strong>Current position</strong> — Yellow dot if the flight is currently airborne.</li>
+    <li><strong>Waypoints</strong> — Blue dots along the filed route with fix names.</li>
+    <li><strong>Flown track</strong> — Solid orange line showing the actual path flown so far
+      (only for airborne flights).</li>
+    <li><strong>Live aircraft</strong> — If the flight is airborne and in the ADS-B feed, the
+      live aircraft is automatically selected and highlighted. If the flight is outside
+      ADS-B coverage, a synthetic aircraft entity is created from FlightAware position
+      data with the same velocity extrapolation, icon, and trail behavior as all other
+      aircraft.</li>
   </ul>
   <p>
     The info panel shows flight details including route, aircraft type, status, progress,
     altitude, ground speed, and scheduled departure/arrival times.
     Click <strong>Clear</strong> to remove the route from the map.
+  </p>
+  <p>
+    <strong>Selected aircraft always stay live:</strong> Any selected aircraft &mdash; whether found
+    via search or clicked on the map &mdash; receives the same treatment. FlightAware route
+    data (filed route, flown track) is automatically fetched and displayed. The aircraft
+    remains visible with live position extrapolation regardless of other visibility settings,
+    including when the Aircraft toggle is off.
   </p>
   <p>
     <strong>Note:</strong> Flight plan search requires a FlightAware AeroAPI key. In the web
