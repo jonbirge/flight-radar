@@ -17,7 +17,7 @@
   --md-primary-container: rgba(0, 204, 68, 0.15);
   --md-on-primary-container: #00cc44;
   --md-surface: #0a0a0a;
-  --md-surface-container: rgba(0, 10, 2, 0.85);
+  --md-surface-container: rgba(0, 10, 2, 0.78);
   --md-surface-container-highest: rgba(0, 204, 68, 0.15);
   --md-on-surface: #e0e0e0;
   --md-on-surface-variant: rgba(255, 255, 255, 0.6);
@@ -305,7 +305,11 @@ select:focus {
 
 .scope-btn.active {
   background: var(--md-primary);
-  color: var(--md-on-primary);
+  color: #000000;
+}
+
+.theme-light .scope-btn.active {
+  color: #ffffff;
 }
 
 .scope-btn:disabled {

@@ -877,7 +877,7 @@ async function applyTheme() {
     root.style.setProperty('--md-primary-container', withAlpha(CONFIG.darkColor, 0.15));
     root.style.setProperty('--md-on-primary-container', CONFIG.phosphor);
     root.style.setProperty('--md-surface', '#121212');
-    root.style.setProperty('--md-surface-container', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.85)`);
+    root.style.setProperty('--md-surface-container', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.78)`);
     root.style.setProperty('--md-surface-container-highest', withAlpha(CONFIG.darkColor, 0.15));
     root.style.setProperty('--md-on-surface', CONFIG.phosphorBright);
     root.style.setProperty('--md-on-surface-variant', CONFIG.phosphorDim);
@@ -885,12 +885,15 @@ async function applyTheme() {
     root.style.setProperty('--md-outline', withAlpha(CONFIG.darkColor, 0.3));
     root.style.setProperty('--md-outline-variant', withAlpha(CONFIG.darkColor, 0.12));
   } else {
+    // Compute on-primary based on luminance: black text on light primary, white on dark
+    const [lr, lg, lb] = hexToRgb(CONFIG.lightColor);
+    const lum = (0.299 * lr + 0.587 * lg + 0.114 * lb) / 255;
     root.style.setProperty('--md-primary', CONFIG.phosphor);
-    root.style.setProperty('--md-on-primary', '#ffffff');
+    root.style.setProperty('--md-on-primary', lum > 0.5 ? '#000000' : '#ffffff');
     root.style.setProperty('--md-primary-container', withAlpha(CONFIG.lightColor, 0.18));
     root.style.setProperty('--md-on-primary-container', CONFIG.phosphor);
     root.style.setProperty('--md-surface', '#f7f7f7');
-    root.style.setProperty('--md-surface-container', 'rgba(240, 240, 240, 0.92)');
+    root.style.setProperty('--md-surface-container', 'rgba(240, 240, 240, 0.85)');
     root.style.setProperty('--md-surface-container-highest', withAlpha(CONFIG.lightColor, 0.08));
     root.style.setProperty('--md-on-surface', CONFIG.phosphorBright);
     root.style.setProperty('--md-on-surface-variant', CONFIG.phosphorDim);
