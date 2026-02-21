@@ -2802,7 +2802,7 @@ function displayFlightPlanRoute(flightData) {
   const flights = flightData.flights || [];
   if (flights.length === 0) return;
 
-  // Prefer a flight that is currently in the air
+  // Prefer a flight that is currently in the air (progress between 0% and 100%)
   let flight = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
   if (!flight) flight = flights[0]; // fallback to most recent
 
@@ -2966,7 +2966,7 @@ function showFlightPlanInfo(flight) {
   const status = flight.status || '---';
   const progress = flight.progress_percent != null ? flight.progress_percent + '%' : '---';
   const alt = flight.last_position && flight.last_position.altitude != null
-    ? (flight.last_position.altitude * 100).toLocaleString() + ' ft'
+    ? (flight.last_position.altitude * 100).toLocaleString() + ' ft'  // AeroAPI altitude is in hundreds of feet
     : '---';
   const gs = flight.last_position && flight.last_position.groundspeed != null
     ? flight.last_position.groundspeed + ' kts'
