@@ -26,7 +26,7 @@
 }
 
 #settings-panel {
-  background: var(--md-surface-container);
+  background: var(--md-surface-container-solid);
   border-radius: var(--md-shape-xl, 28px);
   width: 680px;
   font-size: 14px;
