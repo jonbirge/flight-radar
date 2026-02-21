@@ -16,16 +16,14 @@ initSettingsPanel({
   onChanged: (form) => {
     window.settingsAPI.updateSettings({ ...originalSettings, ...form });
   },
-});
-
-document.getElementById('btn-done').addEventListener('click', () => {
-  window.settingsAPI.close();
-});
-
-document.getElementById('btn-defaults').addEventListener('click', async () => {
-  const result = await window.settingsAPI.resetSettings();
-  if (result.reset) {
-    originalSettings = {};
-    populateSettingsForm(container, DEFAULT_SETTINGS);
-  }
+  onClose: () => {
+    window.settingsAPI.close();
+  },
+  onDefaults: async () => {
+    const result = await window.settingsAPI.resetSettings();
+    if (result.reset) {
+      originalSettings = {};
+      populateSettingsForm(container, DEFAULT_SETTINGS);
+    }
+  },
 });

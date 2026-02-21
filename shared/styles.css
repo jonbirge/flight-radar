@@ -281,31 +281,31 @@ select:focus {
 }
 
 .scope-btn {
-  background: var(--md-primary-container);
+  background: transparent;
   border: none;
   border-radius: var(--md-shape-full);
-  color: var(--md-on-primary-container);
+  color: var(--md-on-surface);
   padding: 0 16px;
   min-height: 40px;
   font-family: 'Roboto Flex', sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   transition: background var(--md-motion-duration-short) var(--md-motion-easing-standard),
-              transform var(--md-motion-duration-short) var(--md-motion-easing-spring),
-              box-shadow var(--md-motion-duration-short) var(--md-motion-easing-standard);
+              color var(--md-motion-duration-short) var(--md-motion-easing-standard);
 }
 
 .scope-btn:hover {
-  background: var(--md-primary-container);
-  box-shadow: var(--md-elevation-1);
-  transform: scale(1.03);
+  background: var(--md-surface-container-highest);
+}
+
+.scope-btn:active {
+  background: var(--md-outline-variant);
 }
 
 .scope-btn.active {
   background: var(--md-primary);
   color: var(--md-on-primary);
-  box-shadow: var(--md-elevation-1);
 }
 
 .scope-btn:disabled {

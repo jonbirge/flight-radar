@@ -202,6 +202,13 @@ const settingsPanel = initSettingsPanel({
     saveSettings({ ...existing, ...form });
     await loadAndApplySettings();
   },
+  onClose: () => closeSettings(),
+  onDefaults: () => {
+    if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+      localStorage.removeItem(SETTINGS_STORAGE_KEY);
+      location.reload();
+    }
+  },
 });
 
 async function openSettings() {
@@ -215,12 +222,6 @@ function closeSettings() {
 }
 
 document.getElementById('settings-close').addEventListener('click', closeSettings);
-document.getElementById('btn-defaults').addEventListener('click', () => {
-  if (confirm('Reset all settings to defaults? This cannot be undone.')) {
-    localStorage.removeItem(SETTINGS_STORAGE_KEY);
-    location.reload();
-  }
-});
 settingsOverlay.addEventListener('click', (e) => {
   if (e.target === settingsOverlay) closeSettings();
 });
