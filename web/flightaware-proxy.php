@@ -1,6 +1,6 @@
 <?php
 // flightaware-proxy.php - Server-side proxy for FlightAware AeroAPI
-// Reads API key from creds.json, proxies requests to FlightAware,
+// Reads API key from creds.json (shared credentials file), proxies requests to FlightAware,
 // and caches responses to reduce API usage.
 
 ini_set('display_errors', '0');

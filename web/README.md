@@ -19,31 +19,40 @@ Standalone browser version of Flight Radar. No Electron required — runs entire
 
 3. Open `http://localhost:8080/web/`
 
-## OpenSky Credentials
+## Server Credentials (`creds.json`)
 
-The web version supports three ways to authenticate with the OpenSky Network API, checked in this order:
+Both OpenSky and FlightAware API credentials are stored in a single `web/creds.json` file. Copy the example to get started:
 
-### 1. User-entered credentials (via Settings UI)
+```bash
+cp web/creds.json.example web/creds.json
+```
 
-Users can enter their own OAuth2 Client ID and Secret in the Settings panel. These are saved to `localStorage` and always take priority.
-
-### 2. Server-side `cred.json` (fallback for deployments)
-
-If no user credentials are set, the app checks for a `cred.json` file in the `web/` directory alongside `index.html`:
+Then edit `web/creds.json` with your credentials:
 
 ```json
 {
-  "openskyClientId": "your_client_id",
-  "openskyClientSecret": "your_client_secret"
+  "client_id": "your_opensky_client_id",
+  "client_secret": "your_opensky_client_secret",
+  "flightaware_api_key": "your_flightaware_aeroapi_key"
 }
 ```
 
-This provides default credentials for all visitors without requiring them to configure their own. It is loaded automatically at startup.
+All fields are optional — include only the APIs you have credentials for.
 
-**Important:** If your web server is public, make sure `cred.json` is not cached by CDNs or indexed by search engines. Consider restricting access via server config if needed.
+**Important:** `creds.json` is git-ignored. If your web server is public, make sure it is not cached by CDNs or indexed by search engines.
 
-### 3. Anonymous access (default)
+### OpenSky Network
 
-If no credentials are available, the app falls back to anonymous OpenSky API access, which has lower rate limits.
+The web version supports three ways to authenticate with the OpenSky Network API, checked in this order:
+
+1. **User-entered credentials (via Settings UI)** — Users can enter their own OAuth2 Client ID and Secret in the Settings panel. These are saved to `localStorage` and always take priority.
+2. **Server-side `creds.json`** — If no user credentials are set, `cred.php` falls back to `client_id` and `client_secret` from `creds.json`.
+3. **Anonymous access** — If no credentials are available, the app uses anonymous OpenSky API access with lower rate limits.
 
 To get OAuth2 credentials, create a free account at https://opensky-network.org and generate client credentials from your account settings.
+
+### FlightAware AeroAPI
+
+Flight plan search requires a FlightAware AeroAPI key. The `flightaware-proxy.php` reads the `flightaware_api_key` from `creds.json`.
+
+To get an API key, sign up at https://www.flightaware.com/aeroapi/.

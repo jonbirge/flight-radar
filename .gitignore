@@ -3,7 +3,6 @@ vendor/
 shared/fonts/
 out/
 assets/*.png
-cred.json
 web/creds.json
 web/cache/
 *.snap
