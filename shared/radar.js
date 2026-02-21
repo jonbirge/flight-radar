@@ -49,6 +49,8 @@ let airmetRefreshTimer = null;
 const pirepEntities = [];
 const sigmetEntities = [];
 const airmetEntities = [];
+const flightPlanEntities = [];  // Cesium entities for flight plan route
+let activeFlightPlan = null;     // current flight plan data
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -2774,6 +2776,283 @@ function hideAircraftInfo() {
 }
 
 document.getElementById('info-close').addEventListener('click', hideAircraftInfo);
+
+// ============================================================
+// Flight Plan Search & Route Display
+// ============================================================
+
+function clearFlightPlanRoute() {
+  viewer.entities.suspendEvents();
+  try {
+    for (const e of flightPlanEntities) viewer.entities.remove(e);
+  } finally {
+    viewer.entities.resumeEvents();
+  }
+  flightPlanEntities.length = 0;
+  activeFlightPlan = null;
+  const clearBtn = document.getElementById('btn-clear-route');
+  if (clearBtn) clearBtn.classList.add('hidden');
+}
+
+function displayFlightPlanRoute(flightData) {
+  clearFlightPlanRoute();
+  activeFlightPlan = flightData;
+
+  // Find the best flight from the response (prefer en-route, then most recent)
+  const flights = flightData.flights || [];
+  if (flights.length === 0) return;
+
+  // Prefer a flight that is currently in the air
+  let flight = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
+  if (!flight) flight = flights[0]; // fallback to most recent
+
+  const routeColor = CONFIG.theme === 'light'
+    ? Cesium.Color.fromCssColorString('#1565C0').withAlpha(0.8)
+    : Cesium.Color.fromCssColorString('#42A5F5').withAlpha(0.8);
+  const waypointColor = CONFIG.theme === 'light'
+    ? Cesium.Color.fromCssColorString('#1565C0')
+    : Cesium.Color.fromCssColorString('#64B5F6');
+
+  viewer.entities.suspendEvents();
+  try {
+    // Draw origin and destination markers
+    const origin = flight.origin;
+    const dest = flight.destination;
+
+    if (origin && origin.longitude != null && origin.latitude != null &&
+        dest && dest.longitude != null && dest.latitude != null) {
+      // Draw route line from origin to destination
+      const positions = [
+        Cesium.Cartesian3.fromDegrees(origin.longitude, origin.latitude),
+        Cesium.Cartesian3.fromDegrees(dest.longitude, dest.latitude),
+      ];
+
+      // If there's a filed route with waypoints, try to parse it
+      const routeWaypoints = [];
+      if (flight.route) {
+        // Route is a string like "KORD..BRWNS..J64..ENE..KEWR"
+        // We'll display it as text; actual lat/lon waypoints would require
+        // a waypoint database lookup which we do below
+        const wpNames = flight.route.split('.').filter(w => w.length > 0);
+        // Look up waypoints in our cached data
+        if (cachedWaypointData && cachedWaypointData.length > 0) {
+          for (const wpName of wpNames) {
+            const wp = cachedWaypointData.find(w => w.id === wpName || w.name === wpName);
+            if (wp && wp.lon != null && wp.lat != null) {
+              routeWaypoints.push({ name: wpName, lon: wp.lon, lat: wp.lat });
+            }
+          }
+        }
+      }
+
+      // Build route polyline positions
+      const routePositions = [Cesium.Cartesian3.fromDegrees(origin.longitude, origin.latitude)];
+      for (const wp of routeWaypoints) {
+        routePositions.push(Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat));
+      }
+      routePositions.push(Cesium.Cartesian3.fromDegrees(dest.longitude, dest.latitude));
+
+      // Route polyline
+      flightPlanEntities.push(viewer.entities.add({
+        polyline: {
+          positions: routePositions,
+          width: 3,
+          material: new Cesium.PolylineDashMaterialProperty({
+            color: routeColor,
+            dashLength: 16,
+          }),
+          clampToGround: true,
+        },
+      }));
+
+      // Origin marker
+      const originLabel = origin.code_iata || origin.code_icao || origin.code || 'DEP';
+      flightPlanEntities.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(origin.longitude, origin.latitude),
+        point: { pixelSize: 10, color: Cesium.Color.LIME, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        label: {
+          text: originLabel,
+          font: 'bold 13px Roboto Flex, sans-serif',
+          fillColor: waypointColor,
+          outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -8),
+        },
+      }));
+
+      // Destination marker
+      const destLabel = dest.code_iata || dest.code_icao || dest.code || 'ARR';
+      flightPlanEntities.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(dest.longitude, dest.latitude),
+        point: { pixelSize: 10, color: Cesium.Color.RED, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        label: {
+          text: destLabel,
+          font: 'bold 13px Roboto Flex, sans-serif',
+          fillColor: waypointColor,
+          outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -8),
+        },
+      }));
+
+      // Waypoint markers along the route
+      for (const wp of routeWaypoints) {
+        flightPlanEntities.push(viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat),
+          point: { pixelSize: 6, color: waypointColor, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+          label: {
+            text: wp.name,
+            font: '11px Roboto Flex, sans-serif',
+            fillColor: waypointColor,
+            outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -6),
+            scale: 0.9,
+          },
+        }));
+      }
+
+      // If flight has last_position (in the air), show current position marker
+      if (flight.last_position && flight.last_position.longitude != null && flight.last_position.latitude != null) {
+        const lp = flight.last_position;
+        flightPlanEntities.push(viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(lp.longitude, lp.latitude),
+          point: { pixelSize: 12, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 },
+          label: {
+            text: flight.ident || '',
+            font: 'bold 14px Roboto Flex, sans-serif',
+            fillColor: Cesium.Color.YELLOW,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -10),
+          },
+        }));
+      }
+
+      // Fly to the route overview
+      viewer.flyTo(flightPlanEntities, { duration: 1.5 });
+    }
+  } finally {
+    viewer.entities.resumeEvents();
+  }
+
+  // Show the route details in the info panel
+  showFlightPlanInfo(flight);
+
+  const clearBtn = document.getElementById('btn-clear-route');
+  if (clearBtn) clearBtn.classList.remove('hidden');
+}
+
+function showFlightPlanInfo(flight) {
+  const panel = document.getElementById('aircraft-info');
+  panel.classList.remove('hidden');
+
+  const ident = flight.ident || flight.ident_iata || '---';
+  document.getElementById('info-callsign').textContent = ident;
+
+  const origin = flight.origin;
+  const dest = flight.destination;
+  const originCode = origin ? (origin.code_iata || origin.code_icao || '??') : '??';
+  const destCode = dest ? (dest.code_iata || dest.code_icao || '??') : '??';
+  const acType = flight.aircraft_type || '---';
+  const status = flight.status || '---';
+  const progress = flight.progress_percent != null ? flight.progress_percent + '%' : '---';
+  const alt = flight.last_position && flight.last_position.altitude != null
+    ? (flight.last_position.altitude * 100).toLocaleString() + ' ft'
+    : '---';
+  const gs = flight.last_position && flight.last_position.groundspeed != null
+    ? flight.last_position.groundspeed + ' kts'
+    : '---';
+  const route = flight.route || '---';
+  const depTime = flight.scheduled_out || flight.actual_out || '---';
+  const arrTime = flight.scheduled_in || flight.estimated_in || '---';
+
+  document.getElementById('info-details').innerHTML = `
+    <div><span class="label">ROUTE</span><span>${originCode} → ${destCode}</span></div>
+    <div><span class="label">ACFT TYPE</span><span>${acType}</span></div>
+    <div><span class="label">STATUS</span><span>${status}</span></div>
+    <div><span class="label">PROGRESS</span><span>${progress}</span></div>
+    <div><span class="label">ALT</span><span>${alt}</span></div>
+    <div><span class="label">GND SPD</span><span>${gs}</span></div>
+    <div><span class="label">DEPART</span><span>${depTime}</span></div>
+    <div><span class="label">ARRIVE</span><span>${arrTime}</span></div>
+    <div><span class="label">FILED</span><span style="font-size:11px;word-break:break-all">${route}</span></div>
+  `;
+}
+
+async function searchFlightPlan(ident) {
+  if (!ident || ident.trim().length === 0) return;
+
+  const searchInput = document.getElementById('flight-search');
+  const searchBtn = document.getElementById('btn-flight-search');
+  if (searchBtn) searchBtn.disabled = true;
+  if (searchInput) searchInput.disabled = true;
+
+  try {
+    if (!window.flightAPI.getFlightPlan) {
+      console.warn('[FlightPlan] getFlightPlan not available on this platform');
+      return;
+    }
+
+    const data = await window.flightAPI.getFlightPlan(ident.trim());
+    if (data.error) {
+      console.warn(`[FlightPlan] Error: ${data.error}`);
+      alert(`Flight search failed: ${data.error}`);
+      return;
+    }
+
+    if (!data.flights || data.flights.length === 0) {
+      alert(`No flights found for "${ident.trim()}"`);
+      return;
+    }
+
+    console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
+    displayFlightPlanRoute(data);
+  } catch (err) {
+    console.error('[FlightPlan] Search error:', err);
+    alert('Flight search failed. Check console for details.');
+  } finally {
+    if (searchBtn) searchBtn.disabled = false;
+    if (searchInput) searchInput.disabled = false;
+  }
+}
+
+// Wire up flight search UI
+const flightSearchInput = document.getElementById('flight-search');
+const flightSearchBtn = document.getElementById('btn-flight-search');
+const clearRouteBtn = document.getElementById('btn-clear-route');
+
+if (flightSearchBtn) {
+  flightSearchBtn.addEventListener('click', () => {
+    const val = flightSearchInput ? flightSearchInput.value : '';
+    searchFlightPlan(val);
+  });
+}
+
+if (flightSearchInput) {
+  flightSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchFlightPlan(flightSearchInput.value);
+    }
+  });
+}
+
+if (clearRouteBtn) {
+  clearRouteBtn.addEventListener('click', () => {
+    clearFlightPlanRoute();
+    if (flightSearchInput) flightSearchInput.value = '';
+    hideAircraftInfo();
+  });
+}
 
 // ============================================================
 // Shared Init Helpers

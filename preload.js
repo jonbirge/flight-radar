@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch granular track/trajectory for a specific aircraft
   getTrack: (icao24) => ipcRenderer.invoke('get-track', icao24),
 
+  // Fetch flight plan from FlightAware AeroAPI
+  getFlightPlan: (ident) => ipcRenderer.invoke('get-flight-plan', ident),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),

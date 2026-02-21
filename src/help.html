@@ -72,6 +72,31 @@
     <li><strong>Settings</strong> — Open the settings window.</li>
   </ul>
 
+  <h3>Flight Search</h3>
+  <p>
+    Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) in the
+    search box at the bottom of the controls panel and press <strong>Search</strong> or
+    <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s AeroAPI for current and upcoming flights
+    matching that identifier, then displays the planned route on the map with a dashed line
+    from origin to destination.
+  </p>
+  <ul>
+    <li><strong>Origin</strong> — Green dot with airport code label.</li>
+    <li><strong>Destination</strong> — Red dot with airport code label.</li>
+    <li><strong>Waypoints</strong> — Blue dots along the filed route (when waypoint data is available).</li>
+    <li><strong>Current position</strong> — Yellow dot if the flight is currently airborne.</li>
+  </ul>
+  <p>
+    The info panel shows flight details including route, aircraft type, status, progress,
+    altitude, ground speed, and scheduled departure/arrival times.
+    Click <strong>Clear</strong> to remove the route from the map.
+  </p>
+  <p>
+    <strong>Note:</strong> Flight plan search requires a FlightAware AeroAPI key. In the web
+    version, the key is stored server-side in <code>creds.json</code>. In the Electron version,
+    configure it in Settings under <em>FlightAware API Key</em>.
+  </p>
+
   <h2>Weather &amp; Turbulence</h2>
 
   <h3>NEXRAD Radar</h3>
@@ -245,6 +270,9 @@
     <li><strong>OpenSky Network</strong> — Real-time ADS-B aircraft surveillance data.
       Anonymous access is rate-limited to one request every 10 seconds.
       Register for free API credentials at opensky-network.org for higher limits.</li>
+    <li><strong>FlightAware AeroAPI</strong> — Flight plan data including filed routes,
+      origin/destination airports, aircraft type, and real-time flight status.
+      Requires an API key from flightaware.com.</li>
     <li><strong>FAA Aviation Weather Center (AWC)</strong> — Weather hazard data including
       GTG turbulence forecasts, PIREPs, turbulence and convective SIGMETs, and G-AIRMETs.</li>
     <li><strong>Iowa State Mesonet</strong> — NEXRAD composite radar reflectivity.</li>

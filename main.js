@@ -207,6 +207,60 @@ ipcMain.handle('get-track', async (event, icao24) => {
   }
 });
 
+// --- FlightAware AeroAPI ---
+const FA_AEROAPI_BASE = 'https://aeroapi.flightaware.com/aeroapi';
+
+function httpGetFA(url, apiKey) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const opts = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      timeout: 15000,
+      headers: {
+        'x-apikey': apiKey,
+        'Accept': 'application/json',
+      },
+    };
+    const req = https.get(opts, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error(`JSON parse error: ${e.message}`));
+          }
+        } else {
+          reject(new Error(`HTTP ${res.statusCode}: ${data.substring(0, 200)}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+  });
+}
+
+// IPC handler: get flight plan from FlightAware
+ipcMain.handle('get-flight-plan', async (event, ident) => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) {
+    return { error: 'FlightAware API key not configured' };
+  }
+
+  try {
+    const safeIdent = ident.replace(/[^a-zA-Z0-9]/g, '');
+    const url = `${FA_AEROAPI_BASE}/flights/${safeIdent}`;
+    const data = await httpGetFA(url, apiKey);
+    return data;
+  } catch (err) {
+    console.error(`[FlightAware] Flight plan error for ${ident}:`, err.message);
+    return { error: err.message };
+  }
+});
+
 // --- Help Window ---
 let helpWindow = null;
 

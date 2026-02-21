@@ -374,3 +374,26 @@ select:focus {
 #info-details .label {
   color: var(--md-on-surface-variant);
 }
+
+/* Flight search input */
+#flight-search {
+  background: var(--md-surface-container-highest);
+  border: 1px solid var(--md-outline);
+  border-radius: var(--md-shape-full);
+  color: var(--md-on-surface);
+  padding: 0 14px;
+  min-height: 40px;
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 14px;
+  width: 170px;
+  outline: none;
+  transition: border-color var(--md-motion-duration-short) var(--md-motion-easing-standard);
+}
+
+#flight-search::placeholder {
+  color: var(--md-on-surface-variant);
+}
+
+#flight-search:focus {
+  border-color: var(--md-primary);
+}
