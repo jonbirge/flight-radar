@@ -134,25 +134,25 @@ const SETTINGS_CSS = `
 
 .settings-theme-btn {
   padding: 8px 18px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   border: none;
   border-radius: 9999px;
-  background: var(--settings-btn-bg, #f0f0f0);
-  color: var(--settings-btn-color, #333);
+  background: transparent;
+  color: var(--settings-text-color, #333);
   font-family: 'Roboto Flex', system-ui, sans-serif;
-  transition: background 0.15s, transform 0.15s cubic-bezier(0.35, 1.5, 0.65, 1),
-              box-shadow 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 .settings-theme-btn:hover {
-  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
-  transform: scale(1.03);
+  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.06));
+}
+.settings-theme-btn:active {
+  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.1));
 }
 .settings-theme-btn.active {
   background: var(--settings-btn-active-bg, #333);
   color: var(--settings-btn-active-color, #fff);
-  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
 }
 
 
@@ -182,6 +182,81 @@ const SETTINGS_CSS = `
   font-size: 13px;
   color: var(--settings-label-color, #666);
   margin-bottom: 6px;
+}
+
+/* M3 range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--settings-border, #ccc);
+  border-radius: 9999px;
+  outline: none;
+  flex: 1;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--settings-btn-active-bg, #333);
+  cursor: pointer;
+  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
+  transition: transform 0.15s cubic-bezier(0.35, 1.5, 0.65, 1);
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* M3 checkboxes */
+.settings-toggle-label input[type="checkbox"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--settings-border, #ccc);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.settings-toggle-label input[type="checkbox"]:checked {
+  background: var(--settings-btn-active-bg, #333);
+  border-color: var(--settings-btn-active-bg, #333);
+}
+.settings-toggle-label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--settings-btn-active-color, #fff);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Footer */
+.settings-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--settings-border, #ccc);
+}
+.settings-footer-btn {
+  padding: 8px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: 'Roboto Flex', system-ui, sans-serif;
+  cursor: pointer;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--settings-text-color, #333);
+  transition: background 0.15s, color 0.15s;
+}
+.settings-footer-btn:hover {
+  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.06));
 }
 `;
 
@@ -333,6 +408,11 @@ function createSettingsFormHTML() {
         </div>
       </div>
     </div>
+
+    <div class="settings-footer">
+      <button type="button" class="settings-footer-btn" id="btn-settings-defaults">Defaults</button>
+      <button type="button" class="settings-footer-btn" id="btn-settings-done">Done</button>
+    </div>
   `;
 }
 
@@ -427,7 +507,7 @@ function populateSettingsForm(container, settings) {
  * @returns {{ populate: (settings) => void }}
  */
 function initSettingsPanel(options) {
-  const { container, getSettings, onChanged, onClose } = options;
+  const { container, getSettings, onChanged, onClose, onDefaults } = options;
 
   // Inject shared CSS into this document
   injectSettingsCSS(container.ownerDocument);
@@ -617,6 +697,18 @@ function initSettingsPanel(options) {
   // --- Credentials (fire on blur/change, not every keystroke) ---
   clientId.addEventListener('change', broadcast);
   clientSecret.addEventListener('change', broadcast);
+
+  // --- Footer buttons ---
+  const btnDone = container.querySelector('#btn-settings-done');
+  const btnDefaults = container.querySelector('#btn-settings-defaults');
+
+  if (btnDone && onClose) {
+    btnDone.addEventListener('click', onClose);
+  }
+
+  if (btnDefaults && onDefaults) {
+    btnDefaults.addEventListener('click', onDefaults);
+  }
 
   // --- Credential JSON drag-and-drop ---
   const credDropZone = container.querySelector('#cred-drop-zone');

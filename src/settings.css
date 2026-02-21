@@ -39,36 +39,6 @@ body {
   color: #333;
 }
 
-.actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-  padding: 0 4px;
-}
-
-.actions button {
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: 'Roboto Flex', system-ui, sans-serif;
-  cursor: pointer;
-  border: none;
-  border-radius: 9999px;
-  background: var(--settings-btn-bg, #ebebeb);
-  color: var(--settings-btn-color, #333);
-  transition: background 0.15s, transform 0.15s cubic-bezier(0.35, 1.5, 0.65, 1),
-              box-shadow 0.15s;
-}
-
-.actions button:hover {
-  box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
-  transform: scale(1.03);
-}
-
-/* Range slider styling */
-input[type="range"] {
-  flex: 1;
-}
 
 /* ============================================================
    Dark mode (OS preference)
@@ -99,10 +69,4 @@ input[type="range"] {
   .settings-section {
     border-bottom-color: #555;
   }
-
-  .actions button {
-    background: var(--settings-btn-bg);
-    color: var(--settings-btn-color);
-  }
-
 }
