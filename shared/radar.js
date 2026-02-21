@@ -2914,15 +2914,6 @@ function clearFlightPlanRoute() {
   viewer.entities.suspendEvents();
   try {
     for (const e of flightPlanEntities) viewer.entities.remove(e);
-    // Remove any synthetic aircraft entity created from FlightAware data
-    if (searchedIcao && searchedIcao.startsWith('fa-')) {
-      const ac = aircraft.get(searchedIcao);
-      if (ac) {
-        if (ac.entity) viewer.entities.remove(ac.entity);
-        removeTrailEntities(ac);
-        aircraft.delete(searchedIcao);
-      }
-    }
   } finally {
     viewer.entities.resumeEvents();
   }
@@ -3046,19 +3037,11 @@ function displayFlightPlanRoute(flightData) {
 
   // Fetch decoded route from FlightAware /route endpoint (waypoints with real lat/lon).
   // Falls back to parsing the route string from the flights response if that fails.
+  // FlightAware is used only for the filed route — OpenSky provides live position/history.
   if (flight.fa_flight_id) {
     fetchAndDisplayFiledRoute(flight.fa_flight_id, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
   } else if (originCoords && destCoords) {
     drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
-  }
-
-  // If no live aircraft was matched and FlightAware has position data,
-  // create a synthetic aircraft entity for display
-  if (!searchedIcao && flight.fa_flight_id) {
-    fetchAndDisplayFlightTrack(flight.fa_flight_id, flight,
-      CONFIG.theme === 'light'
-        ? Cesium.Color.fromCssColorString('#E65100').withAlpha(0.9)
-        : Cesium.Color.fromCssColorString('#FF9800').withAlpha(0.9));
   }
 }
 
@@ -3214,202 +3197,6 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
   }
   console.log(`[FlightPlan] Displayed fallback route with ${routeWaypoints.length} waypoints from route string`);
   viewer.flyTo(flightPlanEntities, { duration: 1.5 });
-}
-
-// Fetch the actual flown track from FlightAware, draw it as a solid polyline,
-// and create or match a live aircraft entity with proper extrapolation.
-async function fetchAndDisplayFlightTrack(faFlightId, flight, trackColor) {
-  if (!window.flightAPI.getFlightTrack) {
-    console.warn('[FlightPlan] getFlightTrack not available on this platform');
-    if (flight.last_position) {
-      createFlightAwareAircraftEntity(flight, [], trackColor);
-    }
-    return;
-  }
-  try {
-    const data = await window.flightAPI.getFlightTrack(faFlightId);
-    const positions = (data && !data.error && data.positions) ? data.positions : [];
-
-    // Draw flown track polyline
-    if (positions.length >= 2) {
-      displayFlightTrack(positions, trackColor);
-    }
-
-    // Create or update the live aircraft entity (from track + last_position)
-    if (flight.last_position || positions.length > 0) {
-      createFlightAwareAircraftEntity(flight, positions, trackColor);
-    }
-  } catch (err) {
-    console.warn('[FlightPlan] Track fetch error:', err);
-    if (flight.last_position) {
-      createFlightAwareAircraftEntity(flight, [], trackColor);
-    }
-  }
-}
-
-// Draw the actual flown track as a solid polyline on the map
-function displayFlightTrack(positions, trackColor) {
-  const cartesianPositions = [];
-  for (const pos of positions) {
-    if (pos.latitude == null || pos.longitude == null) continue;
-    // AeroAPI altitude is in hundreds of feet; convert to meters
-    const altMeters = pos.altitude != null ? pos.altitude * 100 * 0.3048 : 0;
-    cartesianPositions.push(Cesium.Cartesian3.fromDegrees(pos.longitude, pos.latitude, altMeters));
-  }
-  if (cartesianPositions.length < 2) return;
-
-  viewer.entities.suspendEvents();
-  try {
-    flightPlanEntities.push(viewer.entities.add({
-      polyline: {
-        positions: cartesianPositions,
-        width: 4,
-        material: trackColor,
-        clampToGround: false,
-      },
-    }));
-  } finally {
-    viewer.entities.resumeEvents();
-  }
-  console.log(`[FlightPlan] Displayed flown track with ${cartesianPositions.length} positions`);
-}
-
-// Create a synthetic aircraft entity from FlightAware data so it gets the same
-// rendering, labeling, and position extrapolation as all other aircraft.
-// If the aircraft is already in the OpenSky feed (matched by callsign), we skip
-// creating a duplicate and just select the existing one.
-function createFlightAwareAircraftEntity(flight, trackPositions, trackColor) {
-  // If we already matched a live OpenSky aircraft, don't create a synthetic one
-  if (searchedIcao && aircraft.has(searchedIcao)) return;
-
-  const now = Date.now() / 1000;
-
-  // Use the most recent track position if available (more current than last_position
-  // from the flights response, which may be cached/stale).
-  let baseLat, baseLon, baseAlt, baseGs, baseHdg, baseTimestamp;
-  const validTrack = trackPositions.filter(p => p.latitude != null && p.longitude != null);
-  if (validTrack.length > 0) {
-    const latest = validTrack[validTrack.length - 1];
-    baseLat = latest.latitude;
-    baseLon = latest.longitude;
-    baseAlt = latest.altitude != null ? latest.altitude : 0; // hundreds of feet
-    baseGs = latest.groundspeed != null ? latest.groundspeed : 0; // knots
-    baseHdg = latest.heading != null ? latest.heading : null;
-    baseTimestamp = latest.timestamp ? new Date(latest.timestamp).getTime() / 1000 : now;
-  } else if (flight.last_position) {
-    const lp = flight.last_position;
-    if (lp.latitude == null || lp.longitude == null) return;
-    baseLat = lp.latitude;
-    baseLon = lp.longitude;
-    baseAlt = lp.altitude != null ? lp.altitude : 0;
-    baseGs = lp.groundspeed != null ? lp.groundspeed : 0;
-    baseHdg = lp.heading != null ? lp.heading : null;
-    baseTimestamp = lp.timestamp ? new Date(lp.timestamp).getTime() / 1000 : now;
-  } else {
-    return; // no position data at all
-  }
-
-  // Convert FlightAware units to internal format
-  const altMeters = baseAlt * 100 * 0.3048; // hundreds of feet → meters
-  const velocityMs = baseGs * 0.514444;      // knots → m/s
-
-  // Derive vertical rate from last two track positions or altitude_change indicator
-  let verticalRate = 0;
-  if (validTrack.length >= 2) {
-    const last = validTrack[validTrack.length - 1];
-    const prev = validTrack[validTrack.length - 2];
-    const tLast = last.timestamp ? new Date(last.timestamp).getTime() / 1000 : 0;
-    const tPrev = prev.timestamp ? new Date(prev.timestamp).getTime() / 1000 : 0;
-    const dt = tLast - tPrev;
-    if (dt > 0 && last.altitude != null && prev.altitude != null) {
-      verticalRate = (last.altitude - prev.altitude) * 100 * 0.3048 / dt;
-    }
-  } else if (flight.last_position) {
-    if (flight.last_position.altitude_change === 'C') verticalRate = 7.62;
-    else if (flight.last_position.altitude_change === 'D') verticalRate = -7.62;
-  }
-
-  // Pre-extrapolate position to "now" so the aircraft starts at its estimated
-  // current position rather than where FlightAware last reported it.
-  // This also ensures future extrapolation ticks work (they check staleThreshold
-  // against timePosition, which we set to now).
-  let currentLat = baseLat;
-  let currentLon = baseLon;
-  let currentAlt = altMeters;
-  const elapsed = now - baseTimestamp;
-
-  if (baseHdg != null && velocityMs > 0 && elapsed > 0 && elapsed < 600) {
-    // Great circle forward projection
-    const headingRad = Cesium.Math.toRadians(baseHdg);
-    const lonRad = Cesium.Math.toRadians(baseLon);
-    const latRad = Cesium.Math.toRadians(baseLat);
-    const R = 6371000;
-    const angDist = (velocityMs * elapsed) / R;
-
-    const newLat = Math.asin(
-      Math.sin(latRad) * Math.cos(angDist) +
-      Math.cos(latRad) * Math.sin(angDist) * Math.cos(headingRad)
-    );
-    const newLon = lonRad + Math.atan2(
-      Math.sin(headingRad) * Math.sin(angDist) * Math.cos(latRad),
-      Math.cos(angDist) - Math.sin(latRad) * Math.sin(newLat)
-    );
-    currentLat = Cesium.Math.toDegrees(newLat);
-    currentLon = Cesium.Math.toDegrees(newLon);
-    currentAlt = altMeters + verticalRate * elapsed;
-    if (currentAlt < 0) currentAlt = 0;
-  }
-
-  // Build state with timePosition = now so future extrapolation ticks work
-  const syntheticIcao = `fa-${(flight.ident || 'unknown').toLowerCase()}`;
-  const syntheticState = {
-    icao24: syntheticIcao,
-    callsign: flight.ident || '',
-    origin: '',
-    timePosition: now,
-    lastContact: now,
-    lon: currentLon,
-    lat: currentLat,
-    altitude: currentAlt,
-    onGround: false,
-    velocity: velocityMs,
-    heading: baseHdg,
-    verticalRate: verticalRate,
-    geoAltitude: currentAlt,
-    squawk: null,
-  };
-
-  // Build history from track positions
-  const history = [];
-  for (const pos of validTrack) {
-    const t = pos.timestamp ? new Date(pos.timestamp).getTime() / 1000 : 0;
-    const alt = pos.altitude != null ? pos.altitude * 100 * 0.3048 : 0;
-    history.push({ lon: pos.longitude, lat: pos.latitude, alt, time: t });
-  }
-
-  // Create the aircraft entry
-  const ac = {
-    state: syntheticState,
-    entity: null,
-    trailEntities: [],
-    extrapolationTrail: null,
-    history: history,
-    granularTrack: null,
-    lastTrackFetch: now,
-    lastKnownAlt: currentAlt,
-    lastServerUpdate: now,
-    extrapolatedPos: Cesium.Cartesian3.fromDegrees(currentLon, currentLat, currentAlt),
-    _trailHash: '',
-    _iconKey: '',
-    _labelText: '',
-  };
-  aircraft.set(syntheticIcao, ac);
-
-  // Render it and select it
-  searchedIcao = syntheticIcao;
-  renderAircraft(new Set([syntheticIcao]));
-  showAircraftInfo(syntheticIcao);
-  console.log(`[FlightPlan] Created aircraft ${syntheticIcao} at ${currentLat.toFixed(4)},${currentLon.toFixed(4)} (extrapolated ${Math.round(elapsed)}s forward from FA data, ${history.length} track points)`);
 }
 
 function showFlightPlanInfo(flight) {
