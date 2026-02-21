@@ -1617,8 +1617,9 @@ function computeExtrapolatedPosition(s, baseTime, now) {
     Math.cos(angDist) - Math.sin(latRad) * Math.sin(newLat)
   );
 
+  const alt = (s.altitude || 0) + (s.verticalRate || 0) * elapsed;
   return Cesium.Cartesian3.fromDegrees(
-    Cesium.Math.toDegrees(newLon), Cesium.Math.toDegrees(newLat), s.altitude || 0
+    Cesium.Math.toDegrees(newLon), Cesium.Math.toDegrees(newLat), alt
   );
 }
 
