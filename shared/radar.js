@@ -18,9 +18,7 @@ const waypointEntities = [];     // Cesium entities for fix markers
 const navaidEntities = [];       // Cesium entities for navaid markers
 let cachedAirportData = null;     // Cached airport JSON for rebuilds
 let cachedWaypointData = null;    // Cached waypoint JSON for rebuilds
-let pollTimer = null;
-let trackTimer = null;
-let positionUpdateTimer = null;
+let tickTimer = null;              // unified timer for extrapolation + polling + track fetches
 let viewer = null;
 let is2D = false;
 let selectedIcao = null;
@@ -53,7 +51,10 @@ const flightPlanEntities = [];  // Cesium entities for flight plan route
 let activeFlightPlan = null;     // current flight plan data
 let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
 let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
-let selectedPollTimer = null;    // periodic poll for selected aircraft when bulk polling is off
+let lastSelectedPollMs = 0;      // timestamp of last selected-aircraft poll
+let lastTrackFetchMs = 0;        // timestamp of last track queue processing
+const SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s
+const TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -970,18 +971,14 @@ function toggleAircraft(show) {
     }
     if (!keepIcao) hideAircraftInfo();
     document.getElementById('track-count').textContent = keepIcao ? '1' : '0';
-    // Stop polling and track timers (no new aircraft data needed)
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    if (trackTimer) { clearInterval(trackTimer); trackTimer = null; }
     if (viewChangePollDebounce) { clearTimeout(viewChangePollDebounce); viewChangePollDebounce = null; }
-    // Keep position extrapolation running for the selected aircraft
-    if (!keepIcao) {
-      if (positionUpdateTimer) { clearInterval(positionUpdateTimer); positionUpdateTimer = null; }
+    // Keep tick running for the selected aircraft, or stop everything
+    if (keepIcao) {
+      ensureTick();
     } else {
-      ensurePositionUpdateTimer();
+      stopTick();
     }
   } else {
-    stopSelectedAircraftPolling(); // bulk polling takes over
     startPolling();
   }
   const labelsToggle = document.getElementById('toggle-labels');
@@ -1391,96 +1388,114 @@ function setPollInterval(ms) {
   CONFIG.pollInterval = ms;
   const sel = document.getElementById('poll-interval');
   if (sel) sel.value = String(ms / 1000);
-  if (!CONFIG.aircraftEnabled) return;
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(pollStates, CONFIG.pollInterval);
 }
 
-function setPositionUpdateInterval(ms) {
+function setTickInterval(ms) {
   CONFIG.positionUpdateInterval = ms;
-  if (!CONFIG.aircraftEnabled && !selectedIcao) return;
-  if (positionUpdateTimer) clearInterval(positionUpdateTimer);
-  positionUpdateTimer = setInterval(extrapolatePositions, CONFIG.positionUpdateInterval);
+  if (!tickTimer) return;
+  clearInterval(tickTimer);
+  tickTimer = setInterval(tick, ms);
 }
 
-// Start the position extrapolation timer if it isn't already running.
-// Used to keep extrapolation going for a selected aircraft when aircraft toggle is off.
-function ensurePositionUpdateTimer() {
-  if (positionUpdateTimer) return; // already running
+// Poll a small region around the selected aircraft's position, independent
+// of the viewport.  Keeps the selected aircraft live with up-to-date data
+// and full track history regardless of display toggle or camera position.
+async function pollSelectedAircraft() {
+  if (!selectedIcao) return;
+  const ac = aircraft.get(selectedIcao);
+  if (!ac) return;
+  const s = ac.state;
+  const pad = 1;
+  const bounds = {
+    south: s.lat - pad, north: s.lat + pad,
+    west: s.lon - pad, east: s.lon + pad,
+  };
+  try {
+    const data = await window.flightAPI.getStates(bounds);
+    if (!data.error && data.states) {
+      const now = Date.now() / 1000;
+      for (const raw of data.states) {
+        const ns = parseState(raw);
+        if (ns.icao24 !== selectedIcao) continue;
+        if (ns.lon == null || ns.lat == null) continue;
+        ac.state = ns;
+        ac.lastServerUpdate = now;
+        ac.extrapolatedPos = computeExtrapolatedPosition(ns, ns.timePosition || now, now);
+        const alt = ns.altitude != null ? ns.altitude : (ac.lastKnownAlt || 0);
+        if (ns.altitude != null) ac.lastKnownAlt = ns.altitude;
+        const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+        const moved = !last
+          || Math.abs(ns.lon - last.lon) > 0.0005
+          || Math.abs(ns.lat - last.lat) > 0.0005
+          || Math.abs(alt - last.alt) > 30;
+        if (moved) ac.history.push({ lon: ns.lon, lat: ns.lat, alt, time: now });
+        const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(ns.lon, ns.lat, alt);
+        updateExtrapolationTrail(selectedIcao, ac, currentPos);
+        break;
+      }
+      lastPollTime = new Date();
+      renderAircraft(new Set([selectedIcao]));
+      showAircraftInfo(selectedIcao);
+    }
+  } catch (err) {
+    console.warn('[Poll] Selected aircraft poll error:', err);
+  }
+  // Queue track refresh if stale
+  if (ac && Date.now() / 1000 - ac.lastTrackFetch > 30) {
+    if (!trackFetchQueue.includes(selectedIcao)) {
+      trackFetchQueue.unshift(selectedIcao);
+    }
+  }
+}
+
+// Unified tick: extrapolate positions, check if any polls or track fetches are due.
+function tick() {
+  const now = Date.now();
+
+  // 1. Always extrapolate aircraft positions between server polls
+  extrapolatePositions();
+
+  // 2. Bulk poll when aircraft display is on and poll interval has elapsed
+  if (CONFIG.aircraftEnabled) {
+    const elapsed = lastPollTime ? now - lastPollTime.getTime() : Infinity;
+    if (elapsed >= CONFIG.pollInterval) {
+      pollStates();
+    }
+  }
+
+  // 3. Selected aircraft poll — always, regardless of display toggle or viewport.
+  //    Skip if the most recent bulk poll already covered this aircraft's position.
+  if (selectedIcao && now - lastSelectedPollMs >= SELECTED_POLL_INTERVAL) {
+    lastSelectedPollMs = now;
+    const ac = aircraft.get(selectedIcao);
+    const coveredByBulk = CONFIG.aircraftEnabled && ac && lastPollBounds
+      && ac.state.lat >= lastPollBounds.south && ac.state.lat <= lastPollBounds.north
+      && ac.state.lon >= lastPollBounds.west && ac.state.lon <= lastPollBounds.east;
+    if (!coveredByBulk) {
+      pollSelectedAircraft();
+    }
+  }
+
+  // 4. Track queue processing
+  if (trackFetchQueue.length > 0 && now - lastTrackFetchMs >= TRACK_FETCH_INTERVAL) {
+    lastTrackFetchMs = now;
+    fetchNextTrack();
+  }
+}
+
+// Start the unified tick timer if it isn't already running.
+function ensureTick() {
+  if (tickTimer) return;
   const camHeight = viewer.camera.positionCartographic
     ? viewer.camera.positionCartographic.height
     : CONFIG.startAlt;
   const ms = computePositionUpdateInterval(camHeight);
-  setPositionUpdateInterval(ms);
+  CONFIG.positionUpdateInterval = ms;
+  tickTimer = setInterval(tick, ms);
 }
 
-// Start periodic position polling and track refresh for the selected aircraft
-// when bulk aircraft polling is off.  This keeps the selected aircraft live
-// with up-to-date position and full track history.
-function ensureSelectedAircraftPolling() {
-  if (CONFIG.aircraftEnabled) return; // bulk polling handles everything
-  if (selectedPollTimer) return;      // already running
-
-  async function pollSelected() {
-    if (!selectedIcao) return;
-    const ac = aircraft.get(selectedIcao);
-    if (!ac) return;
-    const s = ac.state;
-    // Poll a small region around the aircraft's current position
-    const pad = 1;
-    const bounds = {
-      south: s.lat - pad, north: s.lat + pad,
-      west: s.lon - pad, east: s.lon + pad,
-    };
-    try {
-      const data = await window.flightAPI.getStates(bounds);
-      if (!data.error && data.states) {
-        // Only update the selected aircraft from the response
-        const now = Date.now() / 1000;
-        for (const raw of data.states) {
-          const ns = parseState(raw);
-          if (ns.icao24 !== selectedIcao) continue;
-          if (ns.lon == null || ns.lat == null) continue;
-          ac.state = ns;
-          ac.lastServerUpdate = now;
-          ac.extrapolatedPos = computeExtrapolatedPosition(ns, ns.timePosition || now, now);
-          const alt = ns.altitude != null ? ns.altitude : (ac.lastKnownAlt || 0);
-          if (ns.altitude != null) ac.lastKnownAlt = ns.altitude;
-          const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
-          const moved = !last
-            || Math.abs(ns.lon - last.lon) > 0.0005
-            || Math.abs(ns.lat - last.lat) > 0.0005
-            || Math.abs(alt - last.alt) > 30;
-          if (moved) ac.history.push({ lon: ns.lon, lat: ns.lat, alt, time: now });
-          const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(ns.lon, ns.lat, alt);
-          updateExtrapolationTrail(selectedIcao, ac, currentPos);
-          break;
-        }
-        lastPollTime = new Date();
-        renderAircraft(new Set([selectedIcao]));
-        showAircraftInfo(selectedIcao);
-      }
-    } catch (err) {
-      console.warn('[Poll] Selected aircraft poll error:', err);
-    }
-    // Periodic track refresh
-    if (ac && Date.now() / 1000 - ac.lastTrackFetch > 30) {
-      if (!trackFetchQueue.includes(selectedIcao)) {
-        trackFetchQueue.unshift(selectedIcao);
-        fetchNextTrack();
-      }
-    }
-  }
-
-  // Poll every 10 seconds for the selected aircraft
-  selectedPollTimer = setInterval(pollSelected, 10000);
-}
-
-function stopSelectedAircraftPolling() {
-  if (selectedPollTimer) {
-    clearInterval(selectedPollTimer);
-    selectedPollTimer = null;
-  }
+function stopTick() {
+  if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
 }
 
 // ============================================================
@@ -2302,14 +2317,12 @@ function startPolling() {
   lastPollHeight = camHeight;
   lastPositionUpdateHeight = camHeight;
   setPollInterval(computePollInterval(camHeight));
-  setPositionUpdateInterval(computePositionUpdateInterval(camHeight));
+  setTickInterval(computePositionUpdateInterval(camHeight));
 
   // Initial fetch
   pollStates();
 
-  // Periodic track fetching (one aircraft per 12s to stay within rate limits)
-  if (trackTimer) clearInterval(trackTimer);
-  trackTimer = setInterval(fetchNextTrack, 12000);
+  ensureTick();
 }
 
 // ============================================================
@@ -2395,7 +2408,7 @@ viewer.camera.changed.addEventListener(() => {
       const newPositionUpdateInterval = computePositionUpdateInterval(h);
       if (newPositionUpdateInterval !== CONFIG.positionUpdateInterval) {
         lastPositionUpdateHeight = h;
-        setPositionUpdateInterval(newPositionUpdateInterval);
+        setTickInterval(newPositionUpdateInterval);
       }
     }
 
@@ -2814,11 +2827,8 @@ function showAircraftInfo(icao) {
     }
   }
 
-  // Ensure position extrapolation keeps running even if aircraft toggle is off
-  ensurePositionUpdateTimer();
-  // Keep the selected aircraft live with periodic position and track updates
-  // even when aircraft display is off
-  ensureSelectedAircraftPolling();
+  // Ensure the unified tick timer is running for extrapolation and polling
+  ensureTick();
 }
 
 function showTurbInfo(entity) {
@@ -2886,7 +2896,6 @@ function showTurbInfo(entity) {
 function hideAircraftInfo() {
   const prevIcao = selectedIcao;
   selectedIcao = null;
-  stopSelectedAircraftPolling();
   document.getElementById('aircraft-info').classList.add('hidden');
   if (prevIcao) {
     viewer.entities.suspendEvents();
@@ -2909,15 +2918,13 @@ function hideAircraftInfo() {
       renderAircraft(new Set([prevIcao]));
     }
   }
+  // Stop tick if nothing needs it (no selected aircraft, display off)
+  if (!CONFIG.aircraftEnabled) stopTick();
 }
 
 document.getElementById('info-close').addEventListener('click', () => {
   clearFlightPlanRoute();
   hideAircraftInfo();
-  // If aircraft toggle is off and no selected aircraft remains, stop extrapolation
-  if (!CONFIG.aircraftEnabled && !selectedIcao) {
-    if (positionUpdateTimer) { clearInterval(positionUpdateTimer); positionUpdateTimer = null; }
-  }
 });
 
 // ============================================================
