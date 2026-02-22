@@ -49,6 +49,11 @@ let airmetRefreshTimer = null;
 const pirepEntities = [];
 const sigmetEntities = [];
 const airmetEntities = [];
+const flightPlanEntities = [];  // Cesium entities for flight plan route
+let activeFlightPlan = null;     // current flight plan data
+let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
+let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
+let selectedPollTimer = null;    // periodic poll for selected aircraft when bulk polling is off
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -944,25 +949,39 @@ function refreshAllEntities() {
 function toggleAircraft(show) {
   CONFIG.aircraftEnabled = show;
   if (!show) {
-    // Remove all aircraft entities and trails from Cesium
+    // Determine which aircraft to keep: any selected or searched aircraft
+    const keepIcao = selectedIcao || searchedIcao;
+
+    // Remove all aircraft entities and trails from Cesium, but preserve
+    // the selected/searched flight so it stays visible regardless of toggle
     viewer.entities.suspendEvents();
     try {
-      for (const [, ac] of aircraft) {
+      for (const [icao, ac] of aircraft) {
+        if (icao === keepIcao) continue;
         if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
         removeTrailEntities(ac);
       }
     } finally {
       viewer.entities.resumeEvents();
     }
-    aircraft.clear();
-    hideAircraftInfo();
-    document.getElementById('track-count').textContent = '0';
-    // Stop all polling timers
+    // Remove all except the kept aircraft from the Map
+    for (const icao of [...aircraft.keys()]) {
+      if (icao !== keepIcao) aircraft.delete(icao);
+    }
+    if (!keepIcao) hideAircraftInfo();
+    document.getElementById('track-count').textContent = keepIcao ? '1' : '0';
+    // Stop polling and track timers (no new aircraft data needed)
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (trackTimer) { clearInterval(trackTimer); trackTimer = null; }
-    if (positionUpdateTimer) { clearInterval(positionUpdateTimer); positionUpdateTimer = null; }
     if (viewChangePollDebounce) { clearTimeout(viewChangePollDebounce); viewChangePollDebounce = null; }
+    // Keep position extrapolation running for the selected aircraft
+    if (!keepIcao) {
+      if (positionUpdateTimer) { clearInterval(positionUpdateTimer); positionUpdateTimer = null; }
+    } else {
+      ensurePositionUpdateTimer();
+    }
   } else {
+    stopSelectedAircraftPolling(); // bulk polling takes over
     startPolling();
   }
   const labelsToggle = document.getElementById('toggle-labels');
@@ -1379,9 +1398,89 @@ function setPollInterval(ms) {
 
 function setPositionUpdateInterval(ms) {
   CONFIG.positionUpdateInterval = ms;
-  if (!CONFIG.aircraftEnabled) return;
+  if (!CONFIG.aircraftEnabled && !selectedIcao) return;
   if (positionUpdateTimer) clearInterval(positionUpdateTimer);
   positionUpdateTimer = setInterval(extrapolatePositions, CONFIG.positionUpdateInterval);
+}
+
+// Start the position extrapolation timer if it isn't already running.
+// Used to keep extrapolation going for a selected aircraft when aircraft toggle is off.
+function ensurePositionUpdateTimer() {
+  if (positionUpdateTimer) return; // already running
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height
+    : CONFIG.startAlt;
+  const ms = computePositionUpdateInterval(camHeight);
+  setPositionUpdateInterval(ms);
+}
+
+// Start periodic position polling and track refresh for the selected aircraft
+// when bulk aircraft polling is off.  This keeps the selected aircraft live
+// with up-to-date position and full track history.
+function ensureSelectedAircraftPolling() {
+  if (CONFIG.aircraftEnabled) return; // bulk polling handles everything
+  if (selectedPollTimer) return;      // already running
+
+  async function pollSelected() {
+    if (!selectedIcao) return;
+    const ac = aircraft.get(selectedIcao);
+    if (!ac) return;
+    const s = ac.state;
+    // Poll a small region around the aircraft's current position
+    const pad = 1;
+    const bounds = {
+      south: s.lat - pad, north: s.lat + pad,
+      west: s.lon - pad, east: s.lon + pad,
+    };
+    try {
+      const data = await window.flightAPI.getStates(bounds);
+      if (!data.error && data.states) {
+        // Only update the selected aircraft from the response
+        const now = Date.now() / 1000;
+        for (const raw of data.states) {
+          const ns = parseState(raw);
+          if (ns.icao24 !== selectedIcao) continue;
+          if (ns.lon == null || ns.lat == null) continue;
+          ac.state = ns;
+          ac.lastServerUpdate = now;
+          ac.extrapolatedPos = computeExtrapolatedPosition(ns, ns.timePosition || now, now);
+          const alt = ns.altitude != null ? ns.altitude : (ac.lastKnownAlt || 0);
+          if (ns.altitude != null) ac.lastKnownAlt = ns.altitude;
+          const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+          const moved = !last
+            || Math.abs(ns.lon - last.lon) > 0.0005
+            || Math.abs(ns.lat - last.lat) > 0.0005
+            || Math.abs(alt - last.alt) > 30;
+          if (moved) ac.history.push({ lon: ns.lon, lat: ns.lat, alt, time: now });
+          const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(ns.lon, ns.lat, alt);
+          updateExtrapolationTrail(selectedIcao, ac, currentPos);
+          break;
+        }
+        lastPollTime = new Date();
+        renderAircraft(new Set([selectedIcao]));
+        showAircraftInfo(selectedIcao);
+      }
+    } catch (err) {
+      console.warn('[Poll] Selected aircraft poll error:', err);
+    }
+    // Periodic track refresh
+    if (ac && Date.now() / 1000 - ac.lastTrackFetch > 30) {
+      if (!trackFetchQueue.includes(selectedIcao)) {
+        trackFetchQueue.unshift(selectedIcao);
+        fetchNextTrack();
+      }
+    }
+  }
+
+  // Poll every 10 seconds for the selected aircraft
+  selectedPollTimer = setInterval(pollSelected, 10000);
+}
+
+function stopSelectedAircraftPolling() {
+  if (selectedPollTimer) {
+    clearInterval(selectedPollTimer);
+    selectedPollTimer = null;
+  }
 }
 
 // ============================================================
@@ -1516,9 +1615,9 @@ function updateAircraft(states) {
       }
     }
 
-    // Remove stale aircraft
+    // Remove stale aircraft (but never remove the selected or searched flight)
     for (const [icao, ac] of aircraft) {
-      if (!seen.has(icao)) {
+      if (!seen.has(icao) && icao !== searchedIcao && icao !== selectedIcao) {
         const age = now - (ac.state.lastContact || 0);
         if (age > CONFIG.staleThreshold) {
           if (ac.entity) viewer.entities.remove(ac.entity);
@@ -1534,6 +1633,12 @@ function updateAircraft(states) {
   // Update visual entities
   renderAircraft();
 
+  // If we have a searched flight ident but haven't matched it to a live aircraft yet,
+  // try to find it now (it may have just appeared in the state data)
+  if (searchedFlightIdent && !searchedIcao) {
+    selectSearchedAircraft();
+  }
+
   // Live-update the info panel if a selected aircraft still exists
   if (selectedIcao && aircraft.has(selectedIcao)) {
     showAircraftInfo(selectedIcao);
@@ -1546,7 +1651,8 @@ function updateAircraft(states) {
 // aircraft's current position.  Called after every position change (server update or
 // extrapolation tick) so the trail never visually detaches from the icon.
 function updateExtrapolationTrail(icao, ac, currentPos) {
-  if (CONFIG.trailMode !== 'history') return;
+  // Selected aircraft always get extrapolation trail regardless of trail mode
+  if (CONFIG.trailMode !== 'history' && icao !== selectedIcao) return;
   const lastHistory = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
   if (!lastHistory) return;
 
@@ -1647,8 +1753,10 @@ function extrapolatePositions() {
     ac.entity.position = newPos;
     ac.extrapolatedPos = newPos.clone();
 
-    // Handle trails based on mode
-    if (CONFIG.trailMode === 'velocity') {
+    // Handle trails based on mode.
+    // Selected aircraft always use history-style trail regardless of trail mode.
+    const isSelectedAc = icao === selectedIcao;
+    if (!isSelectedAc && CONFIG.trailMode === 'velocity') {
       // Velocity vector mode: apply same delta to trail endpoints
       for (const trailEntity of ac.trailEntities) {
         if (trailEntity.polyline && trailEntity.polyline.positions) {
@@ -1661,7 +1769,7 @@ function extrapolatePositions() {
           }
         }
       }
-    } else if (CONFIG.trailMode === 'history') {
+    } else if (CONFIG.trailMode === 'history' || isSelectedAc) {
       // History trail mode: connect last history point to extrapolated position
       updateExtrapolationTrail(icao, ac, newPos);
     }
@@ -1676,9 +1784,10 @@ function extrapolatePositions() {
 }
 
 // Trail content fingerprint to avoid unnecessary entity rebuilds
-function _computeTrailHash(ac, s) {
-  if (CONFIG.trailMode === 'none') return '';
-  if (CONFIG.trailMode === 'velocity') {
+function _computeTrailHash(ac, s, isSelected) {
+  // Selected aircraft always use history-style trail hash regardless of global trail mode
+  if (!isSelected && CONFIG.trailMode === 'none') return '';
+  if (!isSelected && CONFIG.trailMode === 'velocity') {
     return `V:${(s.heading||0).toFixed(1)}:${(s.velocity||0).toFixed(0)}:${s.lon.toFixed(4)}:${s.lat.toFixed(4)}`;
   }
   const histLen = ac.history.length;
@@ -1804,7 +1913,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
 
     // --- Trail polyline ---
     // Skip trail rebuild when data hasn't changed (e.g., during camera pan/zoom)
-    const _th = _computeTrailHash(ac, s);
+    const _th = _computeTrailHash(ac, s, isSelected);
     if (ac._trailHash === _th) return;
     // Show trails if enabled OR if this aircraft is selected (selected aircraft always show history trail)
     if (CONFIG.trailMode !== 'none' || isSelected) {
@@ -2624,14 +2733,14 @@ handler.setInputAction((click) => {
     const id = picked.id.id;
     if (id.startsWith('ac-')) {
       showAircraftInfo(id.replace('ac-', ''));
-    } else if (id.startsWith('turb-')) {
+    } else if (id.startsWith('turb-') && !selectedIcao) {
+      // Only show turbulence info when no aircraft is selected —
+      // the close button is the only way to deselect an aircraft.
       showTurbInfo(picked.id);
-    } else {
-      hideAircraftInfo();
     }
-  } else {
-    hideAircraftInfo();
   }
+  // Clicking empty space or non-aircraft entities does NOT deselect;
+  // the info panel close button is the only way to deselect.
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 function showAircraftInfo(icao) {
@@ -2690,7 +2799,26 @@ function showAircraftInfo(icao) {
       viewer.entities.resumeEvents();
     }
     renderAircraft(toRefresh);
+
+    // Clear any previous flight plan route from a different aircraft
+    if (prevSelected && prevSelected !== icao && flightPlanEntities.length > 0) {
+      clearFlightPlanRoute();
+    }
+
+    // Unified treatment: enrich any newly selected aircraft with FlightAware
+    // data (filed route, flown track) regardless of how it was selected.
+    // Skip if this aircraft is already the searched flight (already enriched).
+    const cs = (s.callsign || '').trim();
+    if (cs && cs.toUpperCase() !== (searchedFlightIdent || '')) {
+      enrichSelectedWithFlightAware(icao, cs);
+    }
   }
+
+  // Ensure position extrapolation keeps running even if aircraft toggle is off
+  ensurePositionUpdateTimer();
+  // Keep the selected aircraft live with periodic position and track updates
+  // even when aircraft display is off
+  ensureSelectedAircraftPolling();
 }
 
 function showTurbInfo(entity) {
@@ -2758,9 +2886,9 @@ function showTurbInfo(entity) {
 function hideAircraftInfo() {
   const prevIcao = selectedIcao;
   selectedIcao = null;
+  stopSelectedAircraftPolling();
   document.getElementById('aircraft-info').classList.add('hidden');
   if (prevIcao) {
-    const toRefresh = new Set([prevIcao]);
     viewer.entities.suspendEvents();
     try {
       const rac = aircraft.get(prevIcao);
@@ -2772,11 +2900,617 @@ function hideAircraftInfo() {
     } finally {
       viewer.entities.resumeEvents();
     }
-    renderAircraft(toRefresh);
+    // If aircraft toggle is off, remove the deselected aircraft entirely
+    // (it was only kept because it was selected). Otherwise re-render normally.
+    if (!CONFIG.aircraftEnabled) {
+      aircraft.delete(prevIcao);
+      document.getElementById('track-count').textContent = '0';
+    } else {
+      renderAircraft(new Set([prevIcao]));
+    }
   }
 }
 
-document.getElementById('info-close').addEventListener('click', hideAircraftInfo);
+document.getElementById('info-close').addEventListener('click', () => {
+  clearFlightPlanRoute();
+  hideAircraftInfo();
+  // If aircraft toggle is off and no selected aircraft remains, stop extrapolation
+  if (!CONFIG.aircraftEnabled && !selectedIcao) {
+    if (positionUpdateTimer) { clearInterval(positionUpdateTimer); positionUpdateTimer = null; }
+  }
+});
+
+// ============================================================
+// Flight Plan Search & Route Display
+// ============================================================
+
+// Enrich a selected aircraft with FlightAware data: fetch and display the filed
+// route.  Called when any aircraft is newly selected (clicked or searched) so
+// that all selected aircraft receive the same treatment.  Current position and
+// trail history always come from OpenSky — FlightAware only provides the route.
+async function enrichSelectedWithFlightAware(icao, callsign) {
+  if (!window.flightAPI.getFlightPlan) return;
+
+  try {
+    const data = await window.flightAPI.getFlightPlan(callsign.trim());
+    if (data.error || !data.flights || data.flights.length === 0) return;
+
+    // Bail if user deselected or selected a different aircraft while we were fetching
+    if (selectedIcao !== icao) return;
+
+    const flights = data.flights;
+    let flight = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
+    if (!flight) flight = flights[0];
+
+    // Mark this aircraft as the searched flight so it gets visibility bypass
+    searchedFlightIdent = (flight.ident || flight.ident_iata || '').trim().toUpperCase();
+    searchedIcao = icao;
+
+    // Clear any previous route entities before drawing new ones
+    viewer.entities.suspendEvents();
+    try {
+      for (const e of flightPlanEntities) viewer.entities.remove(e);
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    flightPlanEntities.length = 0;
+
+    const routeColor = CONFIG.theme === 'light'
+      ? Cesium.Color.fromCssColorString('#1565C0').withAlpha(0.8)
+      : Cesium.Color.fromCssColorString('#42A5F5').withAlpha(0.8);
+    const waypointColor = CONFIG.theme === 'light'
+      ? Cesium.Color.fromCssColorString('#1565C0')
+      : Cesium.Color.fromCssColorString('#64B5F6');
+
+    // Filed cruise altitude in meters (AeroAPI filed_altitude is in hundreds of feet)
+    const cruiseAltMeters = flight.filed_altitude != null
+      ? flight.filed_altitude * 100 * 0.3048
+      : null;
+
+    // Draw origin/destination markers and filed route
+    const origin = flight.origin;
+    const dest = flight.destination;
+    const originCoords = lookupAirportCoords(origin);
+    const destCoords = lookupAirportCoords(dest);
+
+    drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointColor);
+
+    // Show clear route button
+    const clearBtn = document.getElementById('btn-clear-route');
+    if (clearBtn) clearBtn.classList.remove('hidden');
+
+    // Fetch and display the filed route (async, with fallback chain)
+    if (flight.fa_flight_id) {
+      fetchAndDisplayFiledRoute(flight.fa_flight_id, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
+    } else if (originCoords && destCoords) {
+      drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
+    }
+
+    console.log(`[FlightPlan] Enriched selected aircraft ${icao} (${callsign}) with FlightAware data`);
+  } catch (err) {
+    console.warn('[FlightPlan] Enrichment error:', err);
+  }
+}
+
+function clearFlightPlanRoute() {
+  viewer.entities.suspendEvents();
+  try {
+    for (const e of flightPlanEntities) viewer.entities.remove(e);
+  } finally {
+    viewer.entities.resumeEvents();
+  }
+  flightPlanEntities.length = 0;
+  activeFlightPlan = null;
+  searchedFlightIdent = null;
+  searchedIcao = null;
+  const clearBtn = document.getElementById('btn-clear-route');
+  if (clearBtn) clearBtn.classList.add('hidden');
+}
+
+// Look up airport coordinates from our local airport database by ICAO or IATA code.
+// FlightAware's /flights endpoint returns airport objects with codes but no lat/lon.
+function lookupAirportCoords(airportObj) {
+  if (!airportObj || !cachedAirportData) return null;
+  const icao = airportObj.code_icao || airportObj.code || '';
+  const iata = airportObj.code_iata || '';
+  const ap = cachedAirportData.find(a =>
+    (icao && a.icao === icao) || (iata && a.iata === iata)
+  );
+  if (ap && ap.lat != null && ap.lon != null) {
+    return { lat: ap.lat, lon: ap.lon };
+  }
+  // Fallback: FlightAware might include coordinates directly
+  if (airportObj.latitude != null && airportObj.longitude != null) {
+    return { lat: airportObj.latitude, lon: airportObj.longitude };
+  }
+  return null;
+}
+
+// Draw origin (green) and destination (red) airport markers for a flight plan.
+function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointColor) {
+  viewer.entities.suspendEvents();
+  try {
+    if (originCoords) {
+      const originLabel = (origin && (origin.code_iata || origin.code_icao || origin.code)) || 'DEP';
+      flightPlanEntities.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(originCoords.lon, originCoords.lat),
+        point: { pixelSize: 10, color: Cesium.Color.LIME, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        label: {
+          text: originLabel,
+          font: 'bold 13px Roboto Flex, sans-serif',
+          fillColor: waypointColor,
+          outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -8),
+        },
+      }));
+    }
+    if (destCoords) {
+      const destLabel = (dest && (dest.code_iata || dest.code_icao || dest.code)) || 'ARR';
+      flightPlanEntities.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat),
+        point: { pixelSize: 10, color: Cesium.Color.RED, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        label: {
+          text: destLabel,
+          font: 'bold 13px Roboto Flex, sans-serif',
+          fillColor: waypointColor,
+          outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -8),
+        },
+      }));
+    }
+  } finally {
+    viewer.entities.resumeEvents();
+  }
+}
+
+function displayFlightPlanRoute(flightData) {
+  clearFlightPlanRoute();
+  activeFlightPlan = flightData;
+
+  // Find the best flight from the response (prefer en-route, then most recent)
+  const flights = flightData.flights || [];
+  if (flights.length === 0) return;
+
+  // Prefer a flight that is currently in the air (progress between 0% and 100%)
+  let flight = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
+  if (!flight) flight = flights[0]; // fallback to most recent
+
+  // Store the searched flight identifier for visibility bypass and aircraft matching
+  searchedFlightIdent = (flight.ident || flight.ident_iata || '').trim().toUpperCase();
+
+  // Debug: log the selected flight object to see what FlightAware actually returns
+  console.log(`[FlightPlan] Selected flight:`, JSON.stringify({
+    ident: flight.ident, fa_flight_id: flight.fa_flight_id,
+    status: flight.status, progress: flight.progress_percent,
+    last_position: flight.last_position,
+    position_only: flight.position_only,
+  }));
+
+  const routeColor = CONFIG.theme === 'light'
+    ? Cesium.Color.fromCssColorString('#1565C0').withAlpha(0.8)
+    : Cesium.Color.fromCssColorString('#42A5F5').withAlpha(0.8);
+  const waypointColor = CONFIG.theme === 'light'
+    ? Cesium.Color.fromCssColorString('#1565C0')
+    : Cesium.Color.fromCssColorString('#64B5F6');
+
+  // Filed cruise altitude in meters (AeroAPI filed_altitude is in hundreds of feet)
+  const cruiseAltMeters = flight.filed_altitude != null
+    ? flight.filed_altitude * 100 * 0.3048
+    : null;
+
+  const origin = flight.origin;
+  const dest = flight.destination;
+  const originCoords = lookupAirportCoords(origin);
+  const destCoords = lookupAirportCoords(dest);
+
+  drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointColor);
+
+  // Fly to origin/dest markers immediately so the user sees something right away
+  if (flightPlanEntities.length > 0) {
+    viewer.flyTo(flightPlanEntities, { duration: 1.5 });
+  }
+
+  const clearBtn = document.getElementById('btn-clear-route');
+  if (clearBtn) clearBtn.classList.remove('hidden');
+
+  // Try to find and select the matching live aircraft.
+  // 1. Check the already-loaded aircraft Map (fast path).
+  // 2. Fetch the FlightAware track to get the real current position, then
+  //    query OpenSky around it.
+  // 3. Fall back to route corridor if no track available.
+  console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+  if (!selectSearchedAircraft()) {
+    findAndSelectViaOpenSky(flight, originCoords, destCoords);
+  }
+
+  // Fetch decoded route from FlightAware /route endpoint (waypoints with real lat/lon).
+  // Falls back to parsing the route string from the flights response if that fails.
+  // FlightAware is used only for the filed route — OpenSky provides live position/history.
+  if (flight.fa_flight_id) {
+    fetchAndDisplayFiledRoute(flight.fa_flight_id, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
+  } else if (originCoords && destCoords) {
+    drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
+  }
+}
+
+// Locate the searched aircraft on OpenSky.  First fetches the FlightAware
+// actual track to get the aircraft's real current position (more accurate and
+// timely than the flights endpoint's last_position).  Falls back to the
+// origin→destination route corridor if no track is available.
+async function findAndSelectViaOpenSky(flight, originCoords, destCoords) {
+  // Step 1: Try FlightAware /track endpoint for real-time position
+  if (flight.fa_flight_id && window.flightAPI.getFlightTrack) {
+    try {
+      console.log(`[FlightPlan] Fetching FlightAware track for ${flight.fa_flight_id}`);
+      const trackData = await window.flightAPI.getFlightTrack(flight.fa_flight_id);
+      if (!trackData.error && trackData.positions && trackData.positions.length > 0) {
+        const lastTrackPos = trackData.positions[trackData.positions.length - 1];
+        if (lastTrackPos.latitude != null && lastTrackPos.longitude != null) {
+          console.log(`[FlightPlan] FlightAware track has ${trackData.positions.length} positions, ` +
+            `latest: lat=${lastTrackPos.latitude.toFixed(2)}, lon=${lastTrackPos.longitude.toFixed(2)}`);
+          await fetchSingleAircraftForSearch({ latitude: lastTrackPos.latitude, longitude: lastTrackPos.longitude });
+          return;
+        }
+      } else {
+        console.log(`[FlightPlan] FlightAware track: ${trackData.error || 'no positions'}`);
+      }
+    } catch (err) {
+      console.warn(`[FlightPlan] FlightAware track fetch failed:`, err);
+    }
+  }
+
+  // Step 2: Try flights endpoint last_position
+  if (flight.last_position
+      && flight.last_position.latitude != null && flight.last_position.longitude != null) {
+    console.log(`[FlightPlan] Using flights last_position: ` +
+      `lat=${flight.last_position.latitude.toFixed(2)}, lon=${flight.last_position.longitude.toFixed(2)}`);
+    await fetchSingleAircraftForSearch(flight.last_position);
+    return;
+  }
+
+  // Step 3: Fall back to route corridor between origin and destination
+  if (originCoords && destCoords) {
+    const midLat = (originCoords.lat + destCoords.lat) / 2;
+    const midLon = (originCoords.lon + destCoords.lon) / 2;
+    const latSpan = Math.abs(originCoords.lat - destCoords.lat) / 2 + 5;
+    const lonSpan = Math.abs(originCoords.lon - destCoords.lon) / 2 + 5;
+    console.log(`[FlightPlan] No track or last_position, querying OpenSky along route corridor: ` +
+      `center=${midLat.toFixed(1)},${midLon.toFixed(1)} span=±${latSpan.toFixed(1)}lat,±${lonSpan.toFixed(1)}lon`);
+    await fetchSingleAircraftForSearch({ latitude: midLat, longitude: midLon }, latSpan, lonSpan);
+    return;
+  }
+
+  console.log(`[FlightPlan] No position data available — cannot query OpenSky`);
+}
+
+// Query OpenSky around a position to find and select the searched aircraft.
+// latPad/lonPad default to 10° for last_position searches; callers can pass
+// larger values to cover the full origin→destination corridor.
+async function fetchSingleAircraftForSearch(lastPos, latPad = 10, lonPad = 10) {
+  const bounds = {
+    south: Math.max(lastPos.latitude - latPad, -90),
+    north: Math.min(lastPos.latitude + latPad, 90),
+    west: Math.max(lastPos.longitude - lonPad, -180),
+    east: Math.min(lastPos.longitude + lonPad, 180),
+  };
+  console.log(`[FlightPlan] OpenSky query: bounds=${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
+  try {
+    const data = await window.flightAPI.getStates(bounds);
+    if (data.error) {
+      console.warn(`[FlightPlan] OpenSky query error: ${data.error}`);
+    } else if (!data.states || data.states.length === 0) {
+      console.log(`[FlightPlan] OpenSky returned 0 aircraft in search area`);
+    } else {
+      console.log(`[FlightPlan] OpenSky returned ${data.states.length} aircraft in search area`);
+      // Only add the matching aircraft — don't bulk-add everything from the poll
+      const target = searchedFlightIdent;
+      const now = Date.now() / 1000;
+      let found = false;
+      // Log all callsigns for debugging
+      const callsigns = data.states
+        .map(raw => { const s = parseState(raw); return (s.callsign || '').trim(); })
+        .filter(cs => cs.length > 0);
+      console.log(`[FlightPlan] Callsigns in area: ${callsigns.slice(0, 20).join(', ')}${callsigns.length > 20 ? ` ... (${callsigns.length} total)` : ''}`);
+      for (const raw of data.states) {
+        const s = parseState(raw);
+        if (s.lon == null || s.lat == null) continue;
+        const cs = (s.callsign || '').trim().toUpperCase();
+        if (cs !== target) continue;
+        found = true;
+        console.log(`[FlightPlan] Matched! icao=${s.icao24}, callsign="${cs}", pos=${s.lat.toFixed(3)},${s.lon.toFixed(3)}, alt=${s.altitude}`);
+        // Create an aircraft entry for the searched flight
+        const ac = {
+          state: s, entity: null, trailEntities: [],
+          extrapolationTrail: null, history: [], granularTrack: null,
+          lastTrackFetch: 0, lastKnownAlt: s.altitude || 0,
+          lastServerUpdate: now, extrapolatedPos: null,
+          _trailHash: '', _iconKey: '', _labelText: '',
+        };
+        ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || now, now);
+        ac.history.push({ lon: s.lon, lat: s.lat, alt: s.altitude || 0, time: now });
+        aircraft.set(s.icao24, ac);
+        renderAircraft(new Set([s.icao24]));
+        break;
+      }
+      if (!found) {
+        console.log(`[FlightPlan] Callsign "${target}" NOT found among ${data.states.length} OpenSky aircraft`);
+      }
+    }
+  } catch (err) {
+    console.warn('[FlightPlan] OpenSky query failed:', err);
+  }
+  selectSearchedAircraft();
+}
+
+// Find and select the matching live aircraft by callsign.
+// Called after a flight plan search and also from updateAircraft() if the aircraft
+// arrives after the search completes.  Returns true if found.
+function selectSearchedAircraft() {
+  if (!searchedFlightIdent) return false;
+  for (const [icao, ac] of aircraft) {
+    const cs = (ac.state.callsign || '').trim().toUpperCase();
+    if (cs === searchedFlightIdent) {
+      console.log(`[FlightPlan] Found live aircraft: icao=${icao}, callsign="${cs}"`);
+      searchedIcao = icao;
+      showAircraftInfo(icao);
+      return true;
+    }
+  }
+  console.log(`[FlightPlan] Callsign "${searchedFlightIdent}" not found in ${aircraft.size} loaded aircraft`);
+  return false;
+}
+
+// Fetch the decoded filed route from FlightAware's /route endpoint and draw it
+// as a dashed polyline with waypoint markers. Falls back to route string parsing.
+// cruiseAltMeters is the filed cruise altitude in meters (null if unknown).
+async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters) {
+  // Try the /route endpoint first (returns decoded waypoints with lat/lon)
+  if (window.flightAPI.getFlightRoute) {
+    try {
+      const data = await window.flightAPI.getFlightRoute(faFlightId);
+      if (!data.error) {
+        const fixes = data.fixes || [];
+        const validFixes = fixes.filter(f => f.latitude != null && f.longitude != null);
+
+        if (validFixes.length > 0) {
+          const alt = cruiseAltMeters || 0;
+          // Build the route positions: origin (ground) → fixes (cruise alt) → destination (ground)
+          const routePositions = [];
+          if (originCoords) {
+            routePositions.push(Cesium.Cartesian3.fromDegrees(originCoords.lon, originCoords.lat, 0));
+          }
+          for (const fix of validFixes) {
+            routePositions.push(Cesium.Cartesian3.fromDegrees(fix.longitude, fix.latitude, alt));
+          }
+          if (destCoords) {
+            routePositions.push(Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat, 0));
+          }
+
+          if (routePositions.length >= 2) {
+            viewer.entities.suspendEvents();
+            try {
+              flightPlanEntities.push(viewer.entities.add({
+                polyline: {
+                  positions: routePositions,
+                  width: 3,
+                  material: new Cesium.PolylineDashMaterialProperty({
+                    color: routeColor,
+                    dashLength: 16,
+                  }),
+                  clampToGround: false,
+                },
+              }));
+
+              for (const fix of validFixes) {
+                flightPlanEntities.push(viewer.entities.add({
+                  position: Cesium.Cartesian3.fromDegrees(fix.longitude, fix.latitude, 0),
+                  point: { pixelSize: 6, color: waypointColor, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+                  label: {
+                    text: fix.name || '',
+                    font: '11px Roboto Flex, sans-serif',
+                    fillColor: waypointColor,
+                    outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+                    outlineWidth: 2,
+                    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                    pixelOffset: new Cesium.Cartesian2(0, -6),
+                    scale: 0.9,
+                  },
+                }));
+              }
+            } finally {
+              viewer.entities.resumeEvents();
+            }
+            console.log(`[FlightPlan] Displayed filed route with ${validFixes.length} waypoints from /route API at ${alt > 0 ? Math.round(alt * 3.28084).toLocaleString() + ' ft' : 'ground level'}`);
+            viewer.flyTo(flightPlanEntities, { duration: 1.5 });
+            return; // success — done
+          }
+        }
+      } else {
+        console.warn('[FlightPlan] /route endpoint error:', data.error);
+      }
+    } catch (err) {
+      console.warn('[FlightPlan] /route fetch error:', err);
+    }
+  }
+
+  // Fallback: parse the route string from the flights response using local waypoint DB
+  drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
+}
+
+// Parse the filed route string (space-separated waypoint names) and draw using
+// local waypoint database lookups. Used as fallback when /route endpoint fails.
+// cruiseAltMeters is the filed cruise altitude in meters (null if unknown).
+function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters) {
+  const alt = cruiseAltMeters || 0;
+  const routeWaypoints = [];
+  if (routeStr && cachedWaypointData && cachedWaypointData.length > 0) {
+    // FlightAware route strings are space-separated: "MAPGP VICUC J65 RBL"
+    const wpNames = routeStr.split(/\s+/).filter(w => w.length > 0);
+    for (const wpName of wpNames) {
+      const wp = cachedWaypointData.find(w => w.id === wpName || w.name === wpName);
+      if (wp && wp.lon != null && wp.lat != null) {
+        routeWaypoints.push({ name: wpName, lon: wp.lon, lat: wp.lat });
+      }
+    }
+  }
+
+  const routePositions = [];
+  if (originCoords) routePositions.push(Cesium.Cartesian3.fromDegrees(originCoords.lon, originCoords.lat, 0));
+  for (const wp of routeWaypoints) routePositions.push(Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, alt));
+  if (destCoords) routePositions.push(Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat, 0));
+
+  if (routePositions.length < 2) return;
+
+  viewer.entities.suspendEvents();
+  try {
+    flightPlanEntities.push(viewer.entities.add({
+      polyline: {
+        positions: routePositions,
+        width: 3,
+        material: new Cesium.PolylineDashMaterialProperty({
+          color: routeColor,
+          dashLength: 16,
+        }),
+        clampToGround: false,
+      },
+    }));
+    for (const wp of routeWaypoints) {
+      flightPlanEntities.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, 0),
+        point: { pixelSize: 6, color: waypointColor, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        label: {
+          text: wp.name,
+          font: '11px Roboto Flex, sans-serif',
+          fillColor: waypointColor,
+          outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -6),
+          scale: 0.9,
+        },
+      }));
+    }
+  } finally {
+    viewer.entities.resumeEvents();
+  }
+  console.log(`[FlightPlan] Displayed fallback route with ${routeWaypoints.length} waypoints from route string`);
+  viewer.flyTo(flightPlanEntities, { duration: 1.5 });
+}
+
+function showFlightPlanInfo(flight) {
+  const panel = document.getElementById('aircraft-info');
+  panel.classList.remove('hidden');
+
+  const ident = flight.ident || flight.ident_iata || '---';
+  document.getElementById('info-callsign').textContent = ident;
+
+  const origin = flight.origin;
+  const dest = flight.destination;
+  const originCode = origin ? (origin.code_iata || origin.code_icao || '??') : '??';
+  const destCode = dest ? (dest.code_iata || dest.code_icao || '??') : '??';
+  const acType = flight.aircraft_type || '---';
+  const status = flight.status || '---';
+  const progress = flight.progress_percent != null ? flight.progress_percent + '%' : '---';
+  const alt = flight.last_position && flight.last_position.altitude != null
+    ? (flight.last_position.altitude * 100).toLocaleString() + ' ft'  // AeroAPI altitude is in hundreds of feet
+    : '---';
+  const gs = flight.last_position && flight.last_position.groundspeed != null
+    ? flight.last_position.groundspeed + ' kts'
+    : '---';
+  const filedAlt = flight.filed_altitude != null
+    ? 'FL' + flight.filed_altitude
+    : '---';
+  const route = flight.route || '---';
+  const depTime = flight.scheduled_out || flight.actual_out || '---';
+  const arrTime = flight.scheduled_in || flight.estimated_in || '---';
+
+  document.getElementById('info-details').innerHTML = `
+    <div><span class="label">ROUTE</span><span>${originCode} → ${destCode}</span></div>
+    <div><span class="label">ACFT TYPE</span><span>${acType}</span></div>
+    <div><span class="label">STATUS</span><span>${status}</span></div>
+    <div><span class="label">PROGRESS</span><span>${progress}</span></div>
+    <div><span class="label">ALT</span><span>${alt}</span></div>
+    <div><span class="label">FILED ALT</span><span>${filedAlt}</span></div>
+    <div><span class="label">GND SPD</span><span>${gs}</span></div>
+    <div><span class="label">DEPART</span><span>${depTime}</span></div>
+    <div><span class="label">ARRIVE</span><span>${arrTime}</span></div>
+    <div><span class="label">FILED</span><span style="font-size:11px;word-break:break-all">${route}</span></div>
+  `;
+}
+
+async function searchFlightPlan(ident) {
+  if (!ident || ident.trim().length === 0) return;
+
+  const searchInput = document.getElementById('flight-search');
+  const searchBtn = document.getElementById('btn-flight-search');
+  if (searchBtn) searchBtn.disabled = true;
+  if (searchInput) searchInput.disabled = true;
+
+  try {
+    if (!window.flightAPI.getFlightPlan) {
+      console.warn('[FlightPlan] getFlightPlan not available on this platform');
+      return;
+    }
+
+    const data = await window.flightAPI.getFlightPlan(ident.trim());
+    if (data.error) {
+      console.warn(`[FlightPlan] Error: ${data.error}`);
+      alert(`Flight search failed: ${data.error}`);
+      return;
+    }
+
+    if (!data.flights || data.flights.length === 0) {
+      alert(`No flights found for "${ident.trim()}"`);
+      return;
+    }
+
+    console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
+    displayFlightPlanRoute(data);
+  } catch (err) {
+    console.error('[FlightPlan] Search error:', err);
+    alert('Flight search failed. Check console for details.');
+  } finally {
+    if (searchBtn) searchBtn.disabled = false;
+    if (searchInput) searchInput.disabled = false;
+  }
+}
+
+// Wire up flight search UI
+const flightSearchInput = document.getElementById('flight-search');
+const flightSearchBtn = document.getElementById('btn-flight-search');
+const clearRouteBtn = document.getElementById('btn-clear-route');
+
+if (flightSearchBtn) {
+  flightSearchBtn.addEventListener('click', () => {
+    const val = flightSearchInput ? flightSearchInput.value : '';
+    searchFlightPlan(val);
+  });
+}
+
+if (flightSearchInput) {
+  flightSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchFlightPlan(flightSearchInput.value);
+    }
+  });
+}
+
+if (clearRouteBtn) {
+  clearRouteBtn.addEventListener('click', () => {
+    clearFlightPlanRoute();
+    if (flightSearchInput) flightSearchInput.value = '';
+    hideAircraftInfo();
+  });
+}
 
 // ============================================================
 // Shared Init Helpers

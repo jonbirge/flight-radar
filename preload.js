@@ -8,6 +8,15 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch granular track/trajectory for a specific aircraft
   getTrack: (icao24) => ipcRenderer.invoke('get-track', icao24),
 
+  // Fetch flight plan from FlightAware AeroAPI
+  getFlightPlan: (ident) => ipcRenderer.invoke('get-flight-plan', ident),
+
+  // Fetch decoded filed route with waypoint coordinates from FlightAware AeroAPI
+  getFlightRoute: (faFlightId) => ipcRenderer.invoke('get-flight-route', faFlightId),
+
+  // Fetch actual flown track from FlightAware AeroAPI
+  getFlightTrack: (faFlightId) => ipcRenderer.invoke('get-flight-track', faFlightId),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),

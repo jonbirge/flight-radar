@@ -1,18 +1,18 @@
 <?php
 // cred.php - Server-side OAuth2 token proxy for OpenSky Network
-// Reads credentials from cred.json, fetches/caches a token, returns it as JSON.
+// Reads credentials from creds.json, fetches/caches a token, returns it as JSON.
 
 header('Content-Type: application/json');
 
 $TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
-$CRED_FILE = __DIR__ . '/cred.json';
-// Load credentials: prefer POST body, fall back to cred.json
+$CRED_FILE = __DIR__ . '/creds.json';
+// Load credentials: prefer POST body, fall back to creds.json
 $input = json_decode(file_get_contents('php://input'), true);
 $clientId     = !empty($input['client_id'])     ? $input['client_id']     : null;
 $clientSecret = !empty($input['client_secret']) ? $input['client_secret'] : null;
 
 if (!$clientId || !$clientSecret) {
-    // Fall back to server-side cred.json
+    // Fall back to server-side creds.json
     if (file_exists($CRED_FILE)) {
         $creds = json_decode(file_get_contents($CRED_FILE), true);
         if ($creds) {
