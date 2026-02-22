@@ -1,15 +1,6 @@
 /* Material 3 Expressive — Shared styles */
 /* Used by both Electron and web versions */
 
-/* Roboto Flex — variable font, bundled locally for offline/Electron support */
-@font-face {
-  font-family: 'Roboto Flex';
-  font-style: normal;
-  font-weight: 100 1000;
-  font-display: swap;
-  src: url('fonts/roboto-flex.woff2') format('woff2');
-}
-
 :root {
   /* M3 Color Roles (dark mode defaults — overridden dynamically by applyTheme) */
   --md-primary: #00cc44;

@@ -58,7 +58,8 @@ Static JSON loaded at startup by `shared/radar.js`: `airports.json`, `airspace.j
 
 ### Key patterns
 
-- **No build step**: Plain JS loaded directly via `<script>` tags. CesiumJS is an npm devDependency; a postinstall script copies `Build/Cesium/` to `vendor/cesium/`.
+- **No build step**: Plain JS loaded directly via `<script>` tags. CesiumJS is an npm devDependency; a postinstall script copies `Build/Cesium/` to `vendor/cesium/`. A second postinstall script (`scripts/download-fonts.js`) downloads Roboto Flex to `shared/fonts/` for Electron use.
+- **Font loading differs by platform**: Electron loads Roboto Flex from `shared/fonts/roboto-flex.woff2` (downloaded at install time, gitignored). `src/index.html` and `src/settings.css` each declare a local `@font-face` for this. The web version (`web/index.html`) loads Roboto Flex from Google Fonts CDN instead. Do NOT put a `@font-face` in `shared/styles.css` — it would cause a 404 on web.
 - **Shared modules via globals**: Script load order: `defaults.js` → `config.js` → `data.js` → `icons.js` → [`settings.js` web only] → `radar-core.js` → `radar-weather.js` → `radar-markers.js` → `radar-aircraft.js` → `radar-ui.js` → `radar-flightplan.js` → `radar.js` → platform entry point. Top-level `let`/`const` variables declared in `radar-core.js` are shared across all subsequent scripts via the global lexical environment.
 - **Platform abstraction via `window.flightAPI`**: Both platforms expose the same API surface. Electron uses preload IPC; web uses a shim with `fetch()` and `localStorage`.
 - **Cesium without Ion**: Uses CartoDB dark_matter/light tiles, no Cesium Ion token needed.
