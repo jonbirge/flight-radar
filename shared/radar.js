@@ -3137,7 +3137,7 @@ function displayFlightPlanRoute(flightData) {
 // Query OpenSky around a flight's last known position to find and select the
 // searched aircraft.  Called regardless of the AIRCRAFT display toggle.
 async function fetchSingleAircraftForSearch(lastPos) {
-  const pad = 2; // degrees around last position
+  const pad = 10; // wide radius to compensate for FlightAware position delay
   const bounds = {
     south: lastPos.latitude - pad,
     north: lastPos.latitude + pad,
