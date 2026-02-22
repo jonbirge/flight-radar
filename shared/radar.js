@@ -3110,17 +3110,29 @@ function displayFlightPlanRoute(flightData) {
 
   // Try to find and select the matching live aircraft.
   // First check the already-loaded aircraft Map; if not found there, query
-  // OpenSky around the flight's last known position from FlightAware.
+  // OpenSky.  Prefer FlightAware's last_position; fall back to a bounding box
+  // covering the full origin→destination route.
   console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
   if (!selectSearchedAircraft()) {
-    // Not in the local Map — query OpenSky if we have a last known position
     if (flight.last_position
         && flight.last_position.latitude != null && flight.last_position.longitude != null) {
       console.log(`[FlightPlan] Not in local Map, querying OpenSky around last_position: ` +
         `lat=${flight.last_position.latitude.toFixed(2)}, lon=${flight.last_position.longitude.toFixed(2)}`);
       fetchSingleAircraftForSearch(flight.last_position);
+    } else if (originCoords && destCoords) {
+      // No last_position — search the entire route corridor between origin and destination
+      const midLat = (originCoords.lat + destCoords.lat) / 2;
+      const midLon = (originCoords.lon + destCoords.lon) / 2;
+      const latSpan = Math.abs(originCoords.lat - destCoords.lat) / 2 + 5;
+      const lonSpan = Math.abs(originCoords.lon - destCoords.lon) / 2 + 5;
+      console.log(`[FlightPlan] No last_position, querying OpenSky along route corridor: ` +
+        `center=${midLat.toFixed(1)},${midLon.toFixed(1)} span=±${latSpan.toFixed(1)}lat,±${lonSpan.toFixed(1)}lon`);
+      fetchSingleAircraftForSearch({ latitude: midLat, longitude: midLon }, latSpan, lonSpan);
+    } else if (originCoords) {
+      console.log(`[FlightPlan] No last_position or dest, querying OpenSky around origin`);
+      fetchSingleAircraftForSearch({ latitude: originCoords.lat, longitude: originCoords.lon }, 15, 15);
     } else {
-      console.log(`[FlightPlan] No last_position from FlightAware — cannot query OpenSky`);
+      console.log(`[FlightPlan] No position data available — cannot query OpenSky`);
     }
   }
 
@@ -3134,15 +3146,15 @@ function displayFlightPlanRoute(flightData) {
   }
 }
 
-// Query OpenSky around a flight's last known position to find and select the
-// searched aircraft.  Called regardless of the AIRCRAFT display toggle.
-async function fetchSingleAircraftForSearch(lastPos) {
-  const pad = 10; // wide radius to compensate for FlightAware position delay
+// Query OpenSky around a position to find and select the searched aircraft.
+// latPad/lonPad default to 10° for last_position searches; callers can pass
+// larger values to cover the full origin→destination corridor.
+async function fetchSingleAircraftForSearch(lastPos, latPad = 10, lonPad = 10) {
   const bounds = {
-    south: lastPos.latitude - pad,
-    north: lastPos.latitude + pad,
-    west: lastPos.longitude - pad,
-    east: lastPos.longitude + pad,
+    south: Math.max(lastPos.latitude - latPad, -90),
+    north: Math.min(lastPos.latitude + latPad, 90),
+    west: Math.max(lastPos.longitude - lonPad, -180),
+    east: Math.min(lastPos.longitude + lonPad, 180),
   };
   console.log(`[FlightPlan] OpenSky query: bounds=${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
   try {
