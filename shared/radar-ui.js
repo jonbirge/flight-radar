@@ -322,19 +322,19 @@ function morphAndPreserveView(to3D) {
     is2D = false;
     document.getElementById('btn-3d').classList.add('active');
     document.getElementById('btn-2d').classList.remove('active');
-    document.getElementById('btn-rotate').disabled = false;
+    document.getElementById('toggle-rotate').disabled = false;
   } else {
     // Stop rotation when switching to 2D
     if (isRotating) {
       isRotating = false;
       stopRotation();
-      document.getElementById('btn-rotate').classList.remove('active');
+      document.getElementById('toggle-rotate').checked = false;
     }
     viewer.scene.morphTo2D(1.0);
     is2D = true;
     document.getElementById('btn-2d').classList.add('active');
     document.getElementById('btn-3d').classList.remove('active');
-    document.getElementById('btn-rotate').disabled = true;
+    document.getElementById('toggle-rotate').disabled = true;
   }
 }
 
@@ -390,10 +390,9 @@ function stopRotation() {
   frozenBounds = null;
 }
 
-document.getElementById('btn-rotate').addEventListener('click', () => {
-  if (is2D) return; // rotation only works in 3D
-  isRotating = !isRotating;
-  document.getElementById('btn-rotate').classList.toggle('active', isRotating);
+document.getElementById('toggle-rotate').addEventListener('change', (e) => {
+  if (is2D) { e.target.checked = false; return; }
+  isRotating = e.target.checked;
   if (isRotating) {
     startRotation();
   } else {
