@@ -2655,14 +2655,14 @@ handler.setInputAction((click) => {
     const id = picked.id.id;
     if (id.startsWith('ac-')) {
       showAircraftInfo(id.replace('ac-', ''));
-    } else if (id.startsWith('turb-')) {
+    } else if (id.startsWith('turb-') && !selectedIcao) {
+      // Only show turbulence info when no aircraft is selected —
+      // the close button is the only way to deselect an aircraft.
       showTurbInfo(picked.id);
-    } else {
-      hideAircraftInfo();
     }
-  } else {
-    hideAircraftInfo();
   }
+  // Clicking empty space or non-aircraft entities does NOT deselect;
+  // the info panel close button is the only way to deselect.
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 function showAircraftInfo(icao) {
