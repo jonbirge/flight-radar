@@ -244,7 +244,7 @@ if (trailLengthEl) {
 }
 
 // View presets
-document.getElementById('btn-home').addEventListener('click', () => {
+function goHome() {
   if (CONFIG.savedView) {
     const sv = CONFIG.savedView;
     viewer.camera.flyTo({
@@ -259,9 +259,9 @@ document.getElementById('btn-home').addEventListener('click', () => {
       duration: 1.5,
     });
   }
-});
+}
 
-document.getElementById('btn-save-view').addEventListener('click', async () => {
+async function saveView() {
   const carto = viewer.camera.positionCartographic;
   const savedView = {
     lon: Cesium.Math.toDegrees(carto.longitude),
@@ -273,13 +273,20 @@ document.getElementById('btn-save-view').addEventListener('click', async () => {
   const settings = await window.flightAPI.getSettings();
   settings.savedView = savedView;
   await window.flightAPI.saveSettings(settings);
-  // Update CONFIG so HOME button uses the new saved view immediately
   CONFIG.savedView = savedView;
-  // Brief visual feedback
-  const btn = document.getElementById('btn-save-view');
-  btn.classList.add('active');
-  setTimeout(() => btn.classList.remove('active'), 600);
-});
+}
+
+// Context menu — right-click on Cesium canvas
+viewer.canvas.addEventListener('contextmenu', e => e.preventDefault());
+const contextMenuHandler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+contextMenuHandler.setInputAction(async (click) => {
+  const action = await window.flightAPI.showContextMenu([
+    { id: 'home',      label: 'Go home'   },
+    { id: 'save-view', label: 'Save view' },
+  ], click.position.x, click.position.y);
+  if (action === 'home')      goHome();
+  else if (action === 'save-view') saveView();
+}, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
 // North Up — rotate heading to 0 while keeping current position and pitch
 document.getElementById('btn-north').addEventListener('click', () => {

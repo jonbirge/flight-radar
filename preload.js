@@ -30,4 +30,7 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // System theme detection
   getSystemTheme: () => ipcRenderer.invoke('get-system-theme'),
   onSystemThemeChanged: (callback) => ipcRenderer.on('system-theme-changed', (_, theme) => callback(theme)),
+
+  // Native context menu — returns selected item id or null if dismissed
+  showContextMenu: (items) => ipcRenderer.invoke('show-context-menu', items),
 });

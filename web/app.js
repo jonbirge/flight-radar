@@ -235,6 +235,46 @@ window.flightAPI = {
     window.matchMedia('(prefers-color-scheme: dark)')
       .addEventListener('change', (e) => callback(e.matches ? 'dark' : 'light'));
   },
+
+  // Web context menu — positions a div at (x, y), resolves with selected item id or null
+  showContextMenu: (items, x, y) => {
+    return new Promise((resolve) => {
+      const menu = document.getElementById('context-menu');
+      const list = document.getElementById('context-menu-list');
+      list.innerHTML = '';
+
+      let resolved = false;
+      const done = (id) => {
+        if (resolved) return;
+        resolved = true;
+        menu.classList.add('hidden');
+        document.removeEventListener('click', dismiss, true);
+        document.removeEventListener('contextmenu', dismiss, true);
+        resolve(id);
+      };
+
+      items.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item.label;
+        li.addEventListener('click', () => done(item.id));
+        list.appendChild(li);
+      });
+
+      // Keep menu within viewport
+      const menuW = 180, menuH = items.length * 40 + 8;
+      const left = (x + menuW > window.innerWidth)  ? x - menuW : x;
+      const top  = (y + menuH > window.innerHeight) ? y - menuH : y;
+      menu.style.left = left + 'px';
+      menu.style.top  = top  + 'px';
+      menu.classList.remove('hidden');
+
+      const dismiss = (e) => { if (!menu.contains(e.target)) done(null); };
+      setTimeout(() => {
+        document.addEventListener('click', dismiss, true);
+        document.addEventListener('contextmenu', dismiss, true);
+      }, 0);
+    });
+  },
 };
 
 // ============================================================

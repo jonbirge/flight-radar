@@ -367,6 +367,20 @@ function openSettingsWindow() {
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
+// IPC: show native context menu — resolves with the selected item id, or null if dismissed
+ipcMain.handle('show-context-menu', (event, items) => {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const template = items.map(item => ({
+      label: item.label,
+      click: () => { resolved = true; resolve(item.id); },
+    }));
+    const menu = Menu.buildFromTemplate(template);
+    const win = BrowserWindow.fromWebContents(event.sender);
+    menu.popup({ window: win, callback: () => { if (!resolved) resolve(null); } });
+  });
+});
+
 // IPC: open settings window from renderer
 ipcMain.handle('open-settings-window', () => {
   openSettingsWindow();
