@@ -11,16 +11,18 @@
   <div id="cesiumContainer"></div>
 
   <!-- HUD overlay -->
-  <span id="clock"></span>
   <div id="hud">
     <div id="hud-stats">
+      <span id="clock"></span>
+      <span class="hud-sep">|</span>
       <span>Tracks: <span id="track-count">0</span></span>
+      <span class="hud-sep">|</span>
       <span>Updated: <span id="last-update">--:--:--</span></span>
-      <span>Lat: <span id="center-lat">--</span></span>
-      <span>Lon: <span id="center-lon">--</span></span>
+      <span class="hud-sep">|</span>
+      <span><span id="center-lat">--</span>, <span id="center-lon">--</span></span>
     </div>
-    <div id="throttle-warning" class="hidden">API rate limited — displaying last known positions</div>
   </div>
+  <div id="throttle-warning" class="hidden">API rate limited — displaying last known positions</div>
 
   <div id="hud-instructions">
     <div>Ctrl + drag to change perspective.</div>
@@ -54,6 +56,10 @@
         <input type="checkbox" id="toggle-pireps">
         <span>PIREPs</span>
       </label>
+      <label class="toggle-label">
+        <input type="checkbox" id="toggle-turb-forecast">
+        <span>Turb forecast</span>
+      </label>
     </div>
     <div class="control-group">
       <label class="range-label">
@@ -75,27 +81,6 @@
           <option value="night">Night Lights</option>
         </select>
       </label>
-      <label class="range-label">
-        Turb forecast
-        <select id="turb-level">
-          <option value="none" selected>None</option>
-          <option value="100">FL100</option>
-          <option value="130">FL130</option>
-          <option value="160">FL160</option>
-          <option value="180">FL180</option>
-          <option value="210">FL210</option>
-          <option value="240">FL240</option>
-          <option value="270">FL270</option>
-          <option value="300">FL300</option>
-          <option value="330">FL330</option>
-          <option value="360">FL360</option>
-          <option value="390">FL390</option>
-          <option value="420">FL420</option>
-          <option value="450">FL450</option>
-          <option value="maxa">MAX (HI)</option>
-          <option value="maxb">MAX (LO)</option>
-        </select>
-      </label>
     </div>
     <div class="control-group">
       <button id="btn-home" class="scope-btn">Home</button>
@@ -107,11 +92,12 @@
       <button id="btn-rotate" class="scope-btn">Rotate</button>
       <button id="btn-settings" class="scope-btn">Settings</button>
     </div>
-    <div class="control-group">
-      <input type="text" id="flight-search" placeholder="Flight # (e.g. UAL123)" autocomplete="off" spellcheck="false">
-      <button id="btn-flight-search" class="scope-btn">Search</button>
-      <button id="btn-clear-route" class="scope-btn hidden">Clear</button>
-    </div>
+  </div>
+
+  <!-- Search panel -->
+  <div id="search-panel">
+    <input type="text" id="flight-search" placeholder="Flight # (e.g. UAL123)" autocomplete="off" spellcheck="false">
+    <button id="btn-flight-search" class="scope-btn">Search</button>
   </div>
 
   <!-- Selected aircraft info panel -->
@@ -119,6 +105,7 @@
     <div id="info-close">&times;</div>
     <div id="info-callsign">---</div>
     <div id="info-details"></div>
+    <button id="btn-fly-route" class="scope-btn hidden">Fly to route</button>
   </div>
 
   <!-- Shared modules -->

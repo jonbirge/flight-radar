@@ -48,10 +48,10 @@ const SETTINGS_CSS = `
 }
 
 .settings-label {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--settings-label-color, #666);
   margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .settings-row {
@@ -139,7 +139,7 @@ const SETTINGS_CSS = `
   cursor: pointer;
   border: none;
   border-radius: 9999px;
-  background: transparent;
+  background: var(--settings-btn-bg, transparent);
   color: var(--settings-text-color, #333);
   font-family: 'Roboto Flex', system-ui, sans-serif;
   transition: background 0.15s, color 0.15s;
@@ -244,14 +244,15 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-top: 1px solid var(--settings-border, #ccc);
 }
 .settings-footer-btn {
-  padding: 8px 20px;
+  padding: 0 16px;
+  min-height: 40px;
   font-size: 15px;
   font-weight: 500;
   font-family: 'Roboto Flex', system-ui, sans-serif;
   cursor: pointer;
   border: none;
   border-radius: 9999px;
-  background: transparent;
+  background: var(--settings-btn-bg, transparent);
   color: var(--settings-text-color, #333);
   transition: background 0.15s, color 0.15s;
 }

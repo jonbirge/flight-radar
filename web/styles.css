@@ -91,6 +91,10 @@
   --swatch-active-shadow: rgba(255, 255, 255, 0.3);
 }
 
+.theme-light #settings-container {
+  --settings-btn-bg: #ffffff;
+}
+
 #settings-container .settings-toggle-label {
   font-family: 'Roboto Flex', sans-serif;
   font-size: 14px;

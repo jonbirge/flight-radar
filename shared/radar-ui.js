@@ -173,19 +173,20 @@ if (pirepsToggle) {
   });
 }
 
-const turbLevelSel = document.getElementById('turb-level');
-if (turbLevelSel) {
-  turbLevelSel.addEventListener('change', async (e) => {
-    CONFIG.turbulenceLevel = e.target.value;
-    if (e.target.value === 'none') {
-      disableTurbForecast();
-    } else {
-      // Remove existing layer and add new one at selected level
+const turbToggle = document.getElementById('toggle-turb-forecast');
+if (turbToggle) {
+  turbToggle.addEventListener('change', async (e) => {
+    CONFIG.turbForecastEnabled = e.target.checked;
+    if (e.target.checked) {
+      CONFIG.turbulenceLevel = computeTurbLevel();
       disableTurbForecast();
       enableTurbForecast();
+    } else {
+      CONFIG.turbulenceLevel = 'none';
+      disableTurbForecast();
     }
     const settings = await window.flightAPI.getSettings();
-    settings.turbulenceLevel = CONFIG.turbulenceLevel;
+    settings.turbForecastEnabled = CONFIG.turbForecastEnabled;
     await window.flightAPI.saveSettings(settings);
   });
 }

@@ -46,6 +46,10 @@
       Data refreshes every 5 minutes.</li>
     <li><strong>PIREPs</strong> — Toggle Pilot Report (PIREP) turbulence dot overlays.
       Data refreshes every 5 minutes.</li>
+    <li><strong>Turb forecast</strong> — Toggle the GTG (Graphical Turbulence Guidance) forecast
+      heatmap. When a selected flight has a filed altitude, the forecast is shown at that
+      cruise level. Otherwise the MAX (HI) forecast is displayed. The layer refreshes
+      every 15 minutes.</li>
   </ul>
   <p>All toggle states are saved and persist between sessions.</p>
 
@@ -56,9 +60,6 @@
     <li><strong>Map</strong> — Base map layer. Choose from CartoDB (dark/light), Satellite (ESRI),
       OpenStreetMap, Topographic, Night Lights (NASA VIIRS), VFR/IFR Charts (VFRMap.com),
       or FAA Sectional, Terminal, IFR Low, and IFR High charts.</li>
-    <li><strong>Turb forecast</strong> — GTG (Graphical Turbulence Guidance) forecast heatmap
-      at a selected flight level. Choose a specific level (FL100&ndash;FL450), MAX (HI),
-      MAX (LO), or None to disable. This is independent of the SIGMETs/AIRMETs/PIREPs toggles above.</li>
   </ul>
 
   <h3>Buttons</h3>
@@ -75,7 +76,7 @@
   <h3>Flight Search</h3>
   <p>
     Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) in the
-    search box at the bottom of the controls panel and press <strong>Search</strong> or
+    search panel at the top-left and press <strong>Search</strong> or
     <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s AeroAPI for current and upcoming flights
     matching that identifier, then displays the planned route and flight status on the map.
   </p>
@@ -96,7 +97,7 @@
   <p>
     The info panel shows flight details including route, aircraft type, status, progress,
     altitude, ground speed, and scheduled departure/arrival times.
-    Click <strong>Clear</strong> to remove the route from the map.
+    Use the close button on the info panel to deselect the aircraft and remove the route.
   </p>
   <p>
     <strong>Selected aircraft always stay live:</strong> Any selected aircraft &mdash; whether found
@@ -160,12 +161,13 @@
     </tr>
   </table>
 
-  <h3>GTG Turbulence Forecast (Turb forecast dropdown)</h3>
+  <h3>GTG Turbulence Forecast (Turb forecast checkbox)</h3>
   <p>
-    The Turb forecast dropdown overlays the Graphical Turbulence Guidance (GTG) model
-    forecast as a heatmap image covering CONUS and Alaska. Select a flight level to see
-    the forecast at that altitude, or "None" to hide it. The forecast image refreshes
-    every 15 minutes. This layer is independent of the SIGMETs/AIRMETs/PIREPs toggles.
+    The Turb forecast toggle overlays the Graphical Turbulence Guidance (GTG) model
+    forecast as a heatmap image covering CONUS and Alaska. When a selected flight has
+    a filed cruise altitude, the forecast is shown at that flight level. Otherwise,
+    the MAX (HI) composite is displayed. The forecast image refreshes every 15 minutes.
+    This layer is independent of the SIGMETs/AIRMETs/PIREPs toggles.
   </p>
 
   <h2>Aircraft Info Panel</h2>
@@ -184,7 +186,9 @@
   </ul>
   <p>
     When an aircraft is selected, its trail history is extended and a higher-resolution
-    track is fetched from the OpenSky API.
+    track is fetched from the OpenSky API. The <strong>Fly to route</strong> button at the
+    bottom of the panel flies the camera to show the full route (if available) or the
+    aircraft&rsquo;s flight history trail from a top-down view.
   </p>
   <p>
     Clicking on a turbulence feature (PIREP, SIGMET, or G-AIRMET) opens the same panel
@@ -193,12 +197,12 @@
   </p>
 
   <h2>HUD (Heads-Up Display)</h2>
-  <p>The top bar shows:</p>
+  <p>The top-right bar shows:</p>
   <ul>
     <li><strong>Clock</strong> — Current UTC time.</li>
     <li><strong>Tracks</strong> — Number of aircraft currently tracked.</li>
     <li><strong>Updated</strong> — Time of the last data update.</li>
-    <li><strong>Lat / Lon</strong> — Camera center coordinates.</li>
+    <li><strong>Lat, Lon</strong> — Camera center coordinates.</li>
   </ul>
 
   <h2>Airspace Colors</h2>
