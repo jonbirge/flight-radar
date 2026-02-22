@@ -1,6 +1,5 @@
 node_modules/
 vendor/
-shared/fonts/
 out/
 assets/*.png
 web/creds.json
