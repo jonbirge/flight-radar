@@ -3566,7 +3566,10 @@ async function loadAndApplySettings() {
       const aircraftToggle = document.getElementById('toggle-aircraft');
       if (aircraftToggle) aircraftToggle.checked = CONFIG.aircraftEnabled;
       const labelsToggle = document.getElementById('toggle-labels');
-      if (labelsToggle) labelsToggle.checked = CONFIG.labelsEnabled;
+      if (labelsToggle) {
+        labelsToggle.checked = CONFIG.labelsEnabled;
+        labelsToggle.disabled = !CONFIG.aircraftEnabled;
+      }
       const rToggle = document.getElementById('toggle-radar');
       if (rToggle) rToggle.checked = CONFIG.radarEnabled;
       // Start auto-refresh timer (applyTheme already adds the visual layer)
