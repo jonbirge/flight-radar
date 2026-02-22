@@ -415,6 +415,22 @@ function computeExtrapolatedPosition(s, baseTime, now) {
   );
 }
 
+// Lightweight info panel update during extrapolation — only touches ALT, LAT, LON
+function updateInfoPanelInterim(newPos) {
+  const details = document.getElementById('info-details');
+  if (!details) return;
+  const carto = Cesium.Cartographic.fromCartesian(newPos);
+  const lat = Cesium.Math.toDegrees(carto.latitude);
+  const lon = Cesium.Math.toDegrees(carto.longitude);
+  const altFeet = Math.round(carto.height * 3.28084);
+  const altEl = details.querySelector('[data-field="alt"]');
+  const latEl = details.querySelector('[data-field="lat"]');
+  const lonEl = details.querySelector('[data-field="lon"]');
+  if (altEl) altEl.textContent = altFeet.toLocaleString() + ' ft';
+  if (latEl) latEl.textContent = lat.toFixed(4);
+  if (lonEl) lonEl.textContent = lon.toFixed(4);
+}
+
 // Extrapolate aircraft positions between server polls based on heading and velocity
 function extrapolatePositions() {
   const now = Date.now() / 1000;
@@ -458,6 +474,11 @@ function extrapolatePositions() {
     } else if (CONFIG.trailMode === 'history' || isSelectedAc) {
       // History trail mode: connect last history point to extrapolated position
       updateExtrapolationTrail(icao, ac, newPos);
+    }
+
+    // Live-update info panel for the selected aircraft during extrapolation
+    if (isSelectedAc) {
+      updateInfoPanelInterim(newPos);
     }
 
     updated = true;
