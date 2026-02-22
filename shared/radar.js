@@ -53,6 +53,7 @@ const flightPlanEntities = [];  // Cesium entities for flight plan route
 let activeFlightPlan = null;     // current flight plan data
 let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
 let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
+let selectedPollTimer = null;    // periodic poll for selected aircraft when bulk polling is off
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -978,6 +979,7 @@ function toggleAircraft(show) {
       ensurePositionUpdateTimer();
     }
   } else {
+    stopSelectedAircraftPolling(); // bulk polling takes over
     startPolling();
   }
   const labelsToggle = document.getElementById('toggle-labels');
@@ -1410,6 +1412,75 @@ function ensurePositionUpdateTimer() {
   setPositionUpdateInterval(ms);
 }
 
+// Start periodic position polling and track refresh for the selected aircraft
+// when bulk aircraft polling is off.  This keeps the selected aircraft live
+// with up-to-date position and full track history.
+function ensureSelectedAircraftPolling() {
+  if (CONFIG.aircraftEnabled) return; // bulk polling handles everything
+  if (selectedPollTimer) return;      // already running
+
+  async function pollSelected() {
+    if (!selectedIcao) return;
+    const ac = aircraft.get(selectedIcao);
+    if (!ac) return;
+    const s = ac.state;
+    // Poll a small region around the aircraft's current position
+    const pad = 1;
+    const bounds = {
+      south: s.lat - pad, north: s.lat + pad,
+      west: s.lon - pad, east: s.lon + pad,
+    };
+    try {
+      const data = await window.flightAPI.getStates(bounds);
+      if (!data.error && data.states) {
+        // Only update the selected aircraft from the response
+        const now = Date.now() / 1000;
+        for (const raw of data.states) {
+          const ns = parseState(raw);
+          if (ns.icao24 !== selectedIcao) continue;
+          if (ns.lon == null || ns.lat == null) continue;
+          ac.state = ns;
+          ac.lastServerUpdate = now;
+          ac.extrapolatedPos = computeExtrapolatedPosition(ns, ns.timePosition || now, now);
+          const alt = ns.altitude != null ? ns.altitude : (ac.lastKnownAlt || 0);
+          if (ns.altitude != null) ac.lastKnownAlt = ns.altitude;
+          const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+          const moved = !last
+            || Math.abs(ns.lon - last.lon) > 0.0005
+            || Math.abs(ns.lat - last.lat) > 0.0005
+            || Math.abs(alt - last.alt) > 30;
+          if (moved) ac.history.push({ lon: ns.lon, lat: ns.lat, alt, time: now });
+          const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(ns.lon, ns.lat, alt);
+          updateExtrapolationTrail(selectedIcao, ac, currentPos);
+          break;
+        }
+        lastPollTime = new Date();
+        renderAircraft(new Set([selectedIcao]));
+        showAircraftInfo(selectedIcao);
+      }
+    } catch (err) {
+      console.warn('[Poll] Selected aircraft poll error:', err);
+    }
+    // Periodic track refresh
+    if (ac && Date.now() / 1000 - ac.lastTrackFetch > 30) {
+      if (!trackFetchQueue.includes(selectedIcao)) {
+        trackFetchQueue.unshift(selectedIcao);
+        fetchNextTrack();
+      }
+    }
+  }
+
+  // Poll every 10 seconds for the selected aircraft
+  selectedPollTimer = setInterval(pollSelected, 10000);
+}
+
+function stopSelectedAircraftPolling() {
+  if (selectedPollTimer) {
+    clearInterval(selectedPollTimer);
+    selectedPollTimer = null;
+  }
+}
+
 // ============================================================
 // View Bounds Computation
 // ============================================================
@@ -1578,7 +1649,8 @@ function updateAircraft(states) {
 // aircraft's current position.  Called after every position change (server update or
 // extrapolation tick) so the trail never visually detaches from the icon.
 function updateExtrapolationTrail(icao, ac, currentPos) {
-  if (CONFIG.trailMode !== 'history') return;
+  // Selected aircraft always get extrapolation trail regardless of trail mode
+  if (CONFIG.trailMode !== 'history' && icao !== selectedIcao) return;
   const lastHistory = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
   if (!lastHistory) return;
 
@@ -1678,8 +1750,10 @@ function extrapolatePositions() {
     ac.entity.position = newPos;
     ac.extrapolatedPos = newPos.clone();
 
-    // Handle trails based on mode
-    if (CONFIG.trailMode === 'velocity') {
+    // Handle trails based on mode.
+    // Selected aircraft always use history-style trail regardless of trail mode.
+    const isSelectedAc = icao === selectedIcao;
+    if (!isSelectedAc && CONFIG.trailMode === 'velocity') {
       // Velocity vector mode: apply same delta to trail endpoints
       for (const trailEntity of ac.trailEntities) {
         if (trailEntity.polyline && trailEntity.polyline.positions) {
@@ -1692,7 +1766,7 @@ function extrapolatePositions() {
           }
         }
       }
-    } else if (CONFIG.trailMode === 'history') {
+    } else if (CONFIG.trailMode === 'history' || isSelectedAc) {
       // History trail mode: connect last history point to extrapolated position
       updateExtrapolationTrail(icao, ac, newPos);
     }
@@ -1707,9 +1781,10 @@ function extrapolatePositions() {
 }
 
 // Trail content fingerprint to avoid unnecessary entity rebuilds
-function _computeTrailHash(ac, s) {
-  if (CONFIG.trailMode === 'none') return '';
-  if (CONFIG.trailMode === 'velocity') {
+function _computeTrailHash(ac, s, isSelected) {
+  // Selected aircraft always use history-style trail hash regardless of global trail mode
+  if (!isSelected && CONFIG.trailMode === 'none') return '';
+  if (!isSelected && CONFIG.trailMode === 'velocity') {
     return `V:${(s.heading||0).toFixed(1)}:${(s.velocity||0).toFixed(0)}:${s.lon.toFixed(4)}:${s.lat.toFixed(4)}`;
   }
   const histLen = ac.history.length;
@@ -1835,7 +1910,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
 
     // --- Trail polyline ---
     // Skip trail rebuild when data hasn't changed (e.g., during camera pan/zoom)
-    const _th = _computeTrailHash(ac, s);
+    const _th = _computeTrailHash(ac, s, isSelected);
     if (ac._trailHash === _th) return;
     // Show trails if enabled OR if this aircraft is selected (selected aircraft always show history trail)
     if (CONFIG.trailMode !== 'none' || isSelected) {
@@ -2738,6 +2813,9 @@ function showAircraftInfo(icao) {
 
   // Ensure position extrapolation keeps running even if aircraft toggle is off
   ensurePositionUpdateTimer();
+  // Keep the selected aircraft live with periodic position and track updates
+  // even when aircraft display is off
+  ensureSelectedAircraftPolling();
 }
 
 function showTurbInfo(entity) {
@@ -2805,6 +2883,7 @@ function showTurbInfo(entity) {
 function hideAircraftInfo() {
   const prevIcao = selectedIcao;
   selectedIcao = null;
+  stopSelectedAircraftPolling();
   document.getElementById('aircraft-info').classList.add('hidden');
   if (prevIcao) {
     viewer.entities.suspendEvents();
