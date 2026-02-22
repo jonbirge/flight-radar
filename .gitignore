@@ -6,3 +6,4 @@ assets/*.png
 web/creds.json
 web/cache/
 *.snap
+.claude/*

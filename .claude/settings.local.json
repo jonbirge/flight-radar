@@ -1,8 +1,0 @@
-{
-  "prefersReducedMotion": true,
-  "permissions": {
-    "allow": [
-      "Bash(git checkout:*)"
-    ]
-  }
-}
