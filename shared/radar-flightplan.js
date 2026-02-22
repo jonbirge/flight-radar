@@ -276,6 +276,15 @@ async function enrichSelectedWithFlightAware(icao, callsign) {
   }
 }
 
+// Fly the camera to show the entire route from directly above (top-down view).
+function flyToRouteOverview() {
+  if (flightPlanEntities.length === 0) return;
+  viewer.flyTo(flightPlanEntities, {
+    duration: 1.5,
+    offset: new Cesium.HeadingPitchRange(0, -Math.PI / 2, 0),
+  });
+}
+
 function clearFlightPlanRoute() {
   viewer.entities.suspendEvents();
   try {
@@ -397,7 +406,7 @@ function displayFlightPlanRoute(flightData) {
 
   // Fly to origin/dest markers immediately so the user sees something right away
   if (flightPlanEntities.length > 0) {
-    viewer.flyTo(flightPlanEntities, { duration: 1.5 });
+    flyToRouteOverview();
   }
 
   const clearBtn = document.getElementById('btn-clear-route');
@@ -601,7 +610,7 @@ async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destC
               viewer.entities.resumeEvents();
             }
             console.log(`[FlightPlan] Displayed filed route with ${validFixes.length} waypoints from /route API at ${alt > 0 ? Math.round(alt * 3.28084).toLocaleString() + ' ft' : 'ground level'}`);
-            viewer.flyTo(flightPlanEntities, { duration: 1.5 });
+            flyToRouteOverview();
             return; // success — done
           }
         }
@@ -664,7 +673,7 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
     viewer.entities.resumeEvents();
   }
   console.log(`[FlightPlan] Displayed fallback route with ${routeWaypoints.length} waypoints from route string`);
-  viewer.flyTo(flightPlanEntities, { duration: 1.5 });
+  flyToRouteOverview();
 }
 
 function showFlightPlanInfo(flight) {
