@@ -42,14 +42,6 @@
   <div id="controls">
     <div class="control-group">
       <label class="toggle-label">
-        <input type="checkbox" id="toggle-aircraft">
-        <span>Aircraft</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-labels" checked disabled>
-        <span>Data blocks</span>
-      </label>
-      <label class="toggle-label">
         <input type="checkbox" id="toggle-radar">
         <span>Radar</span>
       </label>
@@ -71,6 +63,14 @@
       </label>
     </div>
     <div class="control-group">
+      <label class="toggle-label">
+        <input type="checkbox" id="toggle-aircraft">
+        <span>Aircraft</span>
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" id="toggle-labels" checked disabled>
+        <span>Data blocks</span>
+      </label>
       <label class="range-label">
         Map
         <select id="map-layer">
@@ -81,6 +81,10 @@
           <option value="night">Night Lights</option>
         </select>
       </label>
+      <label class="toggle-label">
+        <input type="checkbox" id="toggle-rotate">
+        <span>Auto rotate</span>
+      </label>
     </div>
     <div class="control-group">
       <button id="btn-home" class="scope-btn">Home</button>
@@ -89,7 +93,6 @@
       <button id="btn-conus" class="scope-btn">CONUS</button>
       <button id="btn-2d" class="scope-btn">2D</button>
       <button id="btn-3d" class="scope-btn active">3D</button>
-      <button id="btn-rotate" class="scope-btn">Rotate</button>
       <button id="btn-settings" class="scope-btn">Settings</button>
     </div>
   </div>

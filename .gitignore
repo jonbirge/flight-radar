@@ -4,6 +4,7 @@ shared/fonts/
 out/
 assets/*.png
 web/creds.json
+web/cred.json
 web/cache/
 *.snap
 .claude/*
