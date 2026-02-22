@@ -3108,14 +3108,20 @@ function displayFlightPlanRoute(flightData) {
   const clearBtn = document.getElementById('btn-clear-route');
   if (clearBtn) clearBtn.classList.remove('hidden');
 
-  // Try to find and select the matching live aircraft by callsign.
-  // If aircraft display is off, do a one-shot poll around the flight's last
-  // known position so the aircraft appears even when bulk polling is stopped.
-  if (!CONFIG.aircraftEnabled && flight.last_position
-      && flight.last_position.latitude != null && flight.last_position.longitude != null) {
-    fetchSingleAircraftForSearch(flight.last_position);
-  } else {
-    selectSearchedAircraft();
+  // Try to find and select the matching live aircraft.
+  // First check the already-loaded aircraft Map; if not found there, query
+  // OpenSky around the flight's last known position from FlightAware.
+  console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+  if (!selectSearchedAircraft()) {
+    // Not in the local Map — query OpenSky if we have a last known position
+    if (flight.last_position
+        && flight.last_position.latitude != null && flight.last_position.longitude != null) {
+      console.log(`[FlightPlan] Not in local Map, querying OpenSky around last_position: ` +
+        `lat=${flight.last_position.latitude.toFixed(2)}, lon=${flight.last_position.longitude.toFixed(2)}`);
+      fetchSingleAircraftForSearch(flight.last_position);
+    } else {
+      console.log(`[FlightPlan] No last_position from FlightAware — cannot query OpenSky`);
+    }
   }
 
   // Fetch decoded route from FlightAware /route endpoint (waypoints with real lat/lon).
@@ -3128,8 +3134,8 @@ function displayFlightPlanRoute(flightData) {
   }
 }
 
-// One-shot poll around a flight's last known position so the searched aircraft
-// appears even when the AIRCRAFT display toggle is off (bulk polling stopped).
+// Query OpenSky around a flight's last known position to find and select the
+// searched aircraft.  Called regardless of the AIRCRAFT display toggle.
 async function fetchSingleAircraftForSearch(lastPos) {
   const pad = 2; // degrees around last position
   const bounds = {
@@ -3138,17 +3144,31 @@ async function fetchSingleAircraftForSearch(lastPos) {
     west: lastPos.longitude - pad,
     east: lastPos.longitude + pad,
   };
+  console.log(`[FlightPlan] OpenSky query: bounds=${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
   try {
     const data = await window.flightAPI.getStates(bounds);
-    if (!data.error && data.states && data.states.length > 0) {
+    if (data.error) {
+      console.warn(`[FlightPlan] OpenSky query error: ${data.error}`);
+    } else if (!data.states || data.states.length === 0) {
+      console.log(`[FlightPlan] OpenSky returned 0 aircraft in search area`);
+    } else {
+      console.log(`[FlightPlan] OpenSky returned ${data.states.length} aircraft in search area`);
       // Only add the matching aircraft — don't bulk-add everything from the poll
       const target = searchedFlightIdent;
       const now = Date.now() / 1000;
+      let found = false;
+      // Log all callsigns for debugging
+      const callsigns = data.states
+        .map(raw => { const s = parseState(raw); return (s.callsign || '').trim(); })
+        .filter(cs => cs.length > 0);
+      console.log(`[FlightPlan] Callsigns in area: ${callsigns.slice(0, 20).join(', ')}${callsigns.length > 20 ? ` ... (${callsigns.length} total)` : ''}`);
       for (const raw of data.states) {
         const s = parseState(raw);
         if (s.lon == null || s.lat == null) continue;
         const cs = (s.callsign || '').trim().toUpperCase();
         if (cs !== target) continue;
+        found = true;
+        console.log(`[FlightPlan] Matched! icao=${s.icao24}, callsign="${cs}", pos=${s.lat.toFixed(3)},${s.lon.toFixed(3)}, alt=${s.altitude}`);
         // Create an aircraft entry for the searched flight
         const ac = {
           state: s, entity: null, trailEntities: [],
@@ -3163,26 +3183,32 @@ async function fetchSingleAircraftForSearch(lastPos) {
         renderAircraft(new Set([s.icao24]));
         break;
       }
+      if (!found) {
+        console.log(`[FlightPlan] Callsign "${target}" NOT found among ${data.states.length} OpenSky aircraft`);
+      }
     }
   } catch (err) {
-    console.warn('[FlightPlan] One-shot poll for searched aircraft failed:', err);
+    console.warn('[FlightPlan] OpenSky query failed:', err);
   }
   selectSearchedAircraft();
 }
 
 // Find and select the matching live aircraft by callsign.
 // Called after a flight plan search and also from updateAircraft() if the aircraft
-// arrives after the search completes.
+// arrives after the search completes.  Returns true if found.
 function selectSearchedAircraft() {
-  if (!searchedFlightIdent) return;
+  if (!searchedFlightIdent) return false;
   for (const [icao, ac] of aircraft) {
     const cs = (ac.state.callsign || '').trim().toUpperCase();
     if (cs === searchedFlightIdent) {
+      console.log(`[FlightPlan] Found live aircraft: icao=${icao}, callsign="${cs}"`);
       searchedIcao = icao;
       showAircraftInfo(icao);
-      return;
+      return true;
     }
   }
+  console.log(`[FlightPlan] Callsign "${searchedFlightIdent}" not found in ${aircraft.size} loaded aircraft`);
+  return false;
 }
 
 // Fetch the decoded filed route from FlightAware's /route endpoint and draw it
