@@ -197,7 +197,7 @@ ipcMain.handle('get-states', async (event, bounds) => {
 // IPC handler: get track/trajectory for a specific aircraft
 ipcMain.handle('get-track', async (event, icao24) => {
   try {
-    const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}&time=0`;
+    const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}`;
     const token = await getOpenSkyToken();
     const data = await httpGet(url, token);
     return data;

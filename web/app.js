@@ -137,7 +137,7 @@ async function apiGetTrack(icao24) {
   lastTrackCall = now;
 
   try {
-    const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}&time=0`;
+    const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}`;
 
     const token = await getOpenSkyToken();
     const headers = {};
