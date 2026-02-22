@@ -1,6 +1,6 @@
 {
   "name": "flight-radar",
-  "version": "2.5.17",
+  "version": "2.6.0",
   "description": "Real-time 3D flight tracker with Material 3 Expressive design",
   "main": "main.js",
   "author": "Jonathan Birge",
