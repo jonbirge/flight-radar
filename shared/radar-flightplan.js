@@ -54,12 +54,12 @@ function showAircraftInfo(icao) {
     <div><span class="label">ICAO24</span><span>${icao.toUpperCase()}</span></div>
     <div><span class="label">SQUAWK</span><span>${s.squawk || '----'}</span></div>
     <div><span class="label">ORIGIN</span><span>${s.origin || '??'}</span></div>
-    <div><span class="label">ALT</span><span>${feetAlt != null ? feetAlt.toLocaleString() + ' ft' : '---'}</span></div>
+    <div><span class="label">ALT</span><span data-field="alt">${feetAlt != null ? feetAlt.toLocaleString() + ' ft' : '---'}</span></div>
     <div><span class="label">GND SPD</span><span>${knots != null ? knots + ' kts' : '---'}</span></div>
     <div><span class="label">HDG</span><span>${s.heading != null ? Math.round(s.heading) + '°' : '---'}</span></div>
     <div><span class="label">VS</span><span>${fpm != null ? (fpm > 0 ? '+' : '') + fpm + ' fpm' : '---'}</span></div>
-    <div><span class="label">LAT</span><span>${s.lat.toFixed(4)}</span></div>
-    <div><span class="label">LON</span><span>${s.lon.toFixed(4)}</span></div>
+    <div><span class="label">LAT</span><span data-field="lat">${s.lat.toFixed(4)}</span></div>
+    <div><span class="label">LON</span><span data-field="lon">${s.lon.toFixed(4)}</span></div>
     <div><span class="label">TRAIL PTS</span><span>${ac.history.length}${ac.granularTrack ? '+' + (ac.granularTrack.path || []).length : ''}</span></div>
     <div><span class="label">LAST POLL</span><span>${lastPollTime ? lastPollTime.toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
     <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
