@@ -3081,6 +3081,14 @@ function displayFlightPlanRoute(flightData) {
   // Store the searched flight identifier for visibility bypass and aircraft matching
   searchedFlightIdent = (flight.ident || flight.ident_iata || '').trim().toUpperCase();
 
+  // Debug: log the selected flight object to see what FlightAware actually returns
+  console.log(`[FlightPlan] Selected flight:`, JSON.stringify({
+    ident: flight.ident, fa_flight_id: flight.fa_flight_id,
+    status: flight.status, progress: flight.progress_percent,
+    last_position: flight.last_position,
+    position_only: flight.position_only,
+  }));
+
   const routeColor = CONFIG.theme === 'light'
     ? Cesium.Color.fromCssColorString('#1565C0').withAlpha(0.8)
     : Cesium.Color.fromCssColorString('#42A5F5').withAlpha(0.8);
