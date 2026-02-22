@@ -25,5 +25,6 @@
     "electron": "*",
     "javascript-obfuscator": "*",
     "terser": "*"
-  }
+  },
+  "cesiumVersion": "1.138.0"
 }
