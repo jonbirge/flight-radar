@@ -160,12 +160,69 @@ async function apiGetTrack(icao24) {
 }
 
 // ============================================================
+// FlightAware AeroAPI (via PHP proxy)
+// ============================================================
+
+async function apiGetFlightPlan(ident) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights&ident=${encodeURIComponent(ident)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// Fetch decoded filed route with waypoint coordinates from FlightAware AeroAPI
+async function apiGetFlightRoute(faFlightId) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights/route&fa_flight_id=${encodeURIComponent(faFlightId)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// Fetch actual flown track for a specific flight from FlightAware AeroAPI
+async function apiGetFlightTrack(faFlightId) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights/track&fa_flight_id=${encodeURIComponent(faFlightId)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// ============================================================
 // window.flightAPI shim (browser equivalent of Electron IPC)
 // ============================================================
 
 window.flightAPI = {
   getStates: (bounds) => apiGetStates(bounds),
   getTrack: (icao24) => apiGetTrack(icao24),
+  getFlightPlan: (ident) => apiGetFlightPlan(ident),
+  getFlightRoute: (faFlightId) => apiGetFlightRoute(faFlightId),
+  getFlightTrack: (faFlightId) => apiGetFlightTrack(faFlightId),
   getSettings: () => Promise.resolve(loadSettings()),
   saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
   onOpenSettings: () => {},  // no-op

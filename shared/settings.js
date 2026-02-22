@@ -394,7 +394,7 @@ function createSettingsFormHTML() {
         <div class="settings-label">OpenSky Network credentials</div>
         <div class="settings-hint">
           OAuth2 Client ID &amp; Secret from your OpenSky account. Leave blank for anonymous access (lower rate limits).
-          You can also drag &amp; drop a credentials JSON file here.
+          You can also drag &amp; drop a <code>creds.json</code> file here.
         </div>
         <div class="settings-row" style="margin-bottom:6px">
           <span class="settings-field-label">Client ID</span>
