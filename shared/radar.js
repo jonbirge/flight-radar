@@ -3313,17 +3313,6 @@ async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destC
                 flightPlanEntities.push(viewer.entities.add({
                   position: Cesium.Cartesian3.fromDegrees(fix.longitude, fix.latitude, 0),
                   point: { pixelSize: 6, color: waypointColor, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
-                  label: {
-                    text: fix.name || '',
-                    font: '11px Roboto Flex, sans-serif',
-                    fillColor: waypointColor,
-                    outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
-                    outlineWidth: 2,
-                    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                    pixelOffset: new Cesium.Cartesian2(0, -6),
-                    scale: 0.9,
-                  },
                 }));
               }
             } finally {
@@ -3387,17 +3376,6 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
       flightPlanEntities.push(viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, 0),
         point: { pixelSize: 6, color: waypointColor, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
-        label: {
-          text: wp.name,
-          font: '11px Roboto Flex, sans-serif',
-          fillColor: waypointColor,
-          outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
-          outlineWidth: 2,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -6),
-          scale: 0.9,
-        },
       }));
     }
   } finally {
