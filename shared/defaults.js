@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
   sigmetsEnabled: false,
   airmetsEnabled: false,
   pirepsEnabled: false,
+  turbForecastEnabled: false,
   turbulenceLevel: 'none',
   rotationSpeed: 6,
   openskyClientId: '',

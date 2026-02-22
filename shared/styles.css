@@ -106,28 +106,26 @@ body {
 #hud {
   position: absolute;
   top: 0;
-  left: 0;
   right: 0;
   z-index: 100;
   pointer-events: none;
 }
 
-#clock {
-  position: absolute;
-  top: 10px;
-  right: 16px;
-  z-index: 100;
-  color: var(--md-on-surface-variant);
-  font: var(--md-typescale-label-large);
-  pointer-events: none;
-}
-
 #hud-stats {
   display: flex;
-  gap: 24px;
+  gap: 10px;
   padding: 10px 16px;
   font: var(--md-typescale-label-small);
   color: var(--md-on-surface-variant);
+}
+
+#clock {
+  font: var(--md-typescale-label-medium);
+  font-weight: 500;
+}
+
+.hud-sep {
+  opacity: 0.35;
 }
 
 #hud-instructions {
@@ -143,16 +141,38 @@ body {
 }
 
 #throttle-warning {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
   background: #93000a;
   color: #ffdad6;
   text-align: center;
   padding: 6px 16px;
   font: var(--md-typescale-label-medium);
   font-weight: 500;
-  border-radius: 0 0 var(--md-shape-md) var(--md-shape-md);
 }
 
 #throttle-warning.hidden { display: none; }
+
+/* Search Panel */
+#search-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  background: var(--md-surface-container);
+  border-radius: var(--md-shape-lg);
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font: var(--md-typescale-label-medium);
+  box-shadow: var(--md-elevation-2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
 /* Controls Panel */
 #controls {
@@ -177,6 +197,11 @@ body {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+#controls .control-group:nth-child(3) {
+  border-top: 1px solid var(--md-outline-variant);
+  padding-top: 10px;
 }
 
 .toggle-label {
@@ -309,7 +334,20 @@ select:focus {
   color: #000000;
 }
 
+.theme-light .scope-btn {
+  background: #ffffff;
+}
+
+.theme-light .scope-btn:hover {
+  background: #f0f0f0;
+}
+
+.theme-light .scope-btn:active {
+  background: #e4e4e4;
+}
+
 .theme-light .scope-btn.active {
+  background: var(--md-primary);
   color: #ffffff;
 }
 
@@ -342,16 +380,30 @@ select:focus {
 
 #info-close {
   position: absolute;
-  top: 8px;
-  right: 14px;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   cursor: pointer;
   font-size: 20px;
+  line-height: 1;
   color: var(--md-on-surface-variant);
-  transition: color var(--md-motion-duration-short) var(--md-motion-easing-standard);
+  background: var(--md-surface-container-highest);
+  transition: background var(--md-motion-duration-short) var(--md-motion-easing-standard),
+              color var(--md-motion-duration-short) var(--md-motion-easing-standard);
 }
 
 #info-close:hover {
   color: var(--md-on-surface);
+  background: var(--md-outline-variant);
+}
+
+#info-close:active {
+  background: var(--md-outline);
 }
 
 #info-callsign {
@@ -376,10 +428,17 @@ select:focus {
   color: var(--md-on-surface-variant);
 }
 
+#btn-fly-route {
+  width: 100%;
+  margin-top: 10px;
+}
+
+#btn-fly-route.hidden { display: none; }
+
 /* Flight search input */
 #flight-search {
   background: var(--md-surface-container-highest);
-  border: 1px solid var(--md-outline);
+  border: none;
   border-radius: var(--md-shape-full);
   color: var(--md-on-surface);
   padding: 0 14px;
@@ -388,13 +447,12 @@ select:focus {
   font-size: 14px;
   width: 170px;
   outline: none;
-  transition: border-color var(--md-motion-duration-short) var(--md-motion-easing-standard);
+}
+
+.theme-light #flight-search {
+  background: #ffffff;
 }
 
 #flight-search::placeholder {
   color: var(--md-on-surface-variant);
-}
-
-#flight-search:focus {
-  border-color: var(--md-primary);
 }

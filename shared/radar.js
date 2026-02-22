@@ -70,7 +70,15 @@ async function loadAndApplySettings() {
       CONFIG.sigmetsEnabled = saved.sigmetsEnabled || DEFAULT_SETTINGS.sigmetsEnabled;
       CONFIG.airmetsEnabled = saved.airmetsEnabled || DEFAULT_SETTINGS.airmetsEnabled;
       CONFIG.pirepsEnabled = saved.pirepsEnabled || DEFAULT_SETTINGS.pirepsEnabled;
-      CONFIG.turbulenceLevel = saved.turbulenceLevel || DEFAULT_SETTINGS.turbulenceLevel;
+      // Migrate old turbulenceLevel setting to new checkbox model
+      if (saved.turbForecastEnabled !== undefined) {
+        CONFIG.turbForecastEnabled = saved.turbForecastEnabled;
+      } else if (saved.turbulenceLevel && saved.turbulenceLevel !== 'none') {
+        CONFIG.turbForecastEnabled = true;
+      } else {
+        CONFIG.turbForecastEnabled = DEFAULT_SETTINGS.turbForecastEnabled;
+      }
+      CONFIG.turbulenceLevel = CONFIG.turbForecastEnabled ? computeTurbLevel() : 'none';
       CONFIG.savedView = saved.savedView !== undefined ? saved.savedView : DEFAULT_SETTINGS.savedView;
       await applyTheme(); // adds turb + radar layers on top if enabled
       if (!CONFIG.aircraftEnabled) toggleAircraft(false);
@@ -96,11 +104,11 @@ async function loadAndApplySettings() {
       if (aToggle) aToggle.checked = CONFIG.airmetsEnabled;
       const pToggle = document.getElementById('toggle-pireps');
       if (pToggle) pToggle.checked = CONFIG.pirepsEnabled;
-      const tLevel = document.getElementById('turb-level');
-      if (tLevel) tLevel.value = CONFIG.turbulenceLevel;
+      const tToggle = document.getElementById('toggle-turb-forecast');
+      if (tToggle) tToggle.checked = CONFIG.turbForecastEnabled;
       // GTG forecast: applyTheme already added the imagery layer if level !== 'none';
       // just start the refresh timer
-      if (CONFIG.turbulenceLevel !== 'none') {
+      if (CONFIG.turbForecastEnabled) {
         if (turbRefreshTimer) clearInterval(turbRefreshTimer);
         turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
       }

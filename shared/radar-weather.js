@@ -569,3 +569,39 @@ function refreshTurbForecast() {
   addTurbLayer();
   console.log('[Weather] GTG forecast refreshed');
 }
+
+// Compute the best turbulence forecast level based on the active flight plan.
+// If a flight plan with a filed altitude exists, snap to the nearest available FL.
+// Otherwise default to 'maxa' (MAX HI).
+const TURB_LEVELS = [100, 130, 160, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450];
+
+function computeTurbLevel() {
+  if (activeFlightPlan) {
+    const flights = activeFlightPlan.flights || [];
+    const flight = flights.length > 0 ? pickBestFlight(flights) : null;
+    if (flight && flight.filed_altitude != null) {
+      const fl = flight.filed_altitude; // already in hundreds of feet
+      let closest = TURB_LEVELS[0];
+      let minDiff = Math.abs(fl - closest);
+      for (const level of TURB_LEVELS) {
+        const diff = Math.abs(fl - level);
+        if (diff < minDiff) { minDiff = diff; closest = level; }
+      }
+      return String(closest);
+    }
+  }
+  return 'maxa';
+}
+
+// Recompute and refresh the turb forecast layer if the checkbox is enabled.
+// Called when flight plan data changes (loaded, cleared, enriched).
+function refreshTurbLevel() {
+  if (!CONFIG.turbForecastEnabled) return;
+  const newLevel = computeTurbLevel();
+  if (newLevel !== CONFIG.turbulenceLevel) {
+    CONFIG.turbulenceLevel = newLevel;
+    disableTurbForecast();
+    enableTurbForecast();
+    console.log(`[Weather] Turb level auto-updated to ${newLevel}`);
+  }
+}

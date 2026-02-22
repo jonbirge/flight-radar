@@ -44,6 +44,9 @@ function showAircraftInfo(icao) {
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
 
+  const flyBtn = document.getElementById('btn-fly-route');
+  if (flyBtn) flyBtn.classList.remove('hidden');
+
   document.getElementById('info-callsign').textContent = s.callsign || icao;
 
   const feetAlt = s.altitude ? Math.round(s.altitude * 3.28084) : null;
@@ -114,6 +117,8 @@ function showTurbInfo(entity) {
   const type = p.turbType ? p.turbType.getValue() : '?';
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
+  const flyBtn = document.getElementById('btn-fly-route');
+  if (flyBtn) flyBtn.classList.add('hidden');
 
   // Deselect any aircraft
   if (selectedIcao) {
@@ -174,6 +179,8 @@ function hideAircraftInfo() {
   const prevIcao = selectedIcao;
   selectedIcao = null;
   document.getElementById('aircraft-info').classList.add('hidden');
+  const flyBtn = document.getElementById('btn-fly-route');
+  if (flyBtn) flyBtn.classList.add('hidden');
   if (prevIcao) {
     viewer.entities.suspendEvents();
     try {
@@ -202,6 +209,8 @@ function hideAircraftInfo() {
 document.getElementById('info-close').addEventListener('click', () => {
   clearFlightPlanRoute();
   hideAircraftInfo();
+  const searchInput = document.getElementById('flight-search');
+  if (searchInput) searchInput.value = '';
 });
 
 // ============================================================
@@ -295,8 +304,7 @@ function clearFlightPlanRoute() {
   activeFlightPlan = null;
   searchedFlightIdent = null;
   searchedIcao = null;
-  const clearBtn = document.getElementById('btn-clear-route');
-  if (clearBtn) clearBtn.classList.add('hidden');
+  refreshTurbLevel();
 }
 
 // Look up airport coordinates from our local airport database by ICAO or IATA code.
@@ -367,6 +375,7 @@ function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointC
 function displayFlightPlanRoute(flightData) {
   clearFlightPlanRoute();
   activeFlightPlan = flightData;
+  refreshTurbLevel();
 
   // Find the best flight from the response (prefer en-route, then next upcoming)
   const flights = flightData.flights || [];
@@ -407,9 +416,6 @@ function displayFlightPlanRoute(flightData) {
   if (flightPlanEntities.length > 0) {
     flyToRouteOverview();
   }
-
-  const clearBtn = document.getElementById('btn-clear-route');
-  if (clearBtn) clearBtn.classList.remove('hidden');
 
   // Fetch decoded route from FlightAware /route endpoint (waypoints with real lat/lon).
   // Falls back to parsing the route string from the flights response if that fails.
@@ -755,7 +761,6 @@ async function searchFlightPlan(ident) {
 // Wire up flight search UI
 const flightSearchInput = document.getElementById('flight-search');
 const flightSearchBtn = document.getElementById('btn-flight-search');
-const clearRouteBtn = document.getElementById('btn-clear-route');
 
 if (flightSearchBtn) {
   flightSearchBtn.addEventListener('click', () => {
@@ -773,10 +778,19 @@ if (flightSearchInput) {
   });
 }
 
-if (clearRouteBtn) {
-  clearRouteBtn.addEventListener('click', () => {
-    clearFlightPlanRoute();
-    if (flightSearchInput) flightSearchInput.value = '';
-    hideAircraftInfo();
+const flyRouteBtn = document.getElementById('btn-fly-route');
+if (flyRouteBtn) {
+  flyRouteBtn.addEventListener('click', () => {
+    if (flightPlanEntities.length > 0) {
+      flyToRouteOverview();
+    } else if (selectedIcao) {
+      const ac = aircraft.get(selectedIcao);
+      if (ac && ac.trailEntities && ac.trailEntities.length > 0) {
+        viewer.flyTo(ac.trailEntities, {
+          duration: 1.5,
+          offset: new Cesium.HeadingPitchRange(0, -Math.PI / 2, 0),
+        });
+      }
+    }
   });
 }
