@@ -3026,14 +3026,18 @@ function displayFlightPlanRoute(flightData) {
     viewer.flyTo(flightPlanEntities, { duration: 1.5 });
   }
 
-  // Show the route details in the info panel
-  showFlightPlanInfo(flight);
-
   const clearBtn = document.getElementById('btn-clear-route');
   if (clearBtn) clearBtn.classList.remove('hidden');
 
-  // Try to find and select the matching live aircraft by callsign
-  selectSearchedAircraft();
+  // Try to find and select the matching live aircraft by callsign.
+  // If aircraft display is off, do a one-shot poll around the flight's last
+  // known position so the aircraft appears even when bulk polling is stopped.
+  if (!CONFIG.aircraftEnabled && flight.last_position
+      && flight.last_position.latitude != null && flight.last_position.longitude != null) {
+    fetchSingleAircraftForSearch(flight.last_position);
+  } else {
+    selectSearchedAircraft();
+  }
 
   // Fetch decoded route from FlightAware /route endpoint (waypoints with real lat/lon).
   // Falls back to parsing the route string from the flights response if that fails.
@@ -3043,6 +3047,48 @@ function displayFlightPlanRoute(flightData) {
   } else if (originCoords && destCoords) {
     drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
   }
+}
+
+// One-shot poll around a flight's last known position so the searched aircraft
+// appears even when the AIRCRAFT display toggle is off (bulk polling stopped).
+async function fetchSingleAircraftForSearch(lastPos) {
+  const pad = 2; // degrees around last position
+  const bounds = {
+    south: lastPos.latitude - pad,
+    north: lastPos.latitude + pad,
+    west: lastPos.longitude - pad,
+    east: lastPos.longitude + pad,
+  };
+  try {
+    const data = await window.flightAPI.getStates(bounds);
+    if (!data.error && data.states && data.states.length > 0) {
+      // Only add the matching aircraft — don't bulk-add everything from the poll
+      const target = searchedFlightIdent;
+      const now = Date.now() / 1000;
+      for (const raw of data.states) {
+        const s = parseState(raw);
+        if (s.lon == null || s.lat == null) continue;
+        const cs = (s.callsign || '').trim().toUpperCase();
+        if (cs !== target) continue;
+        // Create an aircraft entry for the searched flight
+        const ac = {
+          state: s, entity: null, trailEntities: [],
+          extrapolationTrail: null, history: [], granularTrack: null,
+          lastTrackFetch: 0, lastKnownAlt: s.altitude || 0,
+          lastServerUpdate: now, extrapolatedPos: null,
+          _trailHash: '', _iconKey: '', _labelText: '',
+        };
+        ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || now, now);
+        ac.history.push({ lon: s.lon, lat: s.lat, alt: s.altitude || 0, time: now });
+        aircraft.set(s.icao24, ac);
+        renderAircraft(new Set([s.icao24]));
+        break;
+      }
+    }
+  } catch (err) {
+    console.warn('[FlightPlan] One-shot poll for searched aircraft failed:', err);
+  }
+  selectSearchedAircraft();
 }
 
 // Find and select the matching live aircraft by callsign.
