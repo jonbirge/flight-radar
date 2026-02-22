@@ -1440,12 +1440,6 @@ async function pollSelectedAircraft() {
   } catch (err) {
     console.warn('[Poll] Selected aircraft poll error:', err);
   }
-  // Queue track refresh if stale
-  if (ac && Date.now() / 1000 - ac.lastTrackFetch > 30) {
-    if (!trackFetchQueue.includes(selectedIcao)) {
-      trackFetchQueue.unshift(selectedIcao);
-    }
-  }
 }
 
 // Unified tick: extrapolate positions, check if any polls or track fetches are due.
@@ -1622,12 +1616,6 @@ function updateAircraft(states) {
         if (!hasValid) ac.granularTrack = null;
       }
 
-      // Queue selected aircraft for periodic track refresh (every 30s)
-      if (s.icao24 === selectedIcao && now - ac.lastTrackFetch > 30) {
-        if (!trackFetchQueue.includes(s.icao24)) {
-          trackFetchQueue.unshift(s.icao24);
-        }
-      }
     }
 
     // Remove stale aircraft (but never remove the selected or searched flight)
@@ -2226,15 +2214,22 @@ function buildTrailPositions(ac, isSelected = false) {
   // contiguous segment to avoid jumps from stale positions.
   // Gap threshold must exceed the longest poll interval (60s) with margin
   // for network latency.  Selected aircraft gets a much larger tolerance.
-  const MAX_GAP = isSelected ? 600 : 180;
-  let segmentStart = 0;
-  for (let i = 1; i < points.length; i++) {
-    if (points[i].time - points[i - 1].time > MAX_GAP) {
-      segmentStart = i;
+  // Skip gap-trimming entirely when granular track data exists — those
+  // waypoints are inherently sparse (every 15 min or at heading changes)
+  // and gaps between them or between the granular tail and polled data
+  // are expected and should not discard the flight history.
+  const hasGranular = granularPoints.length > 0;
+  if (!hasGranular) {
+    const MAX_GAP = isSelected ? 600 : 180;
+    let segmentStart = 0;
+    for (let i = 1; i < points.length; i++) {
+      if (points[i].time - points[i - 1].time > MAX_GAP) {
+        segmentStart = i;
+      }
     }
-  }
-  if (segmentStart > 0) {
-    points = points.slice(segmentStart);
+    if (segmentStart > 0) {
+      points = points.slice(segmentStart);
+    }
   }
 
   return smoothTrailPositions(points);
@@ -2788,8 +2783,8 @@ function showAircraftInfo(icao) {
     <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
   `;
 
-  // Immediately fetch track history for selected aircraft
-  if (!trackFetchQueue.includes(icao)) {
+  // Fetch full track history only on initial selection (not on every info refresh)
+  if (prevSelected !== icao && !trackFetchQueue.includes(icao)) {
     trackFetchQueue.unshift(icao);
     fetchNextTrack();
   }

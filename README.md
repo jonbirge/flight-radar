@@ -20,7 +20,7 @@ Camera viewport → bounding box → OpenSky /states/all?lamin=&lomin=&lamax=&lo
                            Accumulate history → render trail polylines
 
 Optional hi-res trails:
-  Track fetch queue → OpenSky /tracks/all?icao24=&time=0 → merge with polled history
+  Track fetch queue → OpenSky /tracks/all?icao24= → merge with polled history
 ```
 
 ## Setup
