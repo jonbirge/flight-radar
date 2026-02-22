@@ -73,8 +73,6 @@ function toggleAircraft(show) {
 
 function setPollInterval(ms) {
   CONFIG.pollInterval = ms;
-  const sel = document.getElementById('poll-interval');
-  if (sel) sel.value = String(ms / 1000);
 }
 
 function setTickInterval(ms) {

@@ -203,10 +203,6 @@ document.getElementById('toggle-labels').addEventListener('change', async (e) =>
   await window.flightAPI.saveSettings(settings);
 });
 
-document.getElementById('poll-interval').addEventListener('change', (e) => {
-  setPollInterval(parseInt(e.target.value) * 1000);
-});
-
 document.getElementById('map-layer').addEventListener('change', async (e) => {
   CONFIG.mapLayer = e.target.value;
   const layers = viewer.imageryLayers;
