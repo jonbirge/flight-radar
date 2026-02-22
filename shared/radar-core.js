@@ -1,0 +1,357 @@
+// Shared radar core: state declarations, Cesium viewer init, and theme engine.
+// Loaded first — all other radar-*.js files depend on this.
+
+'use strict';
+
+// ============================================================
+// State
+// ============================================================
+
+const aircraft = new Map();       // icao24 -> aircraft state object
+const trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
+const airportEntities = [];       // Cesium entities for airport markers
+const smallAirportEntities = [];  // Cesium entities for small airport markers
+const airspaceEntities = [];     // Cesium entities for airspace polygons
+const waypointEntities = [];     // Cesium entities for fix markers
+const navaidEntities = [];       // Cesium entities for navaid markers
+let cachedAirportData = null;     // Cached airport JSON for rebuilds
+let cachedWaypointData = null;    // Cached waypoint JSON for rebuilds
+let tickTimer = null;              // unified timer for extrapolation + polling + track fetches
+let viewer = null;
+let is2D = false;
+let selectedIcao = null;
+let isRotating = false;
+let rotateHandler = null;
+let frozenBounds = null;          // locked viewport bounds during rotation
+let lastPollTime = null;
+let lastIconSize = -1;
+let lastPollBounds = null;
+let lastPollHeight = null;          // camera height at last poll interval adjustment
+let lastPositionUpdateHeight = null; // camera height at last position update interval adjustment
+let viewChangePollDebounce = null;
+let lastUseDot = null;              // track LOD tier to detect dot↔arrow transitions
+let _zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom resizes
+const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
+const RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
+let _renderGeneration = 0;       // incremented to cancel stale chunked renders
+let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft/PIREPs
+let radarLayer = null;
+let radarRefreshTimer = null;
+let turbLayer = null;
+let turbRefreshTimer = null;
+let pirepRefreshTimer = null;
+let sigmetRefreshTimer = null;
+let airmetRefreshTimer = null;
+const pirepEntities = [];
+const sigmetEntities = [];
+const airmetEntities = [];
+const flightPlanEntities = [];  // Cesium entities for flight plan route
+let activeFlightPlan = null;     // current flight plan data
+let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
+let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
+let lastSelectedPollMs = 0;      // timestamp of last selected-aircraft poll
+let lastTrackFetchMs = 0;        // timestamp of last track queue processing
+const SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s
+const TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
+
+// ============================================================
+// Cesium Viewer Initialization
+// ============================================================
+
+// No Ion token needed — we use CartoDB tiles, but Cesium wants something non-null
+Cesium.Ion.defaultAccessToken = 'not-used';
+
+// Create dark basemap imagery provider (CartoDB dark_matter)
+const darkTiles = new Cesium.UrlTemplateImageryProvider({
+  url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+  subdomains: ['a', 'b', 'c', 'd'],
+  credit: new Cesium.Credit('CartoDB'),
+  minimumLevel: 0,
+  maximumLevel: 18,
+});
+
+// CesiumJS 1.104+ replaced `imageryProvider` with `baseLayer`
+viewer = new Cesium.Viewer('cesiumContainer', {
+  baseLayer: new Cesium.ImageryLayer(darkTiles),
+  baseLayerPicker: false,
+  geocoder: false,
+  homeButton: false,
+  sceneModePicker: false,
+  selectionIndicator: false,
+  infoBox: false,
+  timeline: false,
+  animation: false,
+  navigationHelpButton: false,
+  fullscreenButton: false,
+  vrButton: false,
+  creditContainer: document.createElement('div'), // hide credits
+  scene3DOnly: false,
+  sceneMode: Cesium.SceneMode.SCENE3D,
+  mapProjection: new Cesium.WebMercatorProjection(),
+  orderIndependentTranslucency: false,
+});
+
+// Set dark background color for globe/space
+viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0a0a');
+viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a0a0a');
+viewer.scene.globe.showGroundAtmosphere = false;
+viewer.scene.globe.enableLighting = false;
+viewer.scene.skyAtmosphere && (viewer.scene.skyAtmosphere.show = false);
+viewer.scene.fog.enabled = false;
+
+// Initial view: look at default airport from angled perspective
+viewer.camera.lookAt(
+  Cesium.Cartesian3.fromDegrees(CONFIG.startLon, CONFIG.startLat, 0),
+  new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), CONFIG.startAlt)
+);
+// Unlock camera from the lookAt target so the user can freely navigate
+viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+
+// ============================================================
+// Theme Engine
+// ============================================================
+
+function makeDarkTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    credit: new Cesium.Credit('CartoDB'),
+    minimumLevel: 0, maximumLevel: 18,
+  });
+}
+
+function makeLightTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    credit: new Cesium.Credit('CartoDB'),
+    minimumLevel: 0, maximumLevel: 18,
+  });
+}
+
+function makeSectionalTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+function makeTerminalTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Terminal/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+function makeIfrLowTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+function makeIfrHighTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer',
+    { credit: new Cesium.Credit('FAA') }
+  );
+}
+
+function makeSatelliteTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, Maxar, Earthstar Geographics'),
+    minimumLevel: 0, maximumLevel: 19,
+  });
+}
+
+function makeOsmTiles() {
+  return new Cesium.OpenStreetMapImageryProvider({
+    url: 'https://tile.openstreetmap.org/',
+    credit: new Cesium.Credit('OpenStreetMap contributors'),
+  });
+}
+
+function makeTopoTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c'],
+    credit: new Cesium.Credit('OpenTopoMap, OpenStreetMap contributors'),
+    minimumLevel: 0, maximumLevel: 17,
+  });
+}
+
+function makeNightTiles() {
+  return new Cesium.WebMapTileServiceImageryProvider({
+    url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi',
+    layer: 'VIIRS_Black_Marble',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSetID: 'GoogleMapsCompatible_Level8',
+    maximumLevel: 8,
+    credit: new Cesium.Credit('NASA EOSDIS GIBS'),
+  });
+}
+
+// VFRMap.com chart tiles — date folder changes each FAA chart cycle
+// Uses TMS (y-flipped); CesiumJS handles this via {reverseY}
+const VFRMAP_DATE = '20251225';
+
+function makeVfrMapTiles(chartType, maxZoom) {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: `https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`,
+    credit: new Cesium.Credit('VFRMap.com'),
+    minimumLevel: 1, maximumLevel: maxZoom,
+  });
+}
+
+// Layers that have limited zoom and need a CartoDB base underneath
+const OVERLAY_LAYERS = new Set(['sectional', 'terminal', 'ifrLow', 'ifrHigh']);
+
+// Apply theme-appropriate brightness/saturation to map imagery layers.
+// Dark mode always darkens (except CartoDB which is already dark).
+// Light mode only mutes when the user has "Mute map colors" enabled.
+function styleMapLayer(layer, layerId) {
+  const isDark = CONFIG.theme === 'dark';
+  if (isDark) {
+    if (layerId === 'carto') return;
+    if (layerId === 'night') {
+      layer.brightness = 0.7;
+      return;
+    }
+    layer.brightness = 0.6;
+    layer.saturation = 0.4;
+    if (OVERLAY_LAYERS.has(layerId)) layer.alpha = 0.8;
+  } else {
+    if (!CONFIG.muteMapColors) return;
+    if (layerId === 'carto') return;
+    layer.brightness = 1.5;
+    layer.saturation = 0.3;
+  }
+}
+
+async function makeMapTiles(layerId) {
+  switch (layerId) {
+    case 'sectional':  return await makeSectionalTiles();
+    case 'terminal':   return await makeTerminalTiles();
+    case 'ifrLow':     return await makeIfrLowTiles();
+    case 'ifrHigh':    return await makeIfrHighTiles();
+    case 'satellite':  return makeSatelliteTiles();
+    case 'osm':        return makeOsmTiles();
+    case 'topo':       return makeTopoTiles();
+    case 'night':      return makeNightTiles();
+    case 'vfrHybrid':  return makeVfrMapTiles('vfrc', 12);
+    case 'vfrIfrLow':  return makeVfrMapTiles('ifrlc', 11);
+    case 'vfrIfrHigh': return makeVfrMapTiles('ehc', 10);
+    default:           return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
+  }
+}
+
+function makeBaseTiles() {
+  return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
+}
+
+// ============================================================
+// Theme Application
+// ============================================================
+
+async function resolveTheme() {
+  if (CONFIG.themePref !== 'system') return CONFIG.themePref;
+  if (window.flightAPI && window.flightAPI.getSystemTheme) {
+    try { return await window.flightAPI.getSystemTheme(); } catch (_) {}
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+async function applyTheme() {
+  CONFIG.theme = await resolveTheme();
+  const isDark = CONFIG.theme === 'dark';
+
+  // Update color config
+  if (isDark) {
+    setDarkColors(CONFIG.darkColor);
+    CONFIG.labelOutlineColor = Cesium.Color.BLACK;
+  } else {
+    setLightColors(CONFIG.lightColor);
+  }
+
+  // Swap tile layer
+  const layers = viewer.imageryLayers;
+  layers.removeAll();
+  radarLayer = null; // cleared by removeAll
+  turbLayer = null;  // cleared by removeAll
+  makeMapTiles(CONFIG.mapLayer).then(async (provider) => {
+    // FAA chart layers have limited zoom — add CartoDB base underneath
+    if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
+      layers.addImageryProvider(makeBaseTiles());
+    }
+    const mapLayer = layers.addImageryProvider(provider);
+    styleMapLayer(mapLayer, CONFIG.mapLayer);
+    // Layer order: [base] → map → turbulence forecast → radar
+    if (CONFIG.turbulenceLevel !== 'none') {
+      const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
+      if (turbProvider) {
+        turbLayer = layers.addImageryProvider(turbProvider);
+        turbLayer.alpha = 0.65;
+      }
+    }
+    if (CONFIG.radarEnabled) {
+      radarLayer = layers.addImageryProvider(makeRadarProvider());
+      radarLayer.alpha = 0.5;
+    }
+  });
+
+  // Globe & scene background
+  const bgColor = isDark ? '#121212' : '#f7f7f7';
+  viewer.scene.backgroundColor = Cesium.Color.fromCssColorString(bgColor);
+  viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(bgColor);
+
+  // CSS body class for HUD/controls styling
+  document.body.classList.toggle('theme-light', !isDark);
+
+  // Update CSS custom properties (M3 color roles)
+  const root = document.documentElement;
+  if (isDark) {
+    const [r, g, b] = hexToRgb(CONFIG.darkColor);
+    root.style.setProperty('--md-primary', CONFIG.phosphor);
+    root.style.setProperty('--md-on-primary', '#ffffff');
+    root.style.setProperty('--md-primary-container', withAlpha(CONFIG.darkColor, 0.15));
+    root.style.setProperty('--md-on-primary-container', CONFIG.phosphor);
+    root.style.setProperty('--md-surface', '#121212');
+    root.style.setProperty('--md-surface-container', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.72)`);
+    root.style.setProperty('--md-surface-container-solid', `rgb(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)})`);
+    root.style.setProperty('--md-surface-container-highest', withAlpha(CONFIG.darkColor, 0.15));
+    root.style.setProperty('--md-on-surface', CONFIG.phosphorBright);
+    root.style.setProperty('--md-on-surface-variant', CONFIG.phosphorDim);
+    root.style.setProperty('--md-on-surface-disabled', withAlpha(CONFIG.darkColor, 0.2));
+    root.style.setProperty('--md-outline', withAlpha(CONFIG.darkColor, 0.3));
+    root.style.setProperty('--md-outline-variant', withAlpha(CONFIG.darkColor, 0.12));
+  } else {
+    // Compute on-primary based on luminance: black text on light primary, white on dark
+    const [lr, lg, lb] = hexToRgb(CONFIG.lightColor);
+    const lum = (0.299 * lr + 0.587 * lg + 0.114 * lb) / 255;
+    root.style.setProperty('--md-primary', CONFIG.phosphor);
+    root.style.setProperty('--md-on-primary', lum > 0.5 ? '#000000' : '#ffffff');
+    root.style.setProperty('--md-primary-container', withAlpha(CONFIG.lightColor, 0.18));
+    root.style.setProperty('--md-on-primary-container', CONFIG.phosphor);
+    root.style.setProperty('--md-surface', '#f7f7f7');
+    root.style.setProperty('--md-surface-container', 'rgba(240, 240, 240, 0.78)');
+    root.style.setProperty('--md-surface-container-solid', 'rgb(240, 240, 240)');
+    root.style.setProperty('--md-surface-container-highest', withAlpha(CONFIG.lightColor, 0.08));
+    root.style.setProperty('--md-on-surface', CONFIG.phosphorBright);
+    root.style.setProperty('--md-on-surface-variant', CONFIG.phosphorDim);
+    root.style.setProperty('--md-on-surface-disabled', withAlpha(CONFIG.lightColor, 0.15));
+    root.style.setProperty('--md-outline', withAlpha(CONFIG.lightColor, 0.2));
+    root.style.setProperty('--md-outline-variant', withAlpha(CONFIG.lightColor, 0.1));
+  }
+
+  // Force re-render all aircraft entities with new colors/sizes
+  clearIconCaches();
+  refreshAllEntities();
+
+  // Update airport marker colors to match theme
+  updateAirportColors();
+
+  // Update waypoint colors to match theme
+  updateWaypointColors();
+}

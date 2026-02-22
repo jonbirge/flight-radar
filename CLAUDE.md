@@ -28,7 +28,13 @@ All renderer logic common to both platforms lives here as plain JS loaded via `<
 - **`shared/data.js`**: Airport database, OpenSky state vector parsing (`IDX`, `parseState`), and data block formatting.
 - **`shared/icons.js`**: Canvas-based aircraft icon generation.
 - **`shared/settings.js`**: Settings panel UI — generates the complete form HTML (including footer with Defaults/Done buttons), injects its own CSS, populates form state, and wires all events. Platform JS passes `onClose` and `onDefaults` callbacks. Does not depend on Cesium. Used by both Electron settings window and web inline modal.
-- **`shared/radar.js`**: Core CesiumJS engine — viewer init, theme engine, aircraft entities, trails, polling, camera handlers, UI controls, aircraft selection, weather overlays (NEXRAD radar, AWC turbulence/SIGMETs/PIREPs/G-AIRMETs, GTG forecast), and shared init helpers (`loadAndApplySettings`, `applySavedView`, `startPolling`).
+- **`shared/radar-core.js`**: State declarations, Cesium viewer initialization, theme engine (tile providers, map styling), and theme application (`resolveTheme`, `applyTheme`). Loaded first — all other `radar-*.js` files depend on this.
+- **`shared/radar-weather.js`**: Weather overlays — NEXRAD radar (filtered tiles), AWC turbulence forecast (GTG heatmap with Mercator reprojection), PIREPs, SIGMETs, and G-AIRMETs.
+- **`shared/radar-markers.js`**: Airport markers (large/medium/small), airspace boundaries (Class B/C/D with optional 3D extrusion), waypoints (fixes), and navaids (VOR/NDB/DME).
+- **`shared/radar-aircraft.js`**: Aircraft entity management — rendering pipeline, trail polylines, position extrapolation, poll interval management, view bounds computation, and the polling loop (`pollStates`, `startPolling`).
+- **`shared/radar-ui.js`**: HUD clock, camera change handler (LOD transitions, zoom-based resizing, interval adjustments), all UI control event listeners, 2D/3D morphing, and camera rotation.
+- **`shared/radar-flightplan.js`**: Aircraft selection (click handler, info panel), flight plan search (FlightAware integration), and route display (decoded waypoints, dashed polylines).
+- **`shared/radar.js`**: Shared init helpers — `loadAndApplySettings`, `applySavedView`, `loadDataJSON`. Loaded last as the entry point.
 - **`shared/styles.css`**: All common CSS — FAA phosphor-green aesthetic, CRT scanline overlay, HUD, controls, aircraft info panel, and light mode overrides.
 
 ### Electron layer
@@ -53,7 +59,7 @@ Static JSON loaded at startup by `shared/radar.js`: `airports.json`, `airspace.j
 ### Key patterns
 
 - **No build step**: Plain JS loaded directly via `<script>` tags. CesiumJS is an npm devDependency; a postinstall script copies `Build/Cesium/` to `vendor/cesium/`.
-- **Shared modules via globals**: Script load order: `config.js` → `data.js` → `icons.js` → [`settings.js` web only] → `radar.js` → platform entry point.
+- **Shared modules via globals**: Script load order: `defaults.js` → `config.js` → `data.js` → `icons.js` → [`settings.js` web only] → `radar-core.js` → `radar-weather.js` → `radar-markers.js` → `radar-aircraft.js` → `radar-ui.js` → `radar-flightplan.js` → `radar.js` → platform entry point. Top-level `let`/`const` variables declared in `radar-core.js` are shared across all subsequent scripts via the global lexical environment.
 - **Platform abstraction via `window.flightAPI`**: Both platforms expose the same API surface. Electron uses preload IPC; web uses a shim with `fetch()` and `localStorage`.
 - **Cesium without Ion**: Uses CartoDB dark_matter/light tiles, no Cesium Ion token needed.
 - **Theme system**: Single hex color (dark mode) → derives all CSS variables and Cesium entity colors. Light mode uses a separate fixed palette.
