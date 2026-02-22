@@ -222,58 +222,57 @@ async function enrichSelectedWithFlightAware(icao, callsign) {
     // Bail if user deselected or selected a different aircraft while we were fetching
     if (selectedIcao !== icao) return;
 
-    const flights = data.flights;
-    let flight = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
-    if (!flight) flight = flights[0];
-
-    // Mark this aircraft as the searched flight so it gets visibility bypass
-    searchedFlightIdent = (flight.ident || flight.ident_iata || '').trim().toUpperCase();
+    displayFlightPlanRoute(data);
     searchedIcao = icao;
-
-    // Clear any previous route entities before drawing new ones
-    viewer.entities.suspendEvents();
-    try {
-      for (const e of flightPlanEntities) viewer.entities.remove(e);
-    } finally {
-      viewer.entities.resumeEvents();
-    }
-    flightPlanEntities.length = 0;
-
-    const routeColor = CONFIG.theme === 'light'
-      ? Cesium.Color.fromCssColorString('#1565C0').withAlpha(0.8)
-      : Cesium.Color.fromCssColorString('#42A5F5').withAlpha(0.8);
-    const waypointColor = CONFIG.theme === 'light'
-      ? Cesium.Color.fromCssColorString('#1565C0')
-      : Cesium.Color.fromCssColorString('#64B5F6');
-
-    // Filed cruise altitude in meters (AeroAPI filed_altitude is in hundreds of feet)
-    const cruiseAltMeters = flight.filed_altitude != null
-      ? flight.filed_altitude * 100 * 0.3048
-      : null;
-
-    // Draw origin/destination markers and filed route
-    const origin = flight.origin;
-    const dest = flight.destination;
-    const originCoords = lookupAirportCoords(origin);
-    const destCoords = lookupAirportCoords(dest);
-
-    drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointColor);
-
-    // Show clear route button
-    const clearBtn = document.getElementById('btn-clear-route');
-    if (clearBtn) clearBtn.classList.remove('hidden');
-
-    // Fetch and display the filed route (async, with fallback chain)
-    if (flight.fa_flight_id) {
-      fetchAndDisplayFiledRoute(flight.fa_flight_id, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
-    } else if (originCoords && destCoords) {
-      drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
-    }
 
     console.log(`[FlightPlan] Enriched selected aircraft ${icao} (${callsign}) with FlightAware data`);
   } catch (err) {
     console.warn('[FlightPlan] Enrichment error:', err);
   }
+}
+
+// Pick the best flight from a FlightAware /flights response array.
+// Priority: 1) en-route, 2) not yet arrived, 3) most recent past flight.
+function pickBestFlight(flights) {
+  const now = new Date();
+
+  // Debug: log all candidates so we can see what AeroAPI returned
+  for (const f of flights) {
+    console.log(`[FlightPlan] Candidate: ${f.ident} | status=${f.status} | progress=${f.progress_percent}% | ` +
+      `dep=${f.scheduled_out || '?'} | arr=${f.scheduled_in || '?'} | fa_id=${f.fa_flight_id}`);
+  }
+
+  // 1. Currently in the air
+  const enRoute = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
+  if (enRoute) {
+    console.log(`[FlightPlan] Picked en-route flight: ${enRoute.fa_flight_id}`);
+    return enRoute;
+  }
+
+  // 2. Not yet arrived — arrival time is in the future (catches scheduled,
+  //    delayed, and taxiing flights even if scheduled_out is already past)
+  const notArrived = flights
+    .filter(f => {
+      const arr = f.scheduled_in || f.estimated_in;
+      if (!arr) return false;
+      // Already completed (progress 100%) — skip
+      if (f.progress_percent != null && f.progress_percent >= 100) return false;
+      return new Date(arr) > now;
+    })
+    .sort((a, b) => {
+      // Earliest departure first
+      const da = new Date(a.scheduled_out || a.estimated_out || a.scheduled_in);
+      const db = new Date(b.scheduled_out || b.estimated_out || b.scheduled_in);
+      return da - db;
+    });
+  if (notArrived.length > 0) {
+    console.log(`[FlightPlan] Picked not-yet-arrived flight: ${notArrived[0].fa_flight_id} (${notArrived.length} candidates)`);
+    return notArrived[0];
+  }
+
+  // 3. Fallback to most recent (first in the array — AeroAPI returns reverse-chronological)
+  console.log(`[FlightPlan] Fallback to most recent flight: ${flights[0].fa_flight_id}`);
+  return flights[0];
 }
 
 // Fly the camera to show the entire route from directly above (top-down view).
@@ -362,22 +361,22 @@ function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointC
   }
 }
 
+// Draw a flight plan route on the map. Picks the best flight from the response,
+// draws origin/dest markers and the filed route polyline, and flies to it.
+// Returns { flight, originCoords, destCoords } so callers can use them, or null.
 function displayFlightPlanRoute(flightData) {
   clearFlightPlanRoute();
   activeFlightPlan = flightData;
 
-  // Find the best flight from the response (prefer en-route, then most recent)
+  // Find the best flight from the response (prefer en-route, then next upcoming)
   const flights = flightData.flights || [];
-  if (flights.length === 0) return;
+  if (flights.length === 0) return null;
 
-  // Prefer a flight that is currently in the air (progress between 0% and 100%)
-  let flight = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
-  if (!flight) flight = flights[0]; // fallback to most recent
+  const flight = pickBestFlight(flights);
 
   // Store the searched flight identifier for visibility bypass and aircraft matching
   searchedFlightIdent = (flight.ident || flight.ident_iata || '').trim().toUpperCase();
 
-  // Debug: log the selected flight object to see what FlightAware actually returns
   console.log(`[FlightPlan] Selected flight:`, JSON.stringify({
     ident: flight.ident, fa_flight_id: flight.fa_flight_id,
     status: flight.status, progress: flight.progress_percent,
@@ -412,24 +411,15 @@ function displayFlightPlanRoute(flightData) {
   const clearBtn = document.getElementById('btn-clear-route');
   if (clearBtn) clearBtn.classList.remove('hidden');
 
-  // Try to find and select the matching live aircraft.
-  // 1. Check the already-loaded aircraft Map (fast path).
-  // 2. Fetch the FlightAware track to get the real current position, then
-  //    query OpenSky around it.
-  // 3. Fall back to route corridor if no track available.
-  console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
-  if (!selectSearchedAircraft()) {
-    findAndSelectViaOpenSky(flight, originCoords, destCoords);
-  }
-
   // Fetch decoded route from FlightAware /route endpoint (waypoints with real lat/lon).
   // Falls back to parsing the route string from the flights response if that fails.
-  // FlightAware is used only for the filed route — OpenSky provides live position/history.
   if (flight.fa_flight_id) {
     fetchAndDisplayFiledRoute(flight.fa_flight_id, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
   } else if (originCoords && destCoords) {
     drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
   }
+
+  return { flight, originCoords, destCoords };
 }
 
 // Locate the searched aircraft on OpenSky.  First fetches the FlightAware
@@ -744,7 +734,15 @@ async function searchFlightPlan(ident) {
     }
 
     console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
-    displayFlightPlanRoute(data);
+    const result = displayFlightPlanRoute(data);
+
+    // Try to find and select the matching live aircraft on OpenSky
+    if (result) {
+      console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+      if (!selectSearchedAircraft()) {
+        findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+      }
+    }
   } catch (err) {
     console.error('[FlightPlan] Search error:', err);
     alert('Flight search failed. Check console for details.');
