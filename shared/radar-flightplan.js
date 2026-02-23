@@ -52,6 +52,7 @@ function parseFlightWindow(flight) {
 
 function routePointsFromPositions(routePositions) {
   if (!Array.isArray(routePositions) || routePositions.length < 2) return null;
+  const ALT_DISTANCE_SCALE = 10000;
   const points = routePositions.map((pos) => {
     const carto = Cesium.Cartographic.fromCartesian(pos);
     return {
@@ -65,7 +66,7 @@ function routePointsFromPositions(routePositions) {
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
     const b = points[i];
-    const d = Math.hypot(b.lon - a.lon, b.lat - a.lat, (b.alt - a.alt) / 10000);
+    const d = Math.hypot(b.lon - a.lon, b.lat - a.lat, (b.alt - a.alt) / ALT_DISTANCE_SCALE);
     total += d;
     points[i].dist = total;
   }

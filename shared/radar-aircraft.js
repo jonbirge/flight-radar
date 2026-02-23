@@ -525,7 +525,8 @@ function computeHorizonDist(camHeight) {
 }
 
 function timelineFarFromNow() {
-  return timelineCurrentMs != null && Math.abs(timelineCurrentMs - Date.now()) > 5 * 60 * 1000;
+  const TIMELINE_HIDE_THRESHOLD_MS = 5 * 60 * 1000;
+  return timelineCurrentMs != null && Math.abs(timelineCurrentMs - Date.now()) > TIMELINE_HIDE_THRESHOLD_MS;
 }
 
 function historicalPositionAtTime(ac, targetTimeSec) {
