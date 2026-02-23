@@ -483,6 +483,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 3px 0;
 }
 
+#info-details div:last-child {
+  border-bottom: none;
+}
+
 #info-details .label {
   color: var(--md-on-surface-variant);
 }
