@@ -149,23 +149,6 @@ body {
 
 #throttle-warning.hidden { display: none; }
 
-/* Search Panel */
-#search-panel {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 100;
-  background: var(--md-surface-container);
-  border-radius: var(--md-shape-lg);
-  padding: 10px 14px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font: var(--md-typescale-label-medium);
-  box-shadow: var(--md-elevation-2);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
 
 /* Controls Panel */
 #controls {
@@ -594,16 +577,26 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* Flight search input */
 #flight-search {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
   background: var(--md-surface-container-highest);
-  border: none;
+  border: 1px solid var(--md-outline-variant);
   border-radius: var(--md-shape-full);
   color: var(--md-on-surface);
-  padding: 0 14px;
-  min-height: 40px;
+  padding: 0 20px;
+  height: 48px;
   font-family: 'Roboto Flex', sans-serif;
-  font-size: 14px;
-  width: 170px;
+  font-size: 15px;
+  width: 255px;
   outline: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+#flight-search:focus {
+  border-color: var(--md-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 0 0 1px var(--md-primary);
 }
 
 .theme-light #flight-search {
