@@ -14,6 +14,22 @@
    ============================================================ */
 
 :root {
+  /* M3 tokens (light defaults — match shared/styles.css for light theme) */
+  --md-primary: #1a1a1a;
+  --md-on-primary: #ffffff;
+  --md-surface-container-highest: rgba(0, 0, 0, 0.06);
+  --md-on-surface: #333333;
+  --md-on-surface-variant: #666666;
+  --md-outline: rgba(0, 0, 0, 0.3);
+  --md-outline-variant: #dddddd;
+  --md-shape-full: 9999px;
+  --md-shape-xs: 4px;
+  --md-motion-duration-short: 150ms;
+  --md-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-motion-easing-spring: cubic-bezier(0.35, 1.5, 0.65, 1);
+  --md-elevation-1: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
+
+  /* Fallbacks for shared/settings.js inline CSS */
   --settings-border: #ddd;
   --settings-label-color: #666;
   --settings-text-color: #333;
@@ -21,10 +37,10 @@
   --settings-input-color: #000;
   --settings-btn-bg: #ffffff;
   --settings-btn-color: #333;
-  --settings-btn-hover-bg: #e0e0e0;
-  --settings-btn-active-bg: #333;
-  --settings-btn-active-color: #fff;
-  --settings-btn-active-border: #333;
+  --settings-btn-hover-bg: #f0f0f0;
+  --settings-btn-active-bg: #1a1a1a;
+  --settings-btn-active-color: #ffffff;
+  --settings-btn-active-border: #1a1a1a;
   --swatch-active-border: #333;
   --swatch-active-shadow: rgba(0, 0, 0, 0.25);
 }
@@ -46,6 +62,15 @@ body {
 
 @media (prefers-color-scheme: dark) {
   :root {
+    /* M3 tokens (dark defaults — match shared/styles.css) */
+    --md-primary: #00cc44;
+    --md-on-primary: #ffffff;
+    --md-surface-container-highest: rgba(0, 204, 68, 0.15);
+    --md-on-surface: #e0e0e0;
+    --md-on-surface-variant: rgba(255, 255, 255, 0.6);
+    --md-outline: rgba(255, 255, 255, 0.3);
+    --md-outline-variant: rgba(255, 255, 255, 0.12);
+
     --settings-border: #555;
     --settings-label-color: #aaa;
     --settings-text-color: #e0e0e0;
@@ -54,9 +79,9 @@ body {
     --settings-btn-bg: #3a3a3a;
     --settings-btn-color: #e0e0e0;
     --settings-btn-hover-bg: #4a4a4a;
-    --settings-btn-active-bg: #e0e0e0;
-    --settings-btn-active-color: #1a1a1a;
-    --settings-btn-active-border: #e0e0e0;
+    --settings-btn-active-bg: #00cc44;
+    --settings-btn-active-color: #000000;
+    --settings-btn-active-border: #00cc44;
     --swatch-active-border: #fff;
     --swatch-active-shadow: rgba(255, 255, 255, 0.25);
   }
@@ -65,31 +90,50 @@ body {
     background: #2d2d2d;
     color: #e0e0e0;
   }
-
-  .settings-section {
-    border-bottom-color: #555;
-  }
 }
 
-/* Button styles for Electron settings window (mirrors shared/styles.css .scope-btn) */
+/* Button styles — mirrors shared/styles.css .scope-btn */
 .scope-btn {
   background: transparent;
   border: none;
-  border-radius: 9999px;
-  color: var(--settings-text-color, #333);
+  border-radius: var(--md-shape-full, 9999px);
+  color: var(--md-on-surface);
   padding: 0 16px;
   min-height: 40px;
   font-family: 'Roboto Flex', system-ui, sans-serif;
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--md-motion-duration-short) var(--md-motion-easing-standard),
+              color var(--md-motion-duration-short) var(--md-motion-easing-standard);
 }
 
 .scope-btn:hover {
-  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.06));
+  background: var(--md-surface-container-highest);
 }
 
 .scope-btn:active {
-  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.1));
+  background: var(--md-outline-variant);
+}
+
+.scope-btn.active {
+  background: var(--md-primary);
+  color: #000000;
+}
+
+.theme-light .scope-btn {
+  background: #ffffff;
+}
+
+.theme-light .scope-btn:hover {
+  background: #f0f0f0;
+}
+
+.theme-light .scope-btn:active {
+  background: #e4e4e4;
+}
+
+.theme-light .scope-btn.active {
+  background: var(--md-primary);
+  color: #ffffff;
 }

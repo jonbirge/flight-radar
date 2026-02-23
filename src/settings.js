@@ -2,6 +2,16 @@
 
 'use strict';
 
+// Apply theme-light/theme-dark class based on OS preference
+// (enables .theme-light rules in shared/settings.js inline CSS)
+function applyThemeClass() {
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.body.classList.toggle('theme-light', !isDark);
+  document.body.classList.toggle('theme-dark', isDark);
+}
+applyThemeClass();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyThemeClass);
+
 const container = document.getElementById('settings-container');
 container.innerHTML = createSettingsFormHTML();
 
