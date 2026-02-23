@@ -171,6 +171,13 @@ function makeSatelliteTiles() {
   });
 }
 
+function makeSatelliteIrTiles() {
+  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
+    'https://nowcoast.noaa.gov/arcgis/rest/services/nowcoast/sat_meteo_emulated_imagery_ir_time/MapServer',
+    { credit: new Cesium.Credit('NOAA/NESDIS') }
+  );
+}
+
 function makeOsmTiles() {
   return new Cesium.OpenStreetMapImageryProvider({
     url: 'https://tile.openstreetmap.org/',
@@ -243,6 +250,7 @@ async function makeMapTiles(layerId) {
     case 'ifrLow':     return await makeIfrLowTiles();
     case 'ifrHigh':    return await makeIfrHighTiles();
     case 'satellite':  return makeSatelliteTiles();
+    case 'satelliteIr': return await makeSatelliteIrTiles();
     case 'osm':        return makeOsmTiles();
     case 'topo':       return makeTopoTiles();
     case 'night':      return makeNightTiles();
