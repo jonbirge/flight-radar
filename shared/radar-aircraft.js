@@ -134,6 +134,11 @@ function tick() {
   // 1. Always extrapolate aircraft positions between server polls
   extrapolatePositions();
 
+  // Skip all OpenSky polling while rate-limited
+  if (now < rateLimitedUntil) {
+    return;
+  }
+
   // 2. Bulk poll when aircraft display is on and poll interval has elapsed
   if (CONFIG.aircraftEnabled) {
     const elapsed = lastPollTime ? now - lastPollTime.getTime() : Infinity;
@@ -964,7 +969,10 @@ async function pollStates() {
     if (!data.retryIn) {
       console.warn('[Poll] Error:', data.error);
       if (/429/.test(data.error) || /rate.?limit/i.test(data.error)) {
+        rateLimitedUntil = Date.now() + 60000;
+        console.warn('[Poll] Rate limited — pausing all polling for 60s');
         warningEl.classList.remove('hidden');
+        setTimeout(() => warningEl.classList.add('hidden'), 60000);
       }
     }
     return;
