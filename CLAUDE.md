@@ -66,6 +66,19 @@ Static JSON loaded at startup by `shared/radar.js`: `airports.json`, `airspace.j
 - **Theme system**: Single hex color (dark mode) → derives all CSS variables and Cesium entity colors. Light mode uses a separate fixed palette.
 - **Weather overlays**: NEXRAD radar via Iowa State Mesonet WMS; turbulence data (PIREPs, SIGMETs, G-AIRMETs) and GTG forecast heatmap from FAA AWC API (`aviationweather.gov/api/data/`). GTG images are Mercator-projected and reprojected to geographic via canvas pixel manipulation.
 
+## Platform parity
+
+The Electron and web versions must maintain feature and UI parity. Every feature implemented for one platform must also work on the other. The shared `shared/` modules are the mechanism for achieving this — new features belong there, not in platform-specific files.
+
+**Accepted exceptions** (intentional, do not "fix" these):
+
+- **Font loading**: Electron loads Roboto Flex from a local file (`shared/fonts/roboto-flex.woff2`); web loads it from Google Fonts CDN. Do not put a `@font-face` in `shared/styles.css`.
+- **Settings container**: Electron opens settings in a separate native window (`src/settings.html`); web shows settings as an inline modal overlay. Both use the same `shared/settings.js` for the form content.
+- **API proxies**: Browsers enforce CORS, so the web version routes all external API calls through PHP proxies (`cred.php`, `flightaware-proxy.php`, `awc-proxy.php`). Electron makes direct HTTPS calls from the main process. The `window.flightAPI` abstraction hides this difference from shared code.
+- **Native UI**: Native context menu (`Menu`), native application menu bar, and the Help window are Electron-only. The web version uses a custom HTML context menu overlay; there is no help window or menu bar on web.
+- **OpenSky credentials in settings**: The web settings form hides the OpenSky credentials section because credentials are handled server-side via `creds.json`. Electron shows the credentials fields so the user can enter their own.
+- **Cache busting**: Asset URLs in `web/index.html` include `?v=VERSION` query strings. Electron does not need them (packaged binary, not browser-cached).
+
 ## Making changes
 
 - For shared functionality, edit the appropriate `shared/` module — changes apply to both platforms. For platform-specific behavior, edit `src/renderer.js` (Electron) or `web/app.js` (web).
