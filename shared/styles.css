@@ -447,7 +447,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 #info-close,
 #settings-close {
-  font-size: 30px;
+  font-size: 29px;
+  font-weight: 400;
+  padding: 0;
+  width: 40px;
 }
 
 #info-close {
