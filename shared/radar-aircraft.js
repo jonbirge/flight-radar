@@ -63,6 +63,7 @@ function toggleAircraft(show) {
       stopTick();
     }
   } else {
+    _lastApiCallMs = 0;   // allow immediate bulk poll after re-enabling
     startPolling();
   }
   const labelsToggle = document.getElementById('toggle-labels');
