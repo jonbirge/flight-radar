@@ -246,9 +246,13 @@ function geoLatToMercY(latDeg) {
   return Math.log(Math.tan(Math.PI / 4 + latRad / 2));
 }
 
-async function makeTurbProvider(level) {
-  const url = awcUrl(`model?model=gfaak&level=${level}&type=gtg&_t=${Date.now()}`);
-  console.log(`[Weather] Loading GTG image: level=${level}`);
+// Fetch a GTG turbulence image, crop, and reproject from Mercator to geographic.
+// dateSecs: Unix timestamp in seconds for the forecast valid time (null = current).
+// Returns a data URL string (PNG) or null on failure.
+async function fetchTurbImageDataUrl(level, dateSecs) {
+  const dateParam = dateSecs != null ? `&date=${dateSecs}` : '';
+  const url = awcUrl(`model?model=gfaak&level=${level}&type=gtg${dateParam}&_t=${Date.now()}`);
+  console.log(`[Weather] Loading GTG image: level=${level}${dateSecs != null ? `, date=${dateSecs}` : ''}`);
   try {
     // Fetch as blob so canvas won't be tainted by cross-origin
     const resp = await fetch(url);
@@ -302,18 +306,29 @@ async function makeTurbProvider(level) {
     outCanvas.getContext('2d').putImageData(outData, 0, 0);
 
     console.log(`[Weather] GTG image reprojected: ${cropW}x${img.height}`);
-    return new Cesium.SingleTileImageryProvider({
-      url: outCanvas.toDataURL('image/png'),
-      rectangle: Cesium.Rectangle.fromDegrees(TURB_CROP_LON, TURB_LAT_SOUTH, TURB_LON_EAST, TURB_LAT_NORTH),
-      credit: new Cesium.Credit('AWC'),
-    });
+    return outCanvas.toDataURL('image/png');
   } catch (err) {
     console.warn('[Weather] Failed to load GTG image:', err.message);
     return null;
   }
 }
 
-async function addTurbLayer() {
+// Create a Cesium imagery provider from a pre-computed GTG data URL.
+function createTurbProviderFromDataUrl(dataUrl) {
+  return new Cesium.SingleTileImageryProvider({
+    url: dataUrl,
+    rectangle: Cesium.Rectangle.fromDegrees(TURB_CROP_LON, TURB_LAT_SOUTH, TURB_LON_EAST, TURB_LAT_NORTH),
+    credit: new Cesium.Credit('AWC'),
+  });
+}
+
+async function makeTurbProvider(level, dateSecs) {
+  const dataUrl = await fetchTurbImageDataUrl(level, dateSecs);
+  if (!dataUrl) return null;
+  return createTurbProviderFromDataUrl(dataUrl);
+}
+
+async function addTurbLayer(dateSecs) {
   const primaryLevel = CONFIG.turbulenceLevel;
   if (primaryLevel === 'none') return;
 
@@ -330,7 +345,7 @@ async function addTurbLayer() {
   }
 
   for (const level of levelsToTry) {
-    const provider = await makeTurbProvider(level);
+    const provider = await makeTurbProvider(level, dateSecs);
     if (provider) {
       if (radarLayer) {
         const radarIdx = viewer.imageryLayers.indexOf(radarLayer);
@@ -414,6 +429,7 @@ async function fetchPireps() {
           const icon = createPirepIcon(intensity, cssColor);
 
           const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 25) + 'Z' : '?';
+          const obsTimeISO = props.obsTime || null;
           const camH = viewer.camera.positionCartographic ? viewer.camera.positionCartographic.height : 1e7;
           const pirepDisplayCond = acDisplayCond || new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camH));
           const entity = viewer.entities.add({
@@ -432,6 +448,7 @@ async function fetchPireps() {
               fltlvl: props.fltlvl || '?',
               acType: props.acType || '?',
               obsTime: obsTime,
+              obsTimeISO: obsTimeISO,
               rawOb: props.rawOb || '',
             },
           });
@@ -517,53 +534,64 @@ async function fetchSigmets() {
 async function fetchAirmets() {
   console.log('[Weather] Fetching G-AIRMETs...');
   try {
-    const resp = await fetch(awcUrl('gairmet?format=geojson')).catch((err) => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; });
-    if (resp && resp.ok) {
+    // G-AIRMETs are 3-hour snapshots at forecast hours 0, 3, 6, 9, 12.
+    // Fetch all snapshots so timeline scrubbing has full time coverage.
+    const forecastHours = [0, 3, 6, 9, 12];
+    const responses = await Promise.all(forecastHours.map(fh =>
+      fetch(awcUrl(`gairmet?format=geojson&fore=${fh}`))
+        .catch(err => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; })
+    ));
+    let count = 0;
+    for (const resp of responses) {
+      if (!resp || !resp.ok) continue;
       const data = await resp.json();
       const turbFeatures = (data.features || []).filter(f => {
         const hazard = (f.properties || {}).hazard || '';
         return hazard === 'TURB-HI' || hazard === 'TURB-LO';
       });
-      console.log(`[Weather] G-AIRMETs response: ${(data.features || []).length} total, ${turbFeatures.length} turbulence`);
-      if (turbFeatures.length > 0) {
-        let count = 0;
-        for (const f of turbFeatures) {
-          const geom = f.geometry;
-          if (!geom) continue;
-          const ap = f.properties || {};
-          const polygons = geom.type === 'Polygon' ? [geom.coordinates]
-            : geom.type === 'MultiPolygon' ? geom.coordinates : [];
-          for (const rings of polygons) {
-            if (!rings || !rings[0] || rings[0].length < 3) continue;
-            const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
-            const entity = viewer.entities.add({
-              id: `turb-airmet-${count}`,
-              polygon: {
-                hierarchy: new Cesium.PolygonHierarchy(positions),
-                material: new Cesium.Color(1.0, 0.5, 0.0, 0.15),
-                outline: true,
-                outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
-                outlineWidth: 1,
-                height: 0,
-                classificationType: Cesium.ClassificationType.BOTH,
-              },
-              properties: {
-                turbType: 'G-AIRMET',
-                hazard: ap.hazard || '?',
-                severity: ap.severity || '?',
-                base: ap.base || '?',
-                top: ap.top || '?',
-                validFrom: ap.validTime || '?',
-                validTo: ap.validTimeTo || '?',
-              },
-            });
-            airmetEntities.push(entity);
-            count++;
-          }
+      for (const f of turbFeatures) {
+        const geom = f.geometry;
+        if (!geom) continue;
+        const ap = f.properties || {};
+        // Each snapshot is valid from validTime for 3 hours (until the next snapshot)
+        const validFrom = ap.validTime || null;
+        let validTo = null;
+        if (validFrom) {
+          const fromMs = new Date(validFrom).getTime();
+          if (!isNaN(fromMs)) validTo = new Date(fromMs + 3 * 60 * 60 * 1000).toISOString();
         }
-        console.log(`[Weather] Added ${count} G-AIRMET polygons`);
+        const polygons = geom.type === 'Polygon' ? [geom.coordinates]
+          : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+        for (const rings of polygons) {
+          if (!rings || !rings[0] || rings[0].length < 3) continue;
+          const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
+          const entity = viewer.entities.add({
+            id: `turb-airmet-${count}`,
+            polygon: {
+              hierarchy: new Cesium.PolygonHierarchy(positions),
+              material: new Cesium.Color(1.0, 0.5, 0.0, 0.15),
+              outline: true,
+              outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
+              outlineWidth: 1,
+              height: 0,
+              classificationType: Cesium.ClassificationType.BOTH,
+            },
+            properties: {
+              turbType: 'G-AIRMET',
+              hazard: ap.hazard || '?',
+              severity: ap.severity || '?',
+              base: ap.base || '?',
+              top: ap.top || '?',
+              validFrom: validFrom || '?',
+              validTo: validTo || '?',
+            },
+          });
+          airmetEntities.push(entity);
+          count++;
+        }
       }
     }
+    console.log(`[Weather] Added ${count} G-AIRMET polygons across ${forecastHours.length} forecast snapshots`);
   } catch (err) {
     console.warn('[Weather] Error fetching G-AIRMETs:', err);
   }
@@ -652,8 +680,12 @@ function disableTurbForecast() {
 
 function refreshTurbForecast() {
   if (CONFIG.turbulenceLevel === 'none') return;
+  // During timeline scrubbing with preloaded cache, skip network refresh
+  if (_turbTimelineDate != null && _turbImageCache.size > 0) return;
   removeTurbLayer();
-  addTurbLayer();
+  // Respect timeline scrub position if active
+  const dateSecs = _turbTimelineDate != null ? _turbTimelineDate : undefined;
+  addTurbLayer(dateSecs);
   console.log('[Weather] GTG forecast refreshed');
 }
 
@@ -687,8 +719,148 @@ function refreshTurbLevel() {
   const newLevel = computeTurbLevel();
   if (newLevel !== CONFIG.turbulenceLevel) {
     CONFIG.turbulenceLevel = newLevel;
+    clearTurbCache(); // Invalidate cache — images are for the old altitude level
     disableTurbForecast();
     enableTurbForecast();
     console.log(`[Weather] Turb level auto-updated to ${newLevel}`);
   }
+}
+
+// ============================================================
+// Timeline Turbulence Forecast Management
+// ============================================================
+
+// Preload interval: 1 hour in seconds.  Covers the flight's time span with
+// one image per hour — at most ~19 images for an 18-hour flight (~1.6 MB).
+const TURB_PRELOAD_INTERVAL = 3600;
+
+let _turbTimelineDate = null;  // current forecast date (Unix secs) being displayed (null = live)
+
+// Update the turb forecast layer for a given scrubbed time.
+// Finds the nearest preloaded timestamp and applies it from cache instantly.
+function updateTurbForTimelineTime(timeMs) {
+  if (!CONFIG.turbForecastEnabled) return;
+
+  // Convert slider time to Unix seconds, snapped to the preload grid
+  const dateSecs = Math.round(timeMs / 1000 / TURB_PRELOAD_INTERVAL) * TURB_PRELOAD_INTERVAL;
+
+  // Already showing this time — skip
+  if (dateSecs === _turbTimelineDate) return;
+
+  // Find the nearest cached timestamp (handles grid misalignment)
+  let bestDate = dateSecs;
+  if (_turbImageCache.size > 0) {
+    let minDiff = Infinity;
+    for (const cachedDate of _turbImageCache.keys()) {
+      const diff = Math.abs(dateSecs - cachedDate);
+      if (diff < minDiff) { minDiff = diff; bestDate = cachedDate; }
+    }
+  }
+
+  // Still showing the same cached image — skip
+  if (bestDate === _turbTimelineDate) return;
+  _turbTimelineDate = bestDate;
+
+  console.log(`[Weather] Timeline: switching GTG to date=${bestDate}`);
+
+  // Try preloaded cache first (instant)
+  if (applyTurbFromCache(bestDate)) return;
+
+  // Cache miss — fall back to network fetch
+  removeTurbLayer();
+  addTurbLayer(bestDate);
+}
+
+// Restore turb forecast to live/current when leaving scrub mode.
+function resetTurbToLive() {
+  if (_turbTimelineDate != null) {
+    console.log('[Weather] Timeline: restoring GTG to live');
+    _turbTimelineDate = null;
+    // Always remove the scrubbed/cached layer
+    removeTurbLayer();
+    // Only re-add the live layer if turb is still enabled
+    if (CONFIG.turbForecastEnabled) {
+      addTurbLayer();
+    }
+  }
+  _turbTimelineDate = null;
+}
+
+// ============================================================
+// GTG Turbulence Image Cache for Timeline Scrubbing
+// ============================================================
+
+// Cache of pre-fetched and reprojected GTG images keyed by Unix timestamp.
+// Stores data URL strings so fresh providers can be created instantly.
+const _turbImageCache = new Map(); // Map<number, string> (dateSecs → dataURL)
+
+// Preload all GTG turbulence images needed for a flight's time span.
+// Called from showTimeline() in radar-timeline.js.
+// Uses the flight's filed cruise altitude (already set in CONFIG.turbulenceLevel).
+async function preloadTurbForTimeline(depMs, arrMs) {
+  if (!CONFIG.turbForecastEnabled) return;
+
+  const level = CONFIG.turbulenceLevel;
+  if (level === 'none') return;
+
+  clearTurbCache();
+
+  // Compute timestamps at 1-hour intervals covering dep → arr
+  const depSecs = Math.floor(depMs / 1000 / TURB_PRELOAD_INTERVAL) * TURB_PRELOAD_INTERVAL;
+  const arrSecs = Math.ceil(arrMs / 1000 / TURB_PRELOAD_INTERVAL) * TURB_PRELOAD_INTERVAL;
+  const timestamps = [];
+  for (let t = depSecs; t <= arrSecs; t += TURB_PRELOAD_INTERVAL) {
+    timestamps.push(t);
+  }
+
+  console.log(`[Weather] Preloading ${timestamps.length} GTG images (dep→arr) at level=${level}`);
+
+  // Build fallback levels list (same logic as addTurbLayer)
+  const levelsToTry = [level];
+  if (level !== 'maxa') {
+    const primaryNum = parseInt(level, 10);
+    const sorted = TURB_LEVELS
+      .filter(l => l !== primaryNum)
+      .sort((a, b) => Math.abs(a - primaryNum) - Math.abs(b - primaryNum));
+    for (const l of sorted.slice(0, 4)) {
+      levelsToTry.push(String(l));
+    }
+  }
+
+  // Fetch all images in parallel
+  const promises = timestamps.map(async (dateSecs) => {
+    for (const lvl of levelsToTry) {
+      const dataUrl = await fetchTurbImageDataUrl(lvl, dateSecs);
+      if (dataUrl) {
+        _turbImageCache.set(dateSecs, dataUrl);
+        return;
+      }
+    }
+  });
+
+  await Promise.all(promises);
+  console.log(`[Weather] Preloaded ${_turbImageCache.size}/${timestamps.length} GTG images`);
+}
+
+function clearTurbCache() {
+  _turbImageCache.clear();
+}
+
+// Apply a cached GTG image to the viewer as an imagery layer (instant, no fetch).
+// Returns true if cache hit, false if cache miss.
+function applyTurbFromCache(dateSecs) {
+  if (!CONFIG.turbForecastEnabled) return false;
+  const dataUrl = _turbImageCache.get(dateSecs);
+  if (!dataUrl) return false;
+
+  removeTurbLayer();
+  const provider = createTurbProviderFromDataUrl(dataUrl);
+  if (radarLayer) {
+    const radarIdx = viewer.imageryLayers.indexOf(radarLayer);
+    turbLayer = viewer.imageryLayers.addImageryProvider(provider, radarIdx);
+  } else {
+    turbLayer = viewer.imageryLayers.addImageryProvider(provider);
+  }
+  turbLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+  return true;
 }

@@ -63,7 +63,8 @@ function toggleAircraft(show) {
       stopTick();
     }
   } else {
-    _lastApiCallMs = 0;   // allow immediate bulk poll after re-enabling
+    _lastBulkPollMs = 0;           // allow immediate bulk poll after re-enabling
+    _lastSelectedPollApiMs = 0;
     startPolling();
   }
   const labelsToggle = document.getElementById('toggle-labels');
@@ -92,9 +93,9 @@ async function pollSelectedAircraft() {
   const ac = aircraft.get(selectedIcao);
   if (!ac) return;
   const now = Date.now();
-  if (now - _lastApiCallMs < RATE_LIMIT_MS) return;
+  if (now - _lastSelectedPollApiMs < RATE_LIMIT_MS) return;
   _selectedPollInFlight = true;
-  _lastApiCallMs = now;
+  _lastSelectedPollApiMs = now;
   const s = ac.state;
   const pad = 1;
   const bounds = {
@@ -103,6 +104,10 @@ async function pollSelectedAircraft() {
   };
   try {
     const data = await window.flightAPI.getStates(bounds);
+    if (data.error && data.retryIn) {
+      // Main process rate limited us — allow retry after the specified delay
+      _lastSelectedPollApiMs = Date.now() - RATE_LIMIT_MS + data.retryIn;
+    }
     if (!data.error && data.states) {
       const now = Date.now() / 1000;
       for (const raw of data.states) {
@@ -985,9 +990,9 @@ function padBounds(bounds, fraction) {
 async function pollStates() {
   if (_pollInFlight) return;
   const now = Date.now();
-  if (now - _lastApiCallMs < RATE_LIMIT_MS) return;
+  if (now - _lastBulkPollMs < RATE_LIMIT_MS) return;
   _pollInFlight = true;
-  _lastApiCallMs = now;
+  _lastBulkPollMs = now;
   try {
     const viewBounds = frozenBounds || getViewBounds();
     // Fetch aircraft from a 50% larger region so small pans don't re-poll
@@ -997,8 +1002,11 @@ async function pollStates() {
     const warningEl = document.getElementById('throttle-warning');
 
     if (data.error) {
-      // Silently ignore our own client-side rate limiting (has retryIn field)
-      if (!data.retryIn) {
+      if (data.retryIn) {
+        // Main process rate limited us — allow retry after the specified delay
+        // instead of being blocked for the full RATE_LIMIT_MS window.
+        _lastBulkPollMs = now - RATE_LIMIT_MS + data.retryIn;
+      } else {
         console.warn('[Poll] Error:', data.error);
         if (/429/.test(data.error) || /rate.?limit/i.test(data.error)) {
           rateLimitedUntil = Date.now() + 60000;

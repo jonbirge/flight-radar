@@ -355,6 +355,7 @@ function flyToRouteOverview() {
 }
 
 function clearFlightPlanRoute() {
+  if (typeof hideTimeline === 'function') hideTimeline();
   viewer.entities.suspendEvents();
   try {
     for (const e of flightPlanEntities) viewer.entities.remove(e);
@@ -362,6 +363,7 @@ function clearFlightPlanRoute() {
     viewer.entities.resumeEvents();
   }
   flightPlanEntities.length = 0;
+  timelineRoutePoints.length = 0;
   activeFlightPlan = null;
   selectedRouteFlight = null;
   searchedFlightIdent = null;
@@ -487,6 +489,9 @@ function displayFlightPlanRoute(flightData) {
     drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
   }
 
+  // Show the timeline scrubbing UI if available
+  if (typeof showTimeline === 'function') showTimeline(flight);
+
   return { flight, originCoords, destCoords };
 }
 
@@ -551,6 +556,10 @@ async function fetchSingleAircraftForSearch(lastPos, latPad = 10, lonPad = 10) {
     east: Math.min(lastPos.longitude + lonPad, 180),
   };
   console.log(`[FlightPlan] OpenSky query: bounds=${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
+  // Mark both renderer-side rate limiters so pollStates/pollSelectedAircraft
+  // know the main process was just called and don't immediately collide.
+  _lastBulkPollMs = Date.now();
+  _lastSelectedPollApiMs = Date.now();
   try {
     const data = await window.flightAPI.getStates(bounds);
     if (data.error) {
@@ -633,14 +642,18 @@ async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destC
           const alt = cruiseAltMeters || 0;
           // Build the route positions: origin (ground) → fixes (cruise alt) → destination (ground)
           const routePositions = [];
+          timelineRoutePoints.length = 0;
           if (originCoords) {
             routePositions.push(Cesium.Cartesian3.fromDegrees(originCoords.lon, originCoords.lat, 0));
+            timelineRoutePoints.push({ lon: originCoords.lon, lat: originCoords.lat, alt: 0 });
           }
           for (const fix of validFixes) {
             routePositions.push(Cesium.Cartesian3.fromDegrees(fix.longitude, fix.latitude, alt));
+            timelineRoutePoints.push({ lon: fix.longitude, lat: fix.latitude, alt });
           }
           if (destCoords) {
             routePositions.push(Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat, 0));
+            timelineRoutePoints.push({ lon: destCoords.lon, lat: destCoords.lat, alt: 0 });
           }
 
           if (routePositions.length >= 2) {
@@ -702,9 +715,19 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
   }
 
   const routePositions = [];
-  if (originCoords) routePositions.push(Cesium.Cartesian3.fromDegrees(originCoords.lon, originCoords.lat, 0));
-  for (const wp of routeWaypoints) routePositions.push(Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, alt));
-  if (destCoords) routePositions.push(Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat, 0));
+  timelineRoutePoints.length = 0;
+  if (originCoords) {
+    routePositions.push(Cesium.Cartesian3.fromDegrees(originCoords.lon, originCoords.lat, 0));
+    timelineRoutePoints.push({ lon: originCoords.lon, lat: originCoords.lat, alt: 0 });
+  }
+  for (const wp of routeWaypoints) {
+    routePositions.push(Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, alt));
+    timelineRoutePoints.push({ lon: wp.lon, lat: wp.lat, alt });
+  }
+  if (destCoords) {
+    routePositions.push(Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat, 0));
+    timelineRoutePoints.push({ lon: destCoords.lon, lat: destCoords.lat, alt: 0 });
+  }
 
   if (routePositions.length < 2) return;
 

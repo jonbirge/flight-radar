@@ -122,6 +122,27 @@
     configure it in Settings under <em>API credentials</em>.
   </p>
 
+  <h3>Flight Plan Timeline</h3>
+  <p>
+    When a flight plan is active (either from a search or by clicking a live aircraft),
+    a <strong>timeline scrubber</strong> appears at the bottom center of the screen. The slider
+    spans from departure to arrival, labelled with the origin and destination airport codes.
+  </p>
+  <ul>
+    <li><strong>Elapsed time</strong> — The current slider position shows the elapsed flight time
+      and the corresponding UTC time.</li>
+    <li><strong>Scrubbing</strong> — Drag the slider to move through the estimated flight plan.
+      A cyan marker shows the estimated aircraft position along the filed route at that time.</li>
+    <li><strong>Other aircraft</strong> — When the slider is more than 5 minutes from the current
+      time, other aircraft are hidden since their positions cannot be predicted.</li>
+    <li><strong>Weather filtering</strong> — SIGMETs and AIRMETs that are not valid at the
+      selected time are automatically hidden.</li>
+    <li><strong>Historical position</strong> — When scrubbing into the past, the marker shows the
+      aircraft&rsquo;s position from its recorded track history.</li>
+    <li><strong>Live button</strong> — Click <strong>Live</strong> or double-click the slider to
+      return to real-time mode, restoring all aircraft and weather overlays.</li>
+  </ul>
+
   <h2>Weather &amp; Turbulence</h2>
 
   <h3>GOES Satellite IR</h3>
