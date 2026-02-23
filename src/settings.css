@@ -32,7 +32,7 @@ body {
 
 /* Button styles — mirrors shared/styles.css .scope-btn */
 .scope-btn {
-  background: transparent;
+  background: #000000;
   border: none;
   border-radius: var(--md-shape-full, 9999px);
   color: var(--md-on-surface);
