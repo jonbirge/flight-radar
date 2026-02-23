@@ -107,17 +107,15 @@ const SETTINGS_CSS = `
   flex: 1;
   padding: 8px 12px;
   font-size: 14px;
-  border: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
+  border: none;
   border-radius: 8px;
   background: var(--settings-input-bg, #fff);
   color: var(--md-on-surface, var(--settings-input-color, #000));
   font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
-  transition: border-color 0.15s;
 }
 
 .settings-cred-input:focus {
   outline: none;
-  border-color: var(--md-primary, var(--settings-btn-active-bg, #333));
 }
 
 .settings-cred-input::placeholder {
@@ -393,7 +391,7 @@ function createSettingsFormHTML() {
       </div>
     </div>
 
-    <div class="settings-section" style="border-bottom:none;">
+    <div class="settings-section" style="border-bottom:none;border-top:1px solid var(--md-outline-variant, var(--settings-border, #ccc));">
       <div class="settings-cred-section" id="cred-drop-zone">
         <div class="settings-label">API credentials</div>
         <div class="settings-hint">
