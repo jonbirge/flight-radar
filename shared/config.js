@@ -52,6 +52,7 @@ const CONFIG = {
   satelliteIREnabled: DEFAULT_SETTINGS.satelliteIREnabled,
   turbForecastEnabled: DEFAULT_SETTINGS.turbForecastEnabled,
   turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
+  weatherOverlayOpacity: DEFAULT_SETTINGS.weatherOverlayOpacity,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
 };
 

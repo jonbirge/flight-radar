@@ -315,11 +315,19 @@ function createSettingsFormHTML() {
           </div>
         </div>
 
-        <div class="settings-section" style="border-bottom:none;">
+        <div class="settings-section">
           <div class="settings-label">Rotation speed</div>
           <div class="settings-row">
             <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
             <span class="settings-fontsize-val" id="set-rotation-speed-val">3 &deg;/s</span>
+          </div>
+        </div>
+
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-label">Weather overlay opacity</div>
+          <div class="settings-row">
+            <input type="range" id="set-weather-opacity" min="10" max="100" value="25" step="5">
+            <span class="settings-fontsize-val" id="set-weather-opacity-val">25%</span>
           </div>
         </div>
       </div>
@@ -497,6 +505,14 @@ function populateSettingsForm(container, settings) {
   rotSlider.value = s.rotationSpeed;
   rotVal.textContent = `${s.rotationSpeed} \u00B0/s`;
 
+  // Weather overlay opacity
+  const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
+  const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
+  if (weatherOpacitySlider) {
+    weatherOpacitySlider.value = s.weatherOverlayOpacity;
+    weatherOpacityVal.textContent = `${s.weatherOverlayOpacity}%`;
+  }
+
   // Credentials
   container.querySelector('#set-client-id').value = s.openskyClientId || '';
   container.querySelector('#set-client-secret').value = s.openskyClientSecret || '';
@@ -549,6 +565,8 @@ function initSettingsPanel(options) {
   const showFixes = container.querySelector('#set-show-fixes');
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
+  const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
+  const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
   const clientId = container.querySelector('#set-client-id');
   const clientSecret = container.querySelector('#set-client-secret');
   const faApiKey = container.querySelector('#set-fa-api-key');
@@ -575,6 +593,7 @@ function initSettingsPanel(options) {
       showSmallAirports: smallAirports.checked,
       showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
+      weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
       flightawareApiKey: faApiKey ? faApiKey.value.trim() : '',
@@ -703,6 +722,12 @@ function initSettingsPanel(options) {
   // --- Rotation speed slider ---
   rotSlider.addEventListener('input', () => {
     rotVal.textContent = `${rotSlider.value} \u00B0/s`;
+    debouncedBroadcast();
+  });
+
+  // --- Weather overlay opacity slider ---
+  weatherOpacitySlider.addEventListener('input', () => {
+    weatherOpacityVal.textContent = `${weatherOpacitySlider.value}%`;
     debouncedBroadcast();
   });
 

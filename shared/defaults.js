@@ -31,6 +31,7 @@ const DEFAULT_SETTINGS = {
   satelliteIREnabled: false,
   turbForecastEnabled: false,
   turbulenceLevel: 'none',
+  weatherOverlayOpacity: 25,
   rotationSpeed: 6,
   openskyClientId: '',
   openskyClientSecret: '',
