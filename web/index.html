@@ -7,10 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap">
-  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=2.9.22">
-  <link rel="stylesheet" href="../shared/styles.css?v=2.9.22">
-  <link rel="stylesheet" href="styles.css?v=2.9.22">
-  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=2.9.22"></script>
+  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=2.9.23">
+  <link rel="stylesheet" href="../shared/styles.css?v=2.9.23">
+  <link rel="stylesheet" href="styles.css?v=2.9.23">
+  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=2.9.23"></script>
 </head>
 <body>
   <div id="cesiumContainer"></div>
@@ -109,8 +109,9 @@
 
   <!-- Search panel -->
   <div id="search-panel">
-    <input type="text" id="flight-search" placeholder="Flight # (e.g. UAL123)" autocomplete="off" spellcheck="false">
+    <input type="text" id="flight-search" placeholder="Flight # (e.g. UAL123, BOS-LAX)" autocomplete="off" spellcheck="false">
     <button id="btn-flight-search" class="scope-btn">Search</button>
+    <div id="flight-search-results" class="hidden"></div>
   </div>
 
   <!-- Selected aircraft info panel -->
@@ -136,19 +137,19 @@
   </div>
 
   <!-- Shared modules -->
-  <script src="../shared/defaults.js?v=2.9.22"></script>
-  <script src="../shared/config.js?v=2.9.22"></script>
-  <script src="../shared/data.js?v=2.9.22"></script>
-  <script src="../shared/icons.js?v=2.9.22"></script>
-  <script src="../shared/settings.js?v=2.9.22"></script>
-  <script src="../shared/radar-core.js?v=2.9.22"></script>
-  <script src="../shared/radar-weather.js?v=2.9.22"></script>
-  <script src="../shared/radar-markers.js?v=2.9.22"></script>
-  <script src="../shared/radar-aircraft.js?v=2.9.22"></script>
-  <script src="../shared/radar-ui.js?v=2.9.22"></script>
-  <script src="../shared/radar-flightplan.js?v=2.9.22"></script>
-  <script src="../shared/radar.js?v=2.9.22"></script>
+  <script src="../shared/defaults.js?v=2.9.23"></script>
+  <script src="../shared/config.js?v=2.9.23"></script>
+  <script src="../shared/data.js?v=2.9.23"></script>
+  <script src="../shared/icons.js?v=2.9.23"></script>
+  <script src="../shared/settings.js?v=2.9.23"></script>
+  <script src="../shared/radar-core.js?v=2.9.23"></script>
+  <script src="../shared/radar-weather.js?v=2.9.23"></script>
+  <script src="../shared/radar-markers.js?v=2.9.23"></script>
+  <script src="../shared/radar-aircraft.js?v=2.9.23"></script>
+  <script src="../shared/radar-ui.js?v=2.9.23"></script>
+  <script src="../shared/radar-flightplan.js?v=2.9.23"></script>
+  <script src="../shared/radar.js?v=2.9.23"></script>
   <!-- Web-specific (API shim + settings panel + init) -->
-  <script src="app.js?v=2.9.22"></script>
+  <script src="app.js?v=2.9.23"></script>
 </body>
 </html>

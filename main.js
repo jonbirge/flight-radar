@@ -243,7 +243,7 @@ function httpGetFA(url, apiKey) {
 }
 
 // IPC handler: get flight plan from FlightAware
-ipcMain.handle('get-flight-plan', async (event, ident) => {
+ipcMain.handle('get-flight-plan', async (event, request) => {
   const s = loadSettings();
   const apiKey = s.flightawareApiKey;
   if (!apiKey) {
@@ -251,12 +251,23 @@ ipcMain.handle('get-flight-plan', async (event, ident) => {
   }
 
   try {
-    const safeIdent = ident.replace(/[^a-zA-Z0-9]/g, '');
-    const url = `${FA_AEROAPI_BASE}/flights/${safeIdent}`;
+    let url;
+    if (request && typeof request === 'object' && request.searchQuery) {
+      const safeQuery = String(request.searchQuery)
+        .replace(/[^a-zA-Z0-9\s\-_:>]/g, ' ')
+        .trim()
+        .slice(0, 120);
+      if (!safeQuery) return { error: 'Invalid flight search query' };
+      url = `${FA_AEROAPI_BASE}/flights/search?query=${encodeURIComponent(safeQuery)}&max_pagesize=25`;
+    } else {
+      const safeIdent = String(request || '').replace(/[^a-zA-Z0-9]/g, '');
+      if (!safeIdent) return { error: 'Invalid flight identifier' };
+      url = `${FA_AEROAPI_BASE}/flights/${safeIdent}`;
+    }
     const data = await httpGetFA(url, apiKey);
     return data;
   } catch (err) {
-    console.error(`[FlightAware] Flight plan error for ${ident}:`, err.message);
+    console.error(`[FlightAware] Flight plan error for ${JSON.stringify(request)}:`, err.message);
     return { error: err.message };
   }
 });

@@ -163,11 +163,16 @@ async function apiGetTrack(icao24) {
 // FlightAware AeroAPI (via PHP proxy)
 // ============================================================
 
-async function apiGetFlightPlan(ident) {
+async function apiGetFlightPlan(request) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const url = `flightaware-proxy.php?endpoint=flights&ident=${encodeURIComponent(ident)}`;
+    let url;
+    if (request && typeof request === 'object' && request.searchQuery) {
+      url = `flightaware-proxy.php?endpoint=flights/search&query=${encodeURIComponent(request.searchQuery)}&max_pagesize=25`;
+    } else {
+      url = `flightaware-proxy.php?endpoint=flights&ident=${encodeURIComponent(request)}`;
+    }
     const resp = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
     if (!resp.ok) {

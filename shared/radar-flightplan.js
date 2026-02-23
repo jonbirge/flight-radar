@@ -266,6 +266,7 @@ document.getElementById('info-close').addEventListener('click', () => {
   hideAircraftInfo();
   const searchInput = document.getElementById('flight-search');
   if (searchInput) searchInput.value = '';
+  hideFlightSearchResults();
 });
 
 // ============================================================
@@ -773,6 +774,154 @@ function showFlightPlanInfo(flight) {
   `;
 }
 
+const FLIGHT_SEARCH_MAX_FUTURE = 4;
+const FLIGHT_SEARCH_MAX_PAST = 4;
+
+function parseFlightSearchRequest(rawQuery) {
+  const trimmed = (rawQuery || '').trim();
+  const upper = trimmed.toUpperCase().replace(/\s+/g, ' ');
+
+  let airline = null;
+  let routePart = upper;
+  const airlineMatch = upper.match(/^([A-Z]{2,3})\s+(.+)$/);
+  if (airlineMatch && /(?:-|->)/.test(airlineMatch[2])) {
+    airline = airlineMatch[1];
+    routePart = airlineMatch[2].trim();
+  }
+
+  const pairMatch = routePart.match(/^([A-Z]{3,4})?\s*(?:-|->)\s*([A-Z]{3,4})?$/);
+  if (!pairMatch || (!pairMatch[1] && !pairMatch[2])) {
+    return { request: upper, label: upper };
+  }
+
+  const origin = pairMatch[1] || null;
+  const destination = pairMatch[2] || null;
+  const terms = [];
+  if (airline) terms.push(`ident ${airline}`);
+  if (origin) terms.push(`origin ${origin}`);
+  if (destination) terms.push(`destination ${destination}`);
+
+  return {
+    request: { searchQuery: terms.join(' ') },
+    label: `${airline ? `${airline} ` : ''}${origin || '*'}→${destination || '*'}`,
+  };
+}
+
+function classifyFlightAsFuture(flight, nowMs) {
+  if (flight.progress_percent != null) {
+    if (flight.progress_percent >= 100) return false;
+    if (flight.progress_percent > 0) return true;
+  }
+  const dep = Date.parse(flight.scheduled_out || flight.estimated_out || '');
+  const arr = Date.parse(flight.estimated_in || flight.scheduled_in || '');
+  if (!Number.isNaN(arr)) return arr >= nowMs;
+  if (!Number.isNaN(dep)) return dep >= nowMs;
+  return false;
+}
+
+function flightSortTime(flight) {
+  return Date.parse(
+    flight.scheduled_out
+    || flight.estimated_out
+    || flight.estimated_in
+    || flight.scheduled_in
+    || '',
+  );
+}
+
+function formatSearchTime(value) {
+  if (!value) return 'time unknown';
+  const t = Date.parse(value);
+  if (Number.isNaN(t)) return 'time unknown';
+  return new Date(t).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZoneName: 'short',
+  });
+}
+
+function hideFlightSearchResults() {
+  const panel = document.getElementById('flight-search-results');
+  if (!panel) return;
+  panel.innerHTML = '';
+  panel.classList.add('hidden');
+}
+
+function applySelectedFlightResult(flight) {
+  hideFlightSearchResults();
+  const result = displayFlightPlanRoute({ flights: [flight] });
+  if (result) {
+    console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+    if (!selectSearchedAircraft()) {
+      findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+    }
+  }
+}
+
+function renderFlightSearchResults(flights, queryLabel) {
+  const panel = document.getElementById('flight-search-results');
+  if (!panel) return;
+  panel.innerHTML = '';
+
+  const nowMs = Date.now();
+  const wrapped = flights.map((flight, idx) => ({ flight, idx }));
+  const future = wrapped
+    .filter(w => classifyFlightAsFuture(w.flight, nowMs))
+    .sort((a, b) => (flightSortTime(a.flight) || Number.MAX_SAFE_INTEGER) - (flightSortTime(b.flight) || Number.MAX_SAFE_INTEGER))
+    .slice(0, FLIGHT_SEARCH_MAX_FUTURE);
+  const past = wrapped
+    .filter(w => !classifyFlightAsFuture(w.flight, nowMs))
+    .sort((a, b) => (flightSortTime(b.flight) || 0) - (flightSortTime(a.flight) || 0))
+    .slice(0, FLIGHT_SEARCH_MAX_PAST);
+
+  const entries = [...future.map(w => ({ ...w, isFuture: true })), ...past.map(w => ({ ...w, isFuture: false }))];
+  if (entries.length === 0) {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  const title = document.createElement('div');
+  title.className = 'flight-search-results-title';
+  title.textContent = `Results for ${queryLabel}`;
+  panel.appendChild(title);
+
+  for (const entry of entries) {
+    const flight = entry.flight;
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'flight-search-result';
+    row.addEventListener('click', () => applySelectedFlightResult(flight));
+
+    const ident = document.createElement('div');
+    ident.className = 'flight-search-result-ident';
+    ident.textContent = (flight.ident || flight.ident_iata || 'UNKNOWN').trim();
+    row.appendChild(ident);
+
+    const route = document.createElement('div');
+    route.className = 'flight-search-result-route';
+    const originCode = flight.origin ? (flight.origin.code_iata || flight.origin.code_icao || '??') : '??';
+    const destCode = flight.destination ? (flight.destination.code_iata || flight.destination.code_icao || '??') : '??';
+    route.textContent = `${originCode} → ${destCode}`;
+    row.appendChild(route);
+
+    const meta = document.createElement('div');
+    meta.className = 'flight-search-result-meta';
+    const phase = entry.isFuture ? 'FUTURE' : 'PAST';
+    const schedule = entry.isFuture
+      ? formatSearchTime(flight.scheduled_out || flight.estimated_out || flight.scheduled_in)
+      : formatSearchTime(flight.actual_in || flight.estimated_in || flight.scheduled_in || flight.scheduled_out);
+    meta.textContent = `${phase} • ${schedule}`;
+    row.appendChild(meta);
+
+    panel.appendChild(row);
+  }
+
+  panel.classList.remove('hidden');
+}
+
 async function searchFlightPlan(ident) {
   if (!ident || ident.trim().length === 0) return;
 
@@ -787,31 +936,27 @@ async function searchFlightPlan(ident) {
       return;
     }
 
-    const data = await window.flightAPI.getFlightPlan(ident.trim());
+    const parsed = parseFlightSearchRequest(ident.trim());
+    const data = await window.flightAPI.getFlightPlan(parsed.request);
     if (data.error) {
       console.warn(`[FlightPlan] Error: ${data.error}`);
       alert(`Flight search failed: ${data.error}`);
+      hideFlightSearchResults();
       return;
     }
 
     if (!data.flights || data.flights.length === 0) {
-      alert(`No flights found for "${ident.trim()}"`);
+      hideFlightSearchResults();
+      alert(`No flights found for "${parsed.label}"`);
       return;
     }
 
-    console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
-    const result = displayFlightPlanRoute(data);
-
-    // Try to find and select the matching live aircraft on OpenSky
-    if (result) {
-      console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
-      if (!selectSearchedAircraft()) {
-        findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
-      }
-    }
+    console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${parsed.label}`);
+    renderFlightSearchResults(data.flights, parsed.label);
   } catch (err) {
     console.error('[FlightPlan] Search error:', err);
     alert('Flight search failed. Check console for details.');
+    hideFlightSearchResults();
   } finally {
     if (searchBtn) searchBtn.disabled = false;
     if (searchInput) searchInput.disabled = false;
@@ -830,6 +975,9 @@ if (flightSearchBtn) {
 }
 
 if (flightSearchInput) {
+  flightSearchInput.addEventListener('input', () => {
+    if (!flightSearchInput.value.trim()) hideFlightSearchResults();
+  });
   flightSearchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
