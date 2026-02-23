@@ -773,6 +773,212 @@ function showFlightPlanInfo(flight) {
   `;
 }
 
+// Parse a search query into a structured search object.
+// Returns { type, ident, airline, origin, destination } where type is one of:
+//   'ident' — standard flight number search (e.g. UAL123)
+//   'route' — airport pair / airline+airport search (e.g. BOS-LAX, AAL BOS-LAX)
+function parseSearchQuery(raw) {
+  const q = raw.trim().toUpperCase();
+  if (!q) return null;
+
+  // Normalize arrow/separator variants to a single dash
+  const normalized = q.replace(/\s*(?:->|=>|→)\s*/g, '-');
+
+  // Only consider route search if there's a dash separator
+  if (normalized.includes('-')) {
+    // Pattern: optional airline prefix, then ORIGIN-DEST (either side optional)
+    // Airline prefix: 2-4 letters followed by space(s)
+    // Airport codes: 3-4 letters
+    const routeRe = /^(?:([A-Z]{2,4})\s+)?([A-Z]{3,4})?\s*-\s*([A-Z]{3,4})?$/;
+    const m = normalized.match(routeRe);
+    if (m && (m[2] || m[3])) {
+      let airline = m[1] || null;
+      let origin = m[2] || null;
+      let destination = m[3] || null;
+      // Disambiguate: "BOS - LAX" (spaces around dash, no real airline)
+      // If we captured an "airline" and it's the same length as a typical airport
+      // code AND there's no origin AND there is a destination AND the original
+      // input has no space before the dash part, treat first group as origin.
+      // But "AAL -LAX" should keep AAL as airline — detected by space+dash.
+      if (airline && !origin && destination) {
+        // Check if user typed "XXX -YYY" (airline prefix) vs "XXX - YYY" (spaced pair)
+        // In "AAL -LAX", the dash is adjacent to dest: airline pattern
+        // In "BOS - LAX", both sides have spaces: airport pair pattern
+        const hasDashWithSpaceBefore = /\S\s+-/.test(normalized);
+        const hasDashWithSpaceAfter = /-\s+\S/.test(normalized);
+        if (hasDashWithSpaceBefore && hasDashWithSpaceAfter) {
+          // Both sides have spaces: treat as airport pair (BOS - LAX)
+          origin = airline;
+          airline = null;
+        }
+        // Otherwise keep as airline + destination (AAL -LAX)
+      }
+      return { type: 'route', airline, origin, destination };
+    }
+  }
+
+  // Default: treat as flight identifier
+  return { type: 'ident', ident: q };
+}
+
+// Build a FlightAware AeroAPI /flights/search query string from parsed search.
+function buildFASearchQuery(parsed) {
+  const parts = [];
+  if (parsed.airline) parts.push(`{ident ${parsed.airline}*}`);
+  if (parsed.origin) parts.push(`{origin ${parsed.origin}}`);
+  if (parsed.destination) parts.push(`{destination ${parsed.destination}}`);
+  return parts.join(' ');
+}
+
+// Categorize flights into past, en-route, and upcoming; sort within each group.
+function categorizeFlights(flights) {
+  const now = new Date();
+  const enRoute = [];
+  const upcoming = [];
+  const past = [];
+
+  for (const f of flights) {
+    if (f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100) {
+      enRoute.push(f);
+    } else {
+      const arr = f.scheduled_in || f.estimated_in;
+      const dep = f.scheduled_out || f.estimated_out;
+      if (arr && new Date(arr) > now && (f.progress_percent == null || f.progress_percent < 100)) {
+        upcoming.push(f);
+      } else {
+        past.push(f);
+      }
+    }
+  }
+
+  // Sort upcoming by departure (earliest first)
+  upcoming.sort((a, b) => {
+    const da = new Date(a.scheduled_out || a.estimated_out || a.scheduled_in);
+    const db = new Date(b.scheduled_out || b.estimated_out || b.scheduled_in);
+    return da - db;
+  });
+
+  // Sort past by departure (most recent first)
+  past.sort((a, b) => {
+    const da = new Date(a.scheduled_out || a.estimated_out || a.scheduled_in || 0);
+    const db = new Date(b.scheduled_out || b.estimated_out || b.scheduled_in || 0);
+    return db - da;
+  });
+
+  return { enRoute, upcoming, past };
+}
+
+// Format a time string (ISO 8601) for display in search results.
+function formatSearchTime(isoStr) {
+  if (!isoStr) return '---';
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  } catch { return '---'; }
+}
+
+// Display search results in the dropdown panel and let the user choose.
+function showSearchResults(flights) {
+  const panel = document.getElementById('search-results');
+  if (!panel) return;
+
+  panel.innerHTML = '';
+
+  if (!flights || flights.length === 0) {
+    panel.innerHTML = '<div class="search-result-none">No flights found</div>';
+    panel.classList.remove('hidden');
+    return;
+  }
+
+  const { enRoute, upcoming, past } = categorizeFlights(flights);
+
+  // Limit results: up to 3 en-route + 5 upcoming + 3 past
+  const shownEnRoute = enRoute.slice(0, 3);
+  const shownUpcoming = upcoming.slice(0, 5);
+  const shownPast = past.slice(0, 3);
+
+  function addSection(label, items, badgeClass, badgeText) {
+    if (items.length === 0) return;
+    const header = document.createElement('div');
+    header.className = 'search-results-header';
+    header.textContent = label;
+    panel.appendChild(header);
+
+    for (const flight of items) {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+
+      const ident = flight.ident || flight.ident_iata || '---';
+      const originCode = flight.origin
+        ? (flight.origin.code_iata || flight.origin.code_icao || '???')
+        : '???';
+      const destCode = flight.destination
+        ? (flight.destination.code_iata || flight.destination.code_icao || '???')
+        : '???';
+      const depTime = formatSearchTime(flight.scheduled_out || flight.estimated_out);
+
+      // Determine badge
+      let bClass = badgeClass;
+      let bText = badgeText;
+      if (flight.progress_percent != null && flight.progress_percent > 0 && flight.progress_percent < 100) {
+        bClass = 'badge-enroute';
+        bText = 'En Route';
+      }
+
+      item.innerHTML = `
+        <span class="search-result-ident">${ident}</span>
+        <span class="search-result-route">${originCode} → ${destCode}</span>
+        <span class="search-result-time">${depTime}</span>
+        <span class="search-result-badge ${bClass}">${bText}</span>
+      `;
+
+      item.addEventListener('click', () => selectSearchResult(flight, flights));
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectSearchResult(flight, flights);
+        }
+      });
+      panel.appendChild(item);
+    }
+  }
+
+  addSection('En Route', shownEnRoute, 'badge-enroute', 'En Route');
+  addSection('Upcoming', shownUpcoming, 'badge-upcoming', 'Upcoming');
+  addSection('Past', shownPast, 'badge-past', 'Past');
+
+  panel.classList.remove('hidden');
+}
+
+// Hide the search results dropdown.
+function hideSearchResults() {
+  const panel = document.getElementById('search-results');
+  if (panel) {
+    panel.classList.add('hidden');
+    panel.innerHTML = '';
+  }
+}
+
+// Handle selection of a flight from the search results dropdown.
+function selectSearchResult(flight, allFlights) {
+  hideSearchResults();
+
+  // Build a fake response with just this flight so displayFlightPlanRoute works
+  const data = { flights: [flight] };
+  activeFlightPlan = data;
+
+  const result = displayFlightPlanRoute(data);
+
+  if (result) {
+    console.log(`[FlightPlan] User selected flight: ${flight.fa_flight_id} (${flight.ident})`);
+    if (!selectSearchedAircraft()) {
+      findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+    }
+  }
+}
+
 async function searchFlightPlan(ident) {
   if (!ident || ident.trim().length === 0) return;
 
@@ -780,14 +986,44 @@ async function searchFlightPlan(ident) {
   const searchBtn = document.getElementById('btn-flight-search');
   if (searchBtn) searchBtn.disabled = true;
   if (searchInput) searchInput.disabled = true;
+  hideSearchResults();
 
   try {
+    const parsed = parseSearchQuery(ident);
+    if (!parsed) return;
+
+    if (parsed.type === 'route') {
+      // Airport pair / airline search via /flights/search
+      if (!window.flightAPI.searchFlights) {
+        console.warn('[FlightPlan] searchFlights not available on this platform');
+        alert('Flight search by route is not available on this platform.');
+        return;
+      }
+      const query = buildFASearchQuery(parsed);
+      console.log(`[FlightPlan] Route search: "${query}"`);
+      const data = await window.flightAPI.searchFlights(query);
+      if (data.error) {
+        console.warn(`[FlightPlan] Search error: ${data.error}`);
+        alert(`Flight search failed: ${data.error}`);
+        return;
+      }
+      const flights = data.flights || [];
+      if (flights.length === 0) {
+        alert(`No flights found for "${ident.trim()}"`);
+        return;
+      }
+      console.log(`[FlightPlan] Found ${flights.length} flight(s) for route search`);
+      showSearchResults(flights);
+      return;
+    }
+
+    // Standard flight number search
     if (!window.flightAPI.getFlightPlan) {
       console.warn('[FlightPlan] getFlightPlan not available on this platform');
       return;
     }
 
-    const data = await window.flightAPI.getFlightPlan(ident.trim());
+    const data = await window.flightAPI.getFlightPlan(parsed.ident);
     if (data.error) {
       console.warn(`[FlightPlan] Error: ${data.error}`);
       alert(`Flight search failed: ${data.error}`);
@@ -800,14 +1036,18 @@ async function searchFlightPlan(ident) {
     }
 
     console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
-    const result = displayFlightPlanRoute(data);
 
-    // Try to find and select the matching live aircraft on OpenSky
-    if (result) {
-      console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
-      if (!selectSearchedAircraft()) {
-        findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+    // If only one flight, select it directly; otherwise show results
+    if (data.flights.length === 1) {
+      const result = displayFlightPlanRoute(data);
+      if (result) {
+        console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+        if (!selectSearchedAircraft()) {
+          findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+        }
       }
+    } else {
+      showSearchResults(data.flights);
     }
   } catch (err) {
     console.error('[FlightPlan] Search error:', err);
@@ -835,8 +1075,19 @@ if (flightSearchInput) {
       e.preventDefault();
       searchFlightPlan(flightSearchInput.value);
     }
+    if (e.key === 'Escape') {
+      hideSearchResults();
+    }
   });
 }
+
+// Dismiss search results when clicking outside the search panel
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('search-panel');
+  if (panel && !panel.contains(e.target)) {
+    hideSearchResults();
+  }
+});
 
 function stopTracking() {
   if (!isTracking) return;

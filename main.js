@@ -300,6 +300,24 @@ ipcMain.handle('get-flight-track', async (event, faFlightId) => {
   }
 });
 
+// IPC handler: search flights via FlightAware AeroAPI /flights/search
+ipcMain.handle('search-flights', async (event, query) => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) {
+    return { error: 'FlightAware API key not configured' };
+  }
+
+  try {
+    const url = `${FA_AEROAPI_BASE}/flights/search?query=${encodeURIComponent(query)}`;
+    const data = await httpGetFA(url, apiKey);
+    return data;
+  } catch (err) {
+    console.error(`[FlightAware] Search error for query "${query}":`, err.message);
+    return { error: err.message };
+  }
+});
+
 // --- Help Window ---
 let helpWindow = null;
 

@@ -159,6 +159,7 @@ body {
   border-radius: var(--md-shape-lg);
   padding: 10px 14px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   font: var(--md-typescale-label-medium);
@@ -519,4 +520,116 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 #flight-search::placeholder {
   color: var(--md-on-surface-variant);
+}
+
+/* Search Results Dropdown */
+#search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--md-surface-container);
+  border-radius: var(--md-shape-lg);
+  box-shadow: var(--md-elevation-2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  max-height: 340px;
+  overflow-y: auto;
+  z-index: 101;
+  padding: 6px 0;
+}
+
+#search-results.hidden { display: none; }
+
+#search-results .search-results-header {
+  padding: 6px 14px 4px;
+  font: var(--md-typescale-label-small);
+  color: var(--md-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#search-results .search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font: var(--md-typescale-body-small);
+  color: var(--md-on-surface);
+  transition: background 0.15s;
+}
+
+#search-results .search-result-item:hover {
+  background: var(--md-surface-container-highest);
+}
+
+#search-results .search-result-ident {
+  font-weight: 600;
+  min-width: 70px;
+}
+
+#search-results .search-result-route {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#search-results .search-result-time {
+  font-size: 11px;
+  color: var(--md-on-surface-variant);
+  white-space: nowrap;
+}
+
+#search-results .search-result-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--md-shape-full);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+#search-results .badge-enroute {
+  background: #2e7d32;
+  color: #c8e6c9;
+}
+
+#search-results .badge-upcoming {
+  background: #1565c0;
+  color: #bbdefb;
+}
+
+#search-results .badge-past {
+  background: #616161;
+  color: #e0e0e0;
+}
+
+#search-results .search-result-none {
+  padding: 12px 14px;
+  color: var(--md-on-surface-variant);
+  font-style: italic;
+  text-align: center;
+}
+
+.theme-light #search-results {
+  background: #ffffff;
+}
+
+.theme-light #search-results .badge-enroute {
+  background: #c8e6c9;
+  color: #1b5e20;
+}
+
+.theme-light #search-results .badge-upcoming {
+  background: #bbdefb;
+  color: #0d47a1;
+}
+
+.theme-light #search-results .badge-past {
+  background: #e0e0e0;
+  color: #424242;
 }

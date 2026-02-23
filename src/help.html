@@ -80,10 +80,25 @@
 
   <h3>Flight Search</h3>
   <p>
-    Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) in the
-    search panel at the top-left and press <strong>Search</strong> or
-    <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s AeroAPI for current and upcoming flights
-    matching that identifier, then displays the planned route and flight status on the map.
+    The search panel at the top-left supports several search formats.
+    Press <strong>Search</strong> or <kbd>Enter</kbd> to execute a search.
+  </p>
+  <table>
+    <tr><th>Format</th><th>Example</th><th>Description</th></tr>
+    <tr><td>Flight number</td><td><kbd>UAL123</kbd></td><td>Search for a specific flight by callsign</td></tr>
+    <tr><td>Airport pair</td><td><kbd>BOS-LAX</kbd></td><td>Find flights between two airports (IATA or ICAO codes)</td></tr>
+    <tr><td>Airline + route</td><td><kbd>AAL BOS-LAX</kbd></td><td>Find a specific airline&rsquo;s flights between airports</td></tr>
+    <tr><td>Departures</td><td><kbd>BOS-</kbd></td><td>Find flights departing from an airport</td></tr>
+    <tr><td>Arrivals</td><td><kbd>-BOS</kbd></td><td>Find flights arriving at an airport</td></tr>
+    <tr><td>Airline departures</td><td><kbd>AAL BOS-</kbd></td><td>Find a specific airline&rsquo;s departures from an airport</td></tr>
+    <tr><td>Airline arrivals</td><td><kbd>AAL -BOS</kbd></td><td>Find a specific airline&rsquo;s arrivals at an airport</td></tr>
+  </table>
+  <p>
+    For flight number searches with a single result, the flight is displayed directly.
+    For all other searches, a results panel appears below the search box showing en-route,
+    upcoming, and past flights. Each result shows the flight identifier, route, departure
+    time, and status badge. Click a result to display that flight&rsquo;s route on the map.
+    Press <kbd>Escape</kbd> or click outside the panel to dismiss the results.
   </p>
   <ul>
     <li><strong>Filed route</strong> — Dashed line from origin to destination through decoded

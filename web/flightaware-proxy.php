@@ -80,6 +80,16 @@ if ($endpoint === 'flights') {
     $faFlightId = preg_replace('/[^a-zA-Z0-9\-_]/', '', $faFlightId);
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/flights/$faFlightId/track" . ($query ? "?$query" : '');
+} else if ($endpoint === 'flights/search') {
+    // /flights/search requires a 'query' parameter (e.g. "{origin KBOS} {destination KLAX}")
+    $searchQuery = $params['query'] ?? '';
+    if (empty($searchQuery)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing query parameter']);
+        exit;
+    }
+    $query = http_build_query($params);
+    $upstreamUrl = "$AEROAPI_BASE/flights/search" . ($query ? "?$query" : '');
 } else {
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/$endpoint" . ($query ? "?$query" : '');
