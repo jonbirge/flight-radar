@@ -361,6 +361,16 @@ function openSettingsWindow() {
     ).then(json => {
       const { width, height } = JSON.parse(json);
       settingsWindow.setContentSize(Math.max(width, 700), height);
+      // Center on parent window
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const [px, py] = mainWindow.getPosition();
+        const [pw, ph] = mainWindow.getSize();
+        const [sw, sh] = settingsWindow.getSize();
+        settingsWindow.setPosition(
+          Math.round(px + (pw - sw) / 2),
+          Math.round(py + (ph - sh) / 2),
+        );
+      }
       settingsWindow.show();
     }).catch(() => settingsWindow.show());
   });
