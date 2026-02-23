@@ -39,6 +39,10 @@
     <li><strong>Airports</strong> — Show/hide airport marker dots and IATA/ICAO labels.</li>
     <li><strong>Airspace</strong> — Show/hide Class B, C, and D airspace boundaries.</li>
     <li><strong>Navaids</strong> — Show/hide VOR, NDB, and other navigation aids.</li>
+    <li><strong>Satellite IR</strong> — Toggle the GOES satellite infrared (IR) imagery overlay.
+      Shows cloud-top temperatures from the GOES Clean Longwave Infrared Window (Band 13),
+      useful for identifying cloud cover and estimating cloud-top heights.
+      Data is provided by NOAA GOES via the Iowa State Mesonet and refreshes every 10 minutes.</li>
     <li><strong>Radar</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
       Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.</li>
     <li><strong>SIGMETs</strong> — Toggle turbulence and convective SIGMET polygon overlays.
@@ -119,6 +123,15 @@
   </p>
 
   <h2>Weather &amp; Turbulence</h2>
+
+  <h3>GOES Satellite IR</h3>
+  <p>
+    The Satellite IR toggle displays GOES infrared satellite imagery over CONUS via WMS tiles
+    from the Iowa State Mesonet. The imagery shows cloud-top temperatures using the
+    Clean Longwave Infrared Window (Band 13 at 10.3&nbsp;&micro;m), which is useful for
+    identifying cloud cover and estimating cloud-top heights. Brighter areas indicate
+    colder (higher) cloud tops. The overlay refreshes automatically every 10 minutes.
+  </p>
 
   <h3>NEXRAD Radar</h3>
   <p>
@@ -306,7 +319,7 @@
       Requires an API key from flightaware.com.</li>
     <li><strong>FAA Aviation Weather Center (AWC)</strong> — Weather hazard data including
       GTG turbulence forecasts, PIREPs, turbulence and convective SIGMETs, and G-AIRMETs.</li>
-    <li><strong>Iowa State Mesonet</strong> — NEXRAD composite radar reflectivity.</li>
+    <li><strong>Iowa State Mesonet</strong> — NEXRAD composite radar reflectivity and GOES satellite IR imagery.</li>
     <li><strong>FAA</strong> — VFR/IFR aeronautical charts, airspace boundaries,
       airport data, and navigation aids.</li>
   </ul>

@@ -70,6 +70,7 @@ async function loadAndApplySettings() {
       CONFIG.sigmetsEnabled = saved.sigmetsEnabled || DEFAULT_SETTINGS.sigmetsEnabled;
       CONFIG.airmetsEnabled = saved.airmetsEnabled || DEFAULT_SETTINGS.airmetsEnabled;
       CONFIG.pirepsEnabled = saved.pirepsEnabled || DEFAULT_SETTINGS.pirepsEnabled;
+      CONFIG.satelliteIREnabled = saved.satelliteIREnabled || DEFAULT_SETTINGS.satelliteIREnabled;
       // Migrate old turbulenceLevel setting to new checkbox model
       if (saved.turbForecastEnabled !== undefined) {
         CONFIG.turbForecastEnabled = saved.turbForecastEnabled;
@@ -96,6 +97,12 @@ async function loadAndApplySettings() {
       if (CONFIG.radarEnabled) {
         if (radarRefreshTimer) clearInterval(radarRefreshTimer);
         radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+      }
+      const irToggle = document.getElementById('toggle-satellite-ir');
+      if (irToggle) irToggle.checked = CONFIG.satelliteIREnabled;
+      if (CONFIG.satelliteIREnabled) {
+        if (satelliteIRRefreshTimer) clearInterval(satelliteIRRefreshTimer);
+        satelliteIRRefreshTimer = setInterval(refreshSatelliteIR, 10 * 60 * 1000);
       }
       // Weather hazard UI state and timers
       const sToggle = document.getElementById('toggle-sigmets');

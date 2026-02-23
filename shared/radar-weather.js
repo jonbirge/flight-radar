@@ -1,7 +1,79 @@
-// Weather overlays: NEXRAD radar, AWC turbulence forecast, PIREPs, SIGMETs, G-AIRMETs.
+// Weather overlays: NEXRAD radar, GOES satellite IR, AWC turbulence forecast, PIREPs, SIGMETs, G-AIRMETs.
 // Depends on radar-core.js (viewer, CONFIG, state variables).
 
 'use strict';
+
+// ============================================================
+// GOES Satellite IR Overlay
+// ============================================================
+
+function makeSatelliteIRProvider() {
+  console.log('[Satellite] Loading GOES IR WMS tiles from Iowa State Mesonet');
+  return new Cesium.WebMapServiceImageryProvider({
+    url: 'https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi',
+    layers: 'conus_ir_4km',
+    parameters: {
+      transparent: true,
+      format: 'image/png',
+    },
+    credit: new Cesium.Credit('NOAA GOES / Iowa State Mesonet'),
+  });
+}
+
+function enableSatelliteIR() {
+  if (satelliteIRLayer) return;
+  const provider = makeSatelliteIRProvider();
+  // Insert below turbulence and radar layers
+  if (turbLayer) {
+    const idx = viewer.imageryLayers.indexOf(turbLayer);
+    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider, idx);
+  } else if (radarLayer) {
+    const idx = viewer.imageryLayers.indexOf(radarLayer);
+    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider, idx);
+  } else {
+    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider);
+  }
+  satelliteIRLayer.alpha = 0.5;
+  CONFIG.satelliteIREnabled = true;
+  console.log('[Satellite] GOES IR overlay enabled');
+  // Auto-refresh every 10 minutes
+  if (satelliteIRRefreshTimer) clearInterval(satelliteIRRefreshTimer);
+  satelliteIRRefreshTimer = setInterval(refreshSatelliteIR, 10 * 60 * 1000);
+}
+
+function disableSatelliteIR() {
+  if (satelliteIRLayer) {
+    viewer.imageryLayers.remove(satelliteIRLayer);
+    satelliteIRLayer = null;
+  }
+  CONFIG.satelliteIREnabled = false;
+  if (satelliteIRRefreshTimer) {
+    clearInterval(satelliteIRRefreshTimer);
+    satelliteIRRefreshTimer = null;
+  }
+  console.log('[Satellite] GOES IR overlay disabled');
+}
+
+function refreshSatelliteIR() {
+  if (!CONFIG.satelliteIREnabled) return;
+  if (satelliteIRLayer) {
+    viewer.imageryLayers.remove(satelliteIRLayer);
+    satelliteIRLayer = null;
+  }
+  const provider = makeSatelliteIRProvider();
+  // Re-insert below turbulence and radar layers
+  if (turbLayer) {
+    const idx = viewer.imageryLayers.indexOf(turbLayer);
+    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider, idx);
+  } else if (radarLayer) {
+    const idx = viewer.imageryLayers.indexOf(radarLayer);
+    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider, idx);
+  } else {
+    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider);
+  }
+  satelliteIRLayer.alpha = 0.5;
+  console.log('[Satellite] GOES IR overlay refreshed');
+}
 
 // ============================================================
 // NEXRAD Weather Radar Overlay
