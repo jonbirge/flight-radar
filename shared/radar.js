@@ -138,7 +138,15 @@ async function loadAndApplySettings() {
         }, 5 * 60 * 1000);
       }
       const mapLayerSel = document.getElementById('map-layer');
-      if (mapLayerSel) mapLayerSel.value = CONFIG.mapLayer;
+      if (mapLayerSel) {
+        const opt = mapLayerSel.querySelector(`.map-layer-option[data-value="${CONFIG.mapLayer}"]`);
+        if (opt) {
+          mapLayerSel.querySelectorAll('.map-layer-option').forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          const label = mapLayerSel.querySelector('.map-layer-label');
+          if (label) label.textContent = opt.textContent;
+        }
+      }
       if ((prevEdges !== CONFIG.airspaceEdges || prev3D !== CONFIG.airspace3D) && airspaceEntities.length > 0) {
         rebuildAirspace();
       }

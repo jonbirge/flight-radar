@@ -279,7 +279,15 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
 }
 
-select {
+/* Custom map layer dropdown */
+.map-layer-select {
+  position: relative;
+}
+
+.map-layer-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   background: var(--md-surface);
   color: var(--md-on-surface);
   border: 1px solid var(--md-outline);
@@ -293,8 +301,56 @@ select {
   transition: border-color var(--md-motion-duration-short) var(--md-motion-easing-standard);
 }
 
-select:focus {
+.map-layer-btn:focus,
+.map-layer-select.open .map-layer-btn {
   border-color: var(--md-primary);
+}
+
+.map-layer-chevron {
+  opacity: 0.6;
+  flex-shrink: 0;
+  transition: transform var(--md-motion-duration-short) var(--md-motion-easing-standard);
+}
+
+.map-layer-select.open .map-layer-chevron {
+  transform: rotate(180deg);
+}
+
+.map-layer-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  background: var(--md-surface-container-solid);
+  border-radius: var(--md-shape-md);
+  box-shadow: 0 2px 6px 2px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.28);
+  padding: 4px 0;
+  z-index: 200;
+  overflow: hidden;
+}
+
+.map-layer-select.open .map-layer-menu {
+  display: block;
+}
+
+.map-layer-option {
+  padding: 10px 16px;
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 14px;
+  color: var(--md-on-surface);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--md-motion-duration-short) var(--md-motion-easing-standard);
+}
+
+.map-layer-option:hover {
+  background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+}
+
+.map-layer-option.selected {
+  color: var(--md-primary);
+  background: color-mix(in srgb, var(--md-primary) 12%, transparent);
 }
 
 .scope-btn {
