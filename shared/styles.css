@@ -388,7 +388,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   min-height: 24px;
   border: none;
   border-radius: 50%;
-  background: #000000;
+  background: var(--md-surface);
   color: var(--md-on-surface);
   font-family: 'Roboto Flex', sans-serif;
   font-size: 12px;
@@ -404,14 +404,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .panel-collapse-btn:hover {
   background: var(--md-surface-container-highest);
-}
-
-.theme-light .panel-collapse-btn {
-  background: #ffffff;
-}
-
-.theme-light .panel-collapse-btn:hover {
-  background: #f0f0f0;
 }
 
 #controls-collapse {
