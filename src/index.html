@@ -42,6 +42,9 @@
 
   <!-- Controls panel -->
   <div id="controls">
+    <button id="controls-toggle" class="panel-toggle" aria-label="Toggle controls panel">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15 19l-7-7 7-7z"/></svg>
+    </button>
     <div class="control-group">
       <label class="toggle-label">
         <input type="checkbox" id="toggle-aircraft">
@@ -110,12 +113,17 @@
 
   <!-- Selected aircraft info panel -->
   <div id="aircraft-info" class="hidden">
+    <button id="info-toggle" class="panel-toggle" aria-label="Toggle info panel">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M7 15l5-5 5 5z"/></svg>
+    </button>
     <button id="info-close" class="scope-btn">&times;</button>
     <div id="info-callsign">---</div>
-    <div id="info-details"></div>
-    <div id="info-buttons" class="hidden">
-      <button id="btn-track" class="scope-btn">Track</button>
-      <button id="btn-show-route" class="scope-btn">Show Route</button>
+    <div id="info-collapsible">
+      <div id="info-details"></div>
+      <div id="info-buttons" class="hidden">
+        <button id="btn-track" class="scope-btn">Track</button>
+        <button id="btn-show-route" class="scope-btn">Show Route</button>
+      </div>
     </div>
   </div>
 
