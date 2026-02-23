@@ -20,8 +20,7 @@ function makeSatelliteIRProvider() {
   });
 }
 
-function enableSatelliteIR() {
-  if (satelliteIRLayer) return;
+function addSatelliteIRLayer() {
   const provider = makeSatelliteIRProvider();
   // Insert below turbulence and radar layers
   if (turbLayer) {
@@ -34,6 +33,11 @@ function enableSatelliteIR() {
     satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider);
   }
   satelliteIRLayer.alpha = 0.5;
+}
+
+function enableSatelliteIR() {
+  if (satelliteIRLayer) return;
+  addSatelliteIRLayer();
   CONFIG.satelliteIREnabled = true;
   console.log('[Satellite] GOES IR overlay enabled');
   // Auto-refresh every 10 minutes
@@ -60,18 +64,7 @@ function refreshSatelliteIR() {
     viewer.imageryLayers.remove(satelliteIRLayer);
     satelliteIRLayer = null;
   }
-  const provider = makeSatelliteIRProvider();
-  // Re-insert below turbulence and radar layers
-  if (turbLayer) {
-    const idx = viewer.imageryLayers.indexOf(turbLayer);
-    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider, idx);
-  } else if (radarLayer) {
-    const idx = viewer.imageryLayers.indexOf(radarLayer);
-    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider, idx);
-  } else {
-    satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider);
-  }
-  satelliteIRLayer.alpha = 0.5;
+  addSatelliteIRLayer();
   console.log('[Satellite] GOES IR overlay refreshed');
 }
 
