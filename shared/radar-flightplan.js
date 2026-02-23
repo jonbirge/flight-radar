@@ -44,8 +44,8 @@ function showAircraftInfo(icao) {
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
 
-  const flyBtn = document.getElementById('btn-fly-route');
-  if (flyBtn) flyBtn.classList.remove('hidden');
+  const infoButtons = document.getElementById('info-buttons');
+  if (infoButtons) infoButtons.classList.remove('hidden');
 
   document.getElementById('info-callsign').textContent = s.callsign || icao;
 
@@ -117,8 +117,8 @@ function showTurbInfo(entity) {
   const type = p.turbType ? p.turbType.getValue() : '?';
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
-  const flyBtn = document.getElementById('btn-fly-route');
-  if (flyBtn) flyBtn.classList.add('hidden');
+  const infoButtons = document.getElementById('info-buttons');
+  if (infoButtons) infoButtons.classList.add('hidden');
 
   // Deselect any aircraft
   if (selectedIcao) {
@@ -179,8 +179,8 @@ function hideAircraftInfo() {
   const prevIcao = selectedIcao;
   selectedIcao = null;
   document.getElementById('aircraft-info').classList.add('hidden');
-  const flyBtn = document.getElementById('btn-fly-route');
-  if (flyBtn) flyBtn.classList.add('hidden');
+  const infoButtons = document.getElementById('info-buttons');
+  if (infoButtons) infoButtons.classList.add('hidden');
   if (prevIcao) {
     viewer.entities.suspendEvents();
     try {
@@ -778,9 +778,19 @@ if (flightSearchInput) {
   });
 }
 
-const flyRouteBtn = document.getElementById('btn-fly-route');
-if (flyRouteBtn) {
-  flyRouteBtn.addEventListener('click', () => {
+const showAircraftBtn = document.getElementById('btn-show-aircraft');
+if (showAircraftBtn) {
+  showAircraftBtn.addEventListener('click', () => {
+    if (!selectedIcao) return;
+    const ac = aircraft.get(selectedIcao);
+    if (!ac || !ac.entity) return;
+    viewer.trackedEntity = ac.entity;
+  });
+}
+
+const showRouteBtn = document.getElementById('btn-show-route');
+if (showRouteBtn) {
+  showRouteBtn.addEventListener('click', () => {
     if (flightPlanEntities.length > 0) {
       flyToRouteOverview();
     } else if (selectedIcao) {

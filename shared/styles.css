@@ -495,12 +495,17 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: var(--md-on-surface-variant);
 }
 
-#btn-fly-route {
-  width: 100%;
+#info-buttons {
+  display: flex;
+  gap: 8px;
   margin-top: 10px;
 }
 
-#btn-fly-route.hidden { display: none; }
+#info-buttons.hidden { display: none; }
+
+#info-buttons .scope-btn {
+  flex: 1;
+}
 
 /* Flight search input */
 #flight-search {
