@@ -34,6 +34,10 @@ function refreshAllEntities() {
 function toggleAircraft(show) {
   CONFIG.aircraftEnabled = show;
   if (!show) {
+    // Cancel any in-flight chunked requestAnimationFrame renders so they
+    // don't create new entities after we've cleaned up below.
+    _renderGeneration++;
+
     // Determine which aircraft to keep: any selected or searched aircraft
     const keepIcao = selectedIcao || searchedIcao;
 
@@ -525,6 +529,10 @@ function computeHorizonDist(camHeight) {
 
 // Render a single aircraft entity (billboard + trail). Called per-aircraft by renderAircraft.
 function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
+    // Skip creating/updating entities when aircraft display is off,
+    // unless this is the selected or searched aircraft (always visible).
+    if (!CONFIG.aircraftEnabled && icao !== selectedIcao && icao !== searchedIcao) return;
+
     const s = ac.state;
     // Use extrapolated position if available, otherwise compute from state
     const pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
