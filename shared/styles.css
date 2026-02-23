@@ -348,6 +348,26 @@ select:focus {
   pointer-events: none;
 }
 
+.scope-btn-group {
+  display: inline-flex;
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container-highest);
+  padding: 3px;
+  gap: 2px;
+}
+
+.scope-btn-group .scope-btn:not(.active) {
+  background: transparent;
+}
+
+.theme-light .scope-btn-group {
+  background: #ffffff;
+}
+
+.theme-light .scope-btn-group .scope-btn:not(.active) {
+  background: transparent;
+}
+
 /* Aircraft Info Panel */
 #aircraft-info {
   position: absolute;
