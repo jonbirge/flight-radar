@@ -33,6 +33,7 @@ function refreshAllEntities() {
 
 function toggleAircraft(show) {
   CONFIG.aircraftEnabled = show;
+  _renderGeneration++; // cancel any in-flight chunked render using stale aircraft entries
   if (!show) {
     // Determine which aircraft to keep: any selected or searched aircraft
     const keepIcao = selectedIcao || searchedIcao;
@@ -1011,6 +1012,7 @@ async function pollStates() {
     }
 
     warningEl.classList.add('hidden');
+    if (!CONFIG.aircraftEnabled) return;
 
     const stateCount = data.states ? data.states.length : 0;
     console.log(`[OpenSky] Got ${stateCount} aircraft`);
