@@ -90,28 +90,6 @@
   color: var(--md-on-surface);
 }
 
-#settings-close {
-  cursor: pointer;
-  font-size: 22px;
-  color: var(--md-on-surface-variant);
-  line-height: 1;
-  transition: background var(--md-motion-duration-short, 150ms), color var(--md-motion-duration-short, 150ms);
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--md-surface-container-highest);
-}
-#settings-close:hover {
-  color: var(--md-on-surface);
-  background: var(--md-outline-variant);
-}
-#settings-close:active {
-  background: var(--md-outline);
-}
-
 /* ============================================================
    Settings panel: vars with no M3 equivalent, and active-button
    color (deliberately differs from --md-on-primary)
