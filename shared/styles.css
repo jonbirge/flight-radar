@@ -180,9 +180,14 @@ body {
   flex-direction: column;
   gap: 10px;
   font: var(--md-typescale-label-medium);
-  box-shadow: var(--md-elevation-2);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  overflow: visible;
+  transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-emphasized);
+}
+
+#controls.collapsed {
+  transform: translateX(calc(-100% - 12px));
 }
 
 .control-group {
@@ -192,7 +197,7 @@ body {
   flex-wrap: wrap;
 }
 
-#controls .control-group:nth-child(3) {
+#controls .control-group:last-child {
   border-top: 1px solid var(--md-outline-variant);
   padding-top: 10px;
 }
@@ -430,6 +435,89 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: transparent;
 }
 
+/* Panel shadow overlays — ::after with z-index: 0 paints the shadow ON TOP of
+   the z-index: -1 toggle tabs, so the panel appears to cast a shadow on them. */
+#controls::after,
+#aircraft-info::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--md-elevation-2);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Panel Toggle Buttons */
+.panel-toggle {
+  position: absolute;
+  background: var(--md-surface-container);
+  border: none;
+  color: var(--md-on-surface-variant);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: -1;
+}
+
+.panel-toggle:hover {
+  color: var(--md-on-surface);
+}
+
+.panel-toggle svg {
+  transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-standard);
+}
+
+/* Controls panel toggle — right edge tab, near bottom */
+#controls-toggle {
+  right: -24px;
+  bottom: 20px;
+  width: 24px;
+  height: 48px;
+  border-radius: 0 var(--md-shape-sm) var(--md-shape-sm) 0;
+}
+
+#controls.collapsed #controls-toggle svg {
+  transform: rotate(180deg);
+}
+
+/* Info panel toggle — bottom edge tab */
+#info-toggle {
+  bottom: -24px;
+  right: 28px;
+  width: 48px;
+  height: 24px;
+  border-radius: 0 0 var(--md-shape-sm) var(--md-shape-sm);
+}
+
+#aircraft-info.collapsed #info-toggle svg {
+  transform: rotate(180deg);
+}
+
+#info-collapsible {
+  overflow: hidden;
+  transition: max-height var(--md-motion-duration-medium) var(--md-motion-easing-emphasized),
+              opacity var(--md-motion-duration-medium) var(--md-motion-easing-standard);
+  max-height: 800px; /* must exceed tallest possible content */
+  opacity: 1;
+}
+
+#aircraft-info.collapsed #info-collapsible {
+  max-height: 0;
+  opacity: 0;
+}
+
+#aircraft-info.collapsed #info-callsign {
+  margin-bottom: 0;
+}
+
+.theme-light #controls-toggle,
+.theme-light #info-toggle {
+  background: #ffffff;
+}
+
 /* Aircraft Info Panel */
 #aircraft-info {
   position: absolute;
@@ -442,9 +530,9 @@ input[type="range"]::-webkit-slider-thumb:hover {
   min-width: 240px;
   font: var(--md-typescale-body-small);
   line-height: 1.6;
-  box-shadow: var(--md-elevation-2);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  overflow: visible;
 }
 
 #aircraft-info.hidden {

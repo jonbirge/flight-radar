@@ -88,6 +88,7 @@ function showAircraftInfo(icao) {
   const s = ac.state;
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
 
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
@@ -171,6 +172,7 @@ function showTurbInfo(entity) {
   const type = p.turbType ? p.turbType.getValue() : '?';
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.add('hidden');
 
@@ -735,6 +737,7 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
 function showFlightPlanInfo(flight) {
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
 
   const ident = flight.ident || flight.ident_iata || '---';
   document.getElementById('info-callsign').textContent = ident;
