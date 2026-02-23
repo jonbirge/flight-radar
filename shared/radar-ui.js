@@ -435,3 +435,24 @@ document.getElementById('toggle-rotate').addEventListener('change', (e) => {
     stopRotation();
   }
 });
+
+// ============================================================
+// Collapsible Panels
+// ============================================================
+
+// Controls panel — slide off-screen to the left
+const controlsToggle = document.getElementById('controls-toggle');
+if (controlsToggle) {
+  controlsToggle.addEventListener('click', () => {
+    document.getElementById('controls').classList.toggle('collapsed');
+  });
+}
+
+// Aircraft info panel — collapse to show only callsign
+const infoToggleBtn = document.getElementById('info-toggle');
+if (infoToggleBtn) {
+  infoToggleBtn.addEventListener('click', () => {
+    document.getElementById('aircraft-info').classList.toggle('collapsed');
+  });
+}
+
