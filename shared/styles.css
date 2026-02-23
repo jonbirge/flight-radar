@@ -360,7 +360,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .scope-btn {
-  background: transparent;
+  background: #000000;
   border: none;
   border-radius: var(--md-shape-full);
   color: var(--md-on-surface);
