@@ -568,21 +568,28 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           eyeOffset: new Cesium.Cartesian3(0, 0, -100),
           distanceDisplayCondition: acDisplayCond,
         },
-        label: (CONFIG.labelsEnabled || isSelected) ? {
-          text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
-          font: `${CONFIG.fontSize}px Roboto Flex, sans-serif`,
-          fillColor: labelColor,
-          outlineColor: CONFIG.labelOutlineColor,
-          outlineWidth: 2,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cesium.Cartesian2(14, -8),
-          horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-          verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          showBackground: false,
-          scale: 1.0,
-          show: isSelected || showLabels,
-          distanceDisplayCondition: acDisplayCond,
-        } : undefined,
+        label: (CONFIG.labelsEnabled || isSelected) ? (() => {
+          const headingRad = Cesium.Math.toRadians(s.heading || 0);
+          const labelDist = 24;
+          const offsetX = Math.sin(headingRad) * labelDist;
+          const offsetY = -Math.cos(headingRad) * labelDist;
+          const hOrigin = offsetX >= 0 ? Cesium.HorizontalOrigin.LEFT : Cesium.HorizontalOrigin.RIGHT;
+          return {
+            text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
+            font: `bold ${CONFIG.fontSize}px Roboto Flex, sans-serif`,
+            fillColor: labelColor,
+            outlineColor: CONFIG.labelOutlineColor,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(offsetX, offsetY),
+            horizontalOrigin: hOrigin,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            showBackground: false,
+            scale: 1.0,
+            show: isSelected || showLabels,
+            distanceDisplayCondition: acDisplayCond,
+          };
+        })() : undefined,
         properties: { icao24: icao },
       });
       ac._iconKey = iconKey;
@@ -607,16 +614,21 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       ac.entity.billboard.height = iconSize;
 
       if (CONFIG.labelsEnabled || isSelected) {
+        const headingRad = Cesium.Math.toRadians(s.heading || 0);
+        const labelDist = 24;
+        const offsetX = Math.sin(headingRad) * labelDist;
+        const offsetY = -Math.cos(headingRad) * labelDist;
+        const hOrigin = offsetX >= 0 ? Cesium.HorizontalOrigin.LEFT : Cesium.HorizontalOrigin.RIGHT;
         if (!ac.entity.label) {
           ac.entity.label = new Cesium.LabelGraphics({
             text: '',
-            font: `${CONFIG.fontSize}px Roboto Flex, sans-serif`,
+            font: `bold ${CONFIG.fontSize}px Roboto Flex, sans-serif`,
             fillColor: labelColor,
             outlineColor: CONFIG.labelOutlineColor,
             outlineWidth: 2,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            pixelOffset: new Cesium.Cartesian2(14, -8),
-            horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+            pixelOffset: new Cesium.Cartesian2(offsetX, offsetY),
+            horizontalOrigin: hOrigin,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
             distanceDisplayCondition: acDisplayCond,
           });
@@ -627,6 +639,8 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           ac.entity.label.text = labelText;
           ac.entity.label.fillColor = labelColor;
         }
+        ac.entity.label.pixelOffset = new Cesium.Cartesian2(offsetX, offsetY);
+        ac.entity.label.horizontalOrigin = hOrigin;
         ac.entity.label.show = isSelected || showLabels;
       } else if (ac.entity.label) {
         ac.entity.label.show = false;

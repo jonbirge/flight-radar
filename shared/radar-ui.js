@@ -203,11 +203,7 @@ if (turbToggle) {
 
 document.getElementById('toggle-labels').addEventListener('change', async (e) => {
   CONFIG.labelsEnabled = e.target.checked;
-  for (const [icao, ac] of aircraft) {
-    if (ac.entity && ac.entity.label) {
-      ac.entity.label.show = e.target.checked || icao === selectedIcao;
-    }
-  }
+  renderAircraft();
   const settings = await window.flightAPI.getSettings();
   settings.labelsEnabled = CONFIG.labelsEnabled;
   await window.flightAPI.saveSettings(settings);
