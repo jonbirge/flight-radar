@@ -257,22 +257,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 12px 16px;
   border-top: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
 }
-.settings-footer-btn {
-  padding: 0 16px;
-  min-height: 40px;
-  font-size: 15px;
-  font-weight: 500;
-  font-family: 'Roboto Flex', system-ui, sans-serif;
-  cursor: pointer;
-  border: none;
-  border-radius: 9999px;
-  background: transparent;
-  color: var(--md-on-surface, var(--settings-text-color, #333));
-  transition: background 0.15s, color 0.15s;
-}
-.settings-footer-btn:hover {
-  background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.06)));
-}
+/* Footer buttons use .scope-btn from shared/styles.css (web) or src/settings.css (Electron) */
 `;
 
 let settingsCssInjected = false;
@@ -431,8 +416,8 @@ function createSettingsFormHTML() {
     </div>
 
     <div class="settings-footer">
-      <button type="button" class="settings-footer-btn" id="btn-settings-defaults">Defaults</button>
-      <button type="button" class="settings-footer-btn" id="btn-settings-done">Done</button>
+      <button type="button" class="scope-btn" id="btn-settings-defaults">Defaults</button>
+      <button type="button" class="scope-btn" id="btn-settings-done">Done</button>
     </div>
   `;
 }

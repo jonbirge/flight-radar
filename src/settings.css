@@ -70,3 +70,26 @@ body {
     border-bottom-color: #555;
   }
 }
+
+/* Button styles for Electron settings window (mirrors shared/styles.css .scope-btn) */
+.scope-btn {
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  color: var(--settings-text-color, #333);
+  padding: 0 16px;
+  min-height: 40px;
+  font-family: 'Roboto Flex', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.scope-btn:hover {
+  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.06));
+}
+
+.scope-btn:active {
+  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.1));
+}
