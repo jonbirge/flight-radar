@@ -7,10 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap">
-  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=2.8.2">
-  <link rel="stylesheet" href="../shared/styles.css?v=2.8.2">
-  <link rel="stylesheet" href="styles.css?v=2.8.2">
-  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=2.8.2"></script>
+  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=2.8.5">
+  <link rel="stylesheet" href="../shared/styles.css?v=2.8.5">
+  <link rel="stylesheet" href="styles.css?v=2.8.5">
+  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=2.8.5"></script>
 </head>
 <body>
   <div id="cesiumContainer"></div>
@@ -88,8 +88,10 @@
     <div class="control-group">
       <button id="btn-north" class="scope-btn">North up</button>
       <button id="btn-conus" class="scope-btn">CONUS</button>
-      <button id="btn-2d" class="scope-btn">2D</button>
-      <button id="btn-3d" class="scope-btn active">3D</button>
+      <div class="scope-btn-group">
+        <button id="btn-2d" class="scope-btn">2D</button>
+        <button id="btn-3d" class="scope-btn active">3D</button>
+      </div>
       <button id="btn-settings" class="scope-btn">Settings</button>
     </div>
   </div>
@@ -125,19 +127,19 @@
   </div>
 
   <!-- Shared modules -->
-  <script src="../shared/defaults.js?v=2.8.2"></script>
-  <script src="../shared/config.js?v=2.8.2"></script>
-  <script src="../shared/data.js?v=2.8.2"></script>
-  <script src="../shared/icons.js?v=2.8.2"></script>
-  <script src="../shared/settings.js?v=2.8.2"></script>
-  <script src="../shared/radar-core.js?v=2.8.2"></script>
-  <script src="../shared/radar-weather.js?v=2.8.2"></script>
-  <script src="../shared/radar-markers.js?v=2.8.2"></script>
-  <script src="../shared/radar-aircraft.js?v=2.8.2"></script>
-  <script src="../shared/radar-ui.js?v=2.8.2"></script>
-  <script src="../shared/radar-flightplan.js?v=2.8.2"></script>
-  <script src="../shared/radar.js?v=2.8.2"></script>
+  <script src="../shared/defaults.js?v=2.8.5"></script>
+  <script src="../shared/config.js?v=2.8.5"></script>
+  <script src="../shared/data.js?v=2.8.5"></script>
+  <script src="../shared/icons.js?v=2.8.5"></script>
+  <script src="../shared/settings.js?v=2.8.5"></script>
+  <script src="../shared/radar-core.js?v=2.8.5"></script>
+  <script src="../shared/radar-weather.js?v=2.8.5"></script>
+  <script src="../shared/radar-markers.js?v=2.8.5"></script>
+  <script src="../shared/radar-aircraft.js?v=2.8.5"></script>
+  <script src="../shared/radar-ui.js?v=2.8.5"></script>
+  <script src="../shared/radar-flightplan.js?v=2.8.5"></script>
+  <script src="../shared/radar.js?v=2.8.5"></script>
   <!-- Web-specific (API shim + settings panel + init) -->
-  <script src="app.js?v=2.8.2"></script>
+  <script src="app.js?v=2.8.5"></script>
 </body>
 </html>

@@ -108,51 +108,16 @@
 }
 
 /* ============================================================
-   M3 variable mapping for shared settings form
+   Settings panel: vars with no M3 equivalent, and active-button
+   color (deliberately differs from --md-on-primary)
    ============================================================ */
 
 #settings-container {
-  --settings-border: var(--md-outline-variant);
-  --settings-label-color: var(--md-on-surface-variant);
-  --settings-text-color: var(--md-on-surface);
   --settings-input-bg: rgba(0, 0, 0, 0.2);
-  --settings-input-color: var(--md-on-surface);
-  --settings-btn-bg: transparent;
-  --settings-btn-color: var(--md-on-surface);
-  --settings-btn-hover-bg: var(--md-surface-container-highest);
-  --settings-btn-active-bg: var(--md-primary);
   --settings-btn-active-color: #000000;
-  --settings-btn-active-border: var(--md-primary);
-  --swatch-active-border: var(--md-on-surface);
-  --swatch-active-shadow: rgba(255, 255, 255, 0.3);
 }
 
 .theme-light #settings-container {
-  --settings-btn-bg: #ffffff;
   --settings-btn-active-color: #ffffff;
-}
-
-#settings-container .settings-toggle-label {
-  font-family: 'Roboto Flex', sans-serif;
-  font-size: 14px;
-}
-
-#settings-container .settings-cred-input {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--md-outline-variant);
-  border-radius: 8px;
-  color: var(--md-on-surface);
-  font-family: 'Roboto Flex', sans-serif;
-  font-size: 14px;
-  padding: 8px 12px;
-}
-
-#settings-container .settings-cred-input:focus {
-  border-color: var(--md-primary);
-  outline: none;
-}
-
-#settings-container .settings-cred-input::placeholder {
-  color: var(--md-on-surface-variant);
 }
 

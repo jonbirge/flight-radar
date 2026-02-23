@@ -39,17 +39,17 @@ const SETTINGS_CSS = `
   min-width: 0;
 }
 .settings-column:first-child {
-  border-right: 1px solid var(--settings-border, #ccc);
+  border-right: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
 }
 
 .settings-section {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--settings-border, #ccc);
+  border-bottom: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
 }
 
 .settings-label {
   font-size: 15px;
-  color: var(--settings-label-color, #666);
+  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
   margin-bottom: 8px;
   font-weight: 600;
 }
@@ -76,14 +76,14 @@ const SETTINGS_CSS = `
 }
 .color-swatch:hover { transform: scale(1.15); }
 .color-swatch.active {
-  border-color: var(--swatch-active-border, #333);
+  border-color: var(--md-on-surface, var(--swatch-active-border, #333));
 }
 
 #set-custom-color,
 #set-light-custom-color {
   width: 36px;
   height: 36px;
-  border: 1px solid var(--settings-border, #ccc);
+  border: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
   border-radius: 8px;
   background: transparent;
   cursor: pointer;
@@ -92,13 +92,13 @@ const SETTINGS_CSS = `
 
 .settings-hint {
   font-size: 13px;
-  color: var(--settings-label-color, #666);
+  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
   margin-bottom: 8px;
 }
 
 .settings-field-label {
   font-size: 13px;
-  color: var(--settings-label-color, #666);
+  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
   width: 65px;
   flex-shrink: 0;
 }
@@ -107,17 +107,21 @@ const SETTINGS_CSS = `
   flex: 1;
   padding: 8px 12px;
   font-size: 14px;
-  border: 1px solid var(--settings-border, #ccc);
+  border: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
   border-radius: 8px;
   background: var(--settings-input-bg, #fff);
-  color: var(--settings-input-color, #000);
+  color: var(--md-on-surface, var(--settings-input-color, #000));
   font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
   transition: border-color 0.15s;
 }
 
 .settings-cred-input:focus {
   outline: none;
-  border-color: var(--settings-btn-active-bg, #333);
+  border-color: var(--md-primary, var(--settings-btn-active-bg, #333));
+}
+
+.settings-cred-input::placeholder {
+  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
 }
 
 .settings-cred-section {
@@ -128,33 +132,43 @@ const SETTINGS_CSS = `
   padding: 6px;
 }
 .settings-cred-section.drag-over {
-  border-color: var(--settings-label-color, #666);
-  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.04));
+  border-color: var(--md-on-surface-variant, var(--settings-label-color, #666));
+  background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.04)));
+}
+
+.settings-seg-group {
+  display: inline-flex;
+  border-radius: 9999px;
+  background: var(--md-surface-container-highest, var(--settings-btn-bg, rgba(0,0,0,0.06)));
+  padding: 3px;
+  gap: 2px;
+}
+.theme-light .settings-seg-group {
+  background: #ffffff;
 }
 
 .settings-theme-btn {
-  padding: 8px 18px;
-  font-size: 15px;
+  padding: 6px 14px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   border: none;
   border-radius: 9999px;
-  background: var(--settings-btn-bg, transparent);
-  color: var(--settings-text-color, #333);
+  background: transparent;
+  color: var(--md-on-surface, var(--settings-text-color, #333));
   font-family: 'Roboto Flex', system-ui, sans-serif;
   transition: background 0.15s, color 0.15s;
 }
 .settings-theme-btn:hover {
-  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.06));
+  background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.06)));
 }
 .settings-theme-btn:active {
-  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.1));
+  background: var(--md-outline-variant, var(--settings-btn-hover-bg, rgba(0,0,0,0.1)));
 }
 .settings-theme-btn.active {
-  background: var(--settings-btn-active-bg, #333);
+  background: var(--md-primary, var(--settings-btn-active-bg, #333));
   color: var(--settings-btn-active-color, #fff);
 }
-
 
 .settings-toggle-label {
   display: flex;
@@ -162,14 +176,14 @@ const SETTINGS_CSS = `
   gap: 6px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--settings-text-color, #333);
+  color: var(--md-on-surface, var(--settings-text-color, #333));
   font-family: 'Roboto Flex', system-ui, sans-serif;
 }
 
 .settings-fontsize-val {
   font-size: 14px;
   min-width: 32px;
-  color: var(--settings-text-color, #333);
+  color: var(--md-on-surface, var(--settings-text-color, #333));
 }
 
 .settings-grid-2col {
@@ -180,7 +194,7 @@ const SETTINGS_CSS = `
 
 .settings-color-label {
   font-size: 13px;
-  color: var(--settings-label-color, #666);
+  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
   margin-bottom: 6px;
 }
 
@@ -188,7 +202,7 @@ const SETTINGS_CSS = `
 input[type="range"] {
   -webkit-appearance: none;
   height: 4px;
-  background: var(--settings-border, #ccc);
+  background: var(--md-outline-variant, var(--settings-border, #ccc));
   border-radius: 9999px;
   outline: none;
   flex: 1;
@@ -198,7 +212,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--settings-btn-active-bg, #333);
+  background: var(--md-primary, var(--settings-btn-active-bg, #333));
   cursor: pointer;
   box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.3);
   transition: transform 0.15s cubic-bezier(0.35, 1.5, 0.65, 1);
@@ -212,7 +226,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   appearance: none;
   width: 18px;
   height: 18px;
-  border: 2px solid var(--settings-border, #ccc);
+  border: 2px solid var(--md-outline-variant, var(--settings-border, #ccc));
   border-radius: 4px;
   background: transparent;
   cursor: pointer;
@@ -221,8 +235,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transition: background 0.15s, border-color 0.15s;
 }
 .settings-toggle-label input[type="checkbox"]:checked {
-  background: var(--settings-btn-active-bg, #333);
-  border-color: var(--settings-btn-active-bg, #333);
+  background: var(--md-primary, var(--settings-btn-active-bg, #333));
+  border-color: var(--md-primary, var(--settings-btn-active-bg, #333));
 }
 .settings-toggle-label input[type="checkbox"]:checked::after {
   content: '';
@@ -241,7 +255,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   display: flex;
   justify-content: space-between;
   padding: 12px 16px;
-  border-top: 1px solid var(--settings-border, #ccc);
+  border-top: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
 }
 .settings-footer-btn {
   padding: 0 16px;
@@ -252,12 +266,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
   cursor: pointer;
   border: none;
   border-radius: 9999px;
-  background: var(--settings-btn-bg, transparent);
-  color: var(--settings-text-color, #333);
+  background: transparent;
+  color: var(--md-on-surface, var(--settings-text-color, #333));
   transition: background 0.15s, color 0.15s;
 }
 .settings-footer-btn:hover {
-  background: var(--settings-btn-hover-bg, rgba(0,0,0,0.06));
+  background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.06)));
 }
 `;
 
@@ -289,7 +303,7 @@ function createSettingsFormHTML() {
       <div class="settings-column">
         <div class="settings-section">
           <div class="settings-label">Display mode</div>
-          <div class="settings-row">
+          <div class="settings-seg-group">
             <button class="settings-theme-btn" id="set-theme-dark" type="button">Dark</button>
             <button class="settings-theme-btn active" id="set-theme-light" type="button">Light</button>
             <button class="settings-theme-btn" id="set-theme-system" type="button">System</button>
@@ -333,7 +347,7 @@ function createSettingsFormHTML() {
           </div>
           <div class="settings-row" style="margin-bottom:8px;">
             <span class="settings-toggle-label" style="cursor:default;">Trails</span>
-            <div style="display:flex;gap:4px;">
+            <div class="settings-seg-group">
               <button class="settings-theme-btn" id="set-trail-none" type="button">None</button>
               <button class="settings-theme-btn" id="set-trail-history" type="button">History</button>
               <button class="settings-theme-btn" id="set-trail-velocity" type="button">Velocity</button>
