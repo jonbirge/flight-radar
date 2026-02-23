@@ -588,6 +588,10 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       ac._labelText = (CONFIG.labelsEnabled || isSelected)
         ? `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`
         : '';
+      // Re-attach tracking after entity recreation (e.g. theme change, refreshAllEntities)
+      if (isTracking && icao === selectedIcao) {
+        viewer.trackedEntity = ac.entity;
+      }
     } else {
       // Update position
       ac.entity.position = pos;

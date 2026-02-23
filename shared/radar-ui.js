@@ -47,6 +47,16 @@ viewer.camera.changed.addEventListener(() => {
 
     const h = carto.height;
 
+    // Update camera altitude in HUD
+    const altEl = document.getElementById('camera-alt');
+    if (altEl) {
+      if (h >= 1000) {
+        altEl.textContent = Math.round(h / 1000).toLocaleString() + ' km';
+      } else {
+        altEl.textContent = Math.round(h) + ' m';
+      }
+    }
+
     // Re-render aircraft only when LOD tier changes (dot ↔ arrow);
     // otherwise do a lightweight resize that only touches billboard
     // dimensions and label visibility, debounced to once per frame.
@@ -423,6 +433,7 @@ document.getElementById('toggle-rotate').addEventListener('change', (e) => {
   if (is2D) { e.target.checked = false; return; }
   isRotating = e.target.checked;
   if (isRotating) {
+    stopTracking();
     startRotation();
   } else {
     stopRotation();

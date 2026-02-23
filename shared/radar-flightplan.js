@@ -115,6 +115,9 @@ function showAircraftInfo(icao) {
     fetchNextTrack();
   }
 
+  // Stop tracking when selecting a different aircraft
+  if (prevSelected !== icao) stopTracking();
+
   // Re-render to apply highlight to newly selected and dim previously selected
   if (prevSelected !== icao) {
     const toRefresh = new Set([icao]);
@@ -224,6 +227,7 @@ function showTurbInfo(entity) {
 }
 
 function hideAircraftInfo() {
+  stopTracking();
   const prevIcao = selectedIcao;
   selectedIcao = null;
   document.getElementById('aircraft-info').classList.add('hidden');
@@ -831,19 +835,69 @@ if (flightSearchInput) {
   });
 }
 
-const showAircraftBtn = document.getElementById('btn-show-aircraft');
-if (showAircraftBtn) {
-  showAircraftBtn.addEventListener('click', () => {
+function stopTracking() {
+  if (!isTracking) return;
+  isTracking = false;
+  viewer.trackedEntity = undefined;
+  const btn = document.getElementById('btn-track');
+  if (btn) btn.classList.remove('active');
+}
+
+const trackBtn = document.getElementById('btn-track');
+if (trackBtn) {
+  trackBtn.addEventListener('click', () => {
     if (!selectedIcao) return;
     const ac = aircraft.get(selectedIcao);
     if (!ac || !ac.entity) return;
-    viewer.trackedEntity = ac.entity;
+
+    if (isTracking) {
+      stopTracking();
+      return;
+    }
+
+    // Stop auto-rotate if active
+    if (isRotating) {
+      stopRotation();
+      const rotateToggle = document.getElementById('toggle-rotate');
+      if (rotateToggle) rotateToggle.checked = false;
+      isRotating = false;
+    }
+
+    isTracking = true;
+    trackBtn.classList.add('active');
+
+    const heading = viewer.camera.heading;
+    const range = 400000;
+    const pitchRad = Cesium.Math.toRadians(35);
+    const hDist = range * Math.cos(pitchRad);
+
+    // Set viewFrom so Cesium's EntityView uses our desired offset when
+    // tracking initializes (prevents it from overriding flyTo with a
+    // default close-up zoom).
+    ac.entity.viewFrom = new Cesium.Cartesian3(
+      -hDist * Math.sin(heading),
+      -hDist * Math.cos(heading),
+      range * Math.sin(pitchRad),
+    );
+
+    viewer.flyTo(ac.entity, {
+      duration: 1.5,
+      offset: new Cesium.HeadingPitchRange(heading, -pitchRad, range),
+    }).then(() => {
+      if (isTracking && selectedIcao) {
+        const currentAc = aircraft.get(selectedIcao);
+        if (currentAc && currentAc.entity) {
+          viewer.trackedEntity = currentAc.entity;
+        }
+      }
+    });
   });
 }
 
 const showRouteBtn = document.getElementById('btn-show-route');
 if (showRouteBtn) {
   showRouteBtn.addEventListener('click', () => {
+    stopTracking();
     if (flightPlanEntities.length > 0) {
       flyToRouteOverview();
     } else if (selectedIcao) {

@@ -97,7 +97,8 @@ body {
 #hud {
   position: absolute;
   top: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 100;
   pointer-events: none;
 }
@@ -108,6 +109,7 @@ body {
   padding: 10px 16px;
   font: var(--md-typescale-label-small);
   color: var(--md-on-surface-variant);
+  white-space: nowrap;
 }
 
 #clock {
@@ -431,7 +433,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 /* Aircraft Info Panel */
 #aircraft-info {
   position: absolute;
-  top: 36px;
+  top: 16px;
   right: 16px;
   z-index: 100;
   background: var(--md-surface-container);

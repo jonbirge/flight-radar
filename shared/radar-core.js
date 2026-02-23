@@ -21,6 +21,7 @@ let viewer = null;
 let is2D = false;
 let selectedIcao = null;
 let isRotating = false;
+let isTracking = false;
 let rotateHandler = null;
 let frozenBounds = null;          // locked viewport bounds during rotation
 let lastPollTime = null;
