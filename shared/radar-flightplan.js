@@ -88,6 +88,12 @@ function showAircraftInfo(icao) {
   const s = ac.state;
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  const collapseBtn = document.getElementById('info-collapse');
+  if (collapseBtn) {
+    collapseBtn.setAttribute('aria-expanded', 'true');
+    collapseBtn.setAttribute('aria-label', 'Collapse aircraft info panel');
+  }
 
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
@@ -171,6 +177,12 @@ function showTurbInfo(entity) {
   const type = p.turbType ? p.turbType.getValue() : '?';
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  const collapseBtn = document.getElementById('info-collapse');
+  if (collapseBtn) {
+    collapseBtn.setAttribute('aria-expanded', 'true');
+    collapseBtn.setAttribute('aria-label', 'Collapse aircraft info panel');
+  }
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.add('hidden');
 
@@ -234,6 +246,7 @@ function hideAircraftInfo() {
   const prevIcao = selectedIcao;
   selectedIcao = null;
   document.getElementById('aircraft-info').classList.add('hidden');
+  document.getElementById('aircraft-info').classList.remove('collapsed');
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.add('hidden');
   if (prevIcao) {
@@ -267,6 +280,16 @@ document.getElementById('info-close').addEventListener('click', () => {
   const searchInput = document.getElementById('flight-search');
   if (searchInput) searchInput.value = '';
 });
+
+const infoCollapseBtn = document.getElementById('info-collapse');
+if (infoCollapseBtn) {
+  infoCollapseBtn.addEventListener('click', () => {
+    const panel = document.getElementById('aircraft-info');
+    const collapsed = panel.classList.toggle('collapsed');
+    infoCollapseBtn.setAttribute('aria-expanded', String(!collapsed));
+    infoCollapseBtn.setAttribute('aria-label', collapsed ? 'Expand aircraft info panel' : 'Collapse aircraft info panel');
+  });
+}
 
 // ============================================================
 // Flight Plan Search & Route Display
@@ -735,6 +758,12 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
 function showFlightPlanInfo(flight) {
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  const collapseBtn = document.getElementById('info-collapse');
+  if (collapseBtn) {
+    collapseBtn.setAttribute('aria-expanded', 'true');
+    collapseBtn.setAttribute('aria-label', 'Collapse aircraft info panel');
+  }
 
   const ident = flight.ident || flight.ident_iata || '---';
   document.getElementById('info-callsign').textContent = ident;

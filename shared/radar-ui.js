@@ -113,6 +113,16 @@ viewer.camera.percentageChanged = 0.01;
 // UI Controls
 // ============================================================
 
+const controlsPanel = document.getElementById('controls');
+const controlsCollapseBtn = document.getElementById('controls-collapse');
+if (controlsPanel && controlsCollapseBtn) {
+  controlsCollapseBtn.addEventListener('click', () => {
+    const collapsed = controlsPanel.classList.toggle('collapsed');
+    controlsCollapseBtn.setAttribute('aria-expanded', String(!collapsed));
+    controlsCollapseBtn.setAttribute('aria-label', collapsed ? 'Expand controls panel' : 'Collapse controls panel');
+  });
+}
+
 document.getElementById('toggle-aircraft').addEventListener('change', async (e) => {
   toggleAircraft(e.target.checked);
   const settings = await window.flightAPI.getSettings();

@@ -183,6 +183,13 @@ body {
   box-shadow: var(--md-elevation-2);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  overflow: visible;
+  transform: translateX(0);
+  transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-standard);
+}
+
+#controls.collapsed {
+  transform: translateX(calc(-100% + 28px));
 }
 
 .control-group {
@@ -374,6 +381,49 @@ input[type="range"]::-webkit-slider-thumb:hover {
               color var(--md-motion-duration-short) var(--md-motion-easing-standard);
 }
 
+.panel-collapse-btn {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: #000000;
+  color: var(--md-on-surface);
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--md-elevation-1);
+  transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-standard),
+              background var(--md-motion-duration-short) var(--md-motion-easing-standard);
+}
+
+.panel-collapse-btn:hover {
+  background: var(--md-surface-container-highest);
+}
+
+.theme-light .panel-collapse-btn {
+  background: #ffffff;
+}
+
+.theme-light .panel-collapse-btn:hover {
+  background: #f0f0f0;
+}
+
+#controls-collapse {
+  top: 50%;
+  right: -12px;
+  transform: translateY(-50%);
+}
+
+#controls.collapsed #controls-collapse {
+  transform: translateY(-50%) rotate(180deg);
+}
+
 .scope-btn:hover {
   background: var(--md-surface-container-highest);
 }
@@ -445,6 +495,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   box-shadow: var(--md-elevation-2);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  max-height: 520px;
+  transition: max-height var(--md-motion-duration-medium) var(--md-motion-easing-standard),
+              padding var(--md-motion-duration-medium) var(--md-motion-easing-standard);
 }
 
 #aircraft-info.hidden {
@@ -465,11 +519,35 @@ input[type="range"]::-webkit-slider-thumb:hover {
   right: 10px;
 }
 
+#info-collapse {
+  top: 18px;
+  right: 56px;
+}
+
 #info-callsign {
   font: var(--md-typescale-title-large);
   font-weight: 500;
   color: var(--md-on-surface);
   margin-bottom: 8px;
+}
+
+#aircraft-info.collapsed {
+  max-height: 64px;
+  padding: 14px 20px;
+}
+
+#aircraft-info.collapsed #info-callsign {
+  margin-bottom: 0;
+}
+
+#aircraft-info.collapsed #info-close,
+#aircraft-info.collapsed #info-details,
+#aircraft-info.collapsed #info-buttons {
+  display: none;
+}
+
+#aircraft-info.collapsed #info-collapse {
+  transform: rotate(180deg);
 }
 
 #info-details {
