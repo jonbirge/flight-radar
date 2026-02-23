@@ -249,6 +249,10 @@ body {
   cursor: default;
 }
 
+.theme-light .toggle-label input[type="checkbox"]:not(:checked) {
+  background: #ffffff;
+}
+
 .range-label {
   display: flex;
   align-items: center;

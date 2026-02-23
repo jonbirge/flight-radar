@@ -249,6 +249,9 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
+.theme-light .settings-toggle-label input[type="checkbox"]:not(:checked) {
+  background: #ffffff;
+}
 
 /* Footer */
 .settings-footer {
