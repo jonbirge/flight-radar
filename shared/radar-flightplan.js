@@ -599,7 +599,7 @@ async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destC
               for (const fix of validFixes) {
                 flightPlanEntities.push(viewer.entities.add({
                   position: Cesium.Cartesian3.fromDegrees(fix.longitude, fix.latitude, 0),
-                  point: { pixelSize: 6, color: waypointColor, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+                  point: { pixelSize: 4, color: waypointColor },
                 }));
               }
             } finally {
@@ -662,7 +662,7 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
     for (const wp of routeWaypoints) {
       flightPlanEntities.push(viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, 0),
-        point: { pixelSize: 6, color: waypointColor, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        point: { pixelSize: 4, color: waypointColor },
       }));
     }
   } finally {
