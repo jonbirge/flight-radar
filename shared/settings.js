@@ -206,7 +206,7 @@ input[type="range"] {
   border-radius: 9999px;
   outline: none;
   flex: 1;
-  margin: 6px 0;
+  margin: 12px 0;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
