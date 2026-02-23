@@ -203,8 +203,10 @@ document.getElementById('toggle-labels').addEventListener('change', async (e) =>
   await window.flightAPI.saveSettings(settings);
 });
 
-document.getElementById('map-layer').addEventListener('change', async (e) => {
-  CONFIG.mapLayer = e.target.value;
+const mapLayerSelect = document.getElementById('map-layer');
+
+async function applyMapLayerValue(value) {
+  CONFIG.mapLayer = value;
   const layers = viewer.imageryLayers;
   layers.removeAll();
   radarLayer = null; // cleared by removeAll
@@ -232,6 +234,26 @@ document.getElementById('map-layer').addEventListener('change', async (e) => {
   const settings = await window.flightAPI.getSettings();
   settings.mapLayer = CONFIG.mapLayer;
   await window.flightAPI.saveSettings(settings);
+}
+
+// Toggle dropdown open/closed
+mapLayerSelect.querySelector('.map-layer-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  mapLayerSelect.classList.toggle('open');
+});
+
+// Close when clicking outside
+document.addEventListener('click', () => mapLayerSelect.classList.remove('open'));
+
+// Option selection
+mapLayerSelect.querySelectorAll('.map-layer-option').forEach(opt => {
+  opt.addEventListener('click', async () => {
+    mapLayerSelect.classList.remove('open');
+    mapLayerSelect.querySelectorAll('.map-layer-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    mapLayerSelect.querySelector('.map-layer-label').textContent = opt.textContent;
+    await applyMapLayerValue(opt.dataset.value);
+  });
 });
 
 const trailLengthEl = document.getElementById('trail-length');
