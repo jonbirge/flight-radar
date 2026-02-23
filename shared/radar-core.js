@@ -49,6 +49,7 @@ const flightPlanEntities = [];  // Cesium entities for flight plan route
 let activeFlightPlan = null;     // current flight plan data
 let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
 let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
+let selectedRouteFlight = null;  // picked flight from activeFlightPlan for info panel
 let lastSelectedPollMs = 0;      // timestamp of last selected-aircraft poll
 let lastTrackFetchMs = 0;        // timestamp of last track queue processing
 const SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s

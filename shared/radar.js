@@ -188,32 +188,9 @@ async function loadAndApplySettings() {
     loadDataJSON('../data/waypoints.json'),
   ]);
 
-  // Promote small airports that have Class D airspace to medium —
-  // any towered airport shouldn't be hidden behind the small airports toggle
-  if (airports && airspace) {
-    const classDCentroids = [];
-    for (const entry of airspace) {
-      if (entry.cls !== 'D' || !entry.coords || entry.coords.length < 3) continue;
-      let lonSum = 0, latSum = 0;
-      for (const [lon, lat] of entry.coords) { lonSum += lon; latSum += lat; }
-      classDCentroids.push([lonSum / entry.coords.length, latSum / entry.coords.length]);
-    }
-    let promoted = 0;
-    for (const ap of airports) {
-      if (ap.type !== 'S') continue;
-      for (const [cLon, cLat] of classDCentroids) {
-        const dLon = ap.lon - cLon, dLat = ap.lat - cLat;
-        if (dLon * dLon + dLat * dLat < 0.02) { // ~0.14° ≈ 15 km
-          ap.type = 'M';
-          promoted++;
-          break;
-        }
-      }
-    }
-    if (promoted > 0) console.log(`[Airports] Promoted ${promoted} small airports with Class D airspace to medium`);
-  }
-
   // Initialize airport markers (after theme is applied so colors are correct)
+  // Note: small→medium promotion for airports inside Class B/C/D airspace is
+  // handled at build time by scripts/promote-airports.js (run via npm run pull-data).
   if (airportEntities.length === 0 && airports) {
     initAirports(airports);
   }
