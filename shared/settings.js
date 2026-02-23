@@ -43,14 +43,14 @@ const SETTINGS_CSS = `
 }
 
 .settings-section {
-  padding: 14px 16px;
+  padding: 18px 16px;
   border-bottom: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
 }
 
 .settings-label {
   font-size: 15px;
   color: var(--md-on-surface-variant, var(--settings-label-color, #666));
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-weight: 600;
 }
 
@@ -189,7 +189,7 @@ const SETTINGS_CSS = `
 .settings-grid-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 .settings-color-label {
@@ -206,6 +206,7 @@ input[type="range"] {
   border-radius: 9999px;
   outline: none;
   flex: 1;
+  margin: 6px 0;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -328,12 +329,12 @@ function createSettingsFormHTML() {
       <div class="settings-column">
         <div class="settings-section">
           <div class="settings-label">Aircraft display</div>
-          <div class="settings-row" style="margin-bottom:8px;">
+          <div class="settings-row" style="margin-bottom:10px;">
             <span class="settings-toggle-label" style="cursor:default;">Font size</span>
             <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
             <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
           </div>
-          <div class="settings-row" style="margin-bottom:8px;">
+          <div class="settings-row" style="margin-bottom:10px;">
             <span class="settings-toggle-label" style="cursor:default;">Trails</span>
             <div class="settings-seg-group">
               <button class="settings-theme-btn" id="set-trail-none" type="button">None</button>
@@ -346,11 +347,11 @@ function createSettingsFormHTML() {
             <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
             <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
           </div>
-          <label class="settings-toggle-label" style="margin-top:4px;">
+          <label class="settings-toggle-label" style="margin-top:8px;">
             <input type="checkbox" id="set-color-by-alt">
             <span>Color by altitude</span>
           </label>
-          <label class="settings-toggle-label" style="margin-top:4px;">
+          <label class="settings-toggle-label" style="margin-top:8px;">
             <input type="checkbox" id="set-thick-trails">
             <span>Trail thickness by altitude</span>
           </label>
