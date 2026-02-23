@@ -54,11 +54,15 @@ let activeFlightPlan = null;     // current flight plan data
 let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
 let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
 let selectedRouteFlight = null;  // picked flight from activeFlightPlan for info panel
+let timelineTime = null;         // ms timestamp for timeline scrubbing (null = live/now mode)
+let timelineEntity = null;       // Cesium entity showing aircraft position on timeline
+const timelineRoutePoints = [];  // geographic route points [{lon, lat, alt}] for interpolation
 let lastSelectedPollMs = 0;      // timestamp of last selected-aircraft poll
 let lastTrackFetchMs = 0;        // timestamp of last track queue processing
 let _pollInFlight = false;       // guard: true while pollStates() is running
 let _selectedPollInFlight = false; // guard: true while pollSelectedAircraft() is running
-let _lastApiCallMs = 0;          // timestamp of last OpenSky API call (hard floor enforcement)
+let _lastBulkPollMs = 0;         // timestamp of last bulk poll API call
+let _lastSelectedPollApiMs = 0;  // timestamp of last selected-aircraft API call
 const SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s
 const TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
 

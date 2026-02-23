@@ -606,3 +606,63 @@ input[type="range"]::-webkit-slider-thumb:hover {
 #flight-search::placeholder {
   color: var(--md-on-surface-variant);
 }
+
+/* Flight Plan Timeline Scrubber */
+#timeline-panel {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--md-surface-container);
+  border-radius: var(--md-shape-xl);
+  padding: 12px 20px;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: var(--md-elevation-2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#timeline-panel.hidden {
+  display: none;
+}
+
+#timeline-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timeline-airport {
+  font: var(--md-typescale-label-large);
+  font-weight: 600;
+  color: var(--md-primary);
+  min-width: 32px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#timeline-slider {
+  flex: 1;
+  width: auto;
+  min-width: 180px;
+}
+
+#timeline-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+#timeline-time {
+  font: var(--md-typescale-body-small);
+  color: var(--md-on-surface-variant);
+}
+
+.timeline-live-btn {
+  font-size: 12px;
+  min-height: 28px;
+  padding: 0 12px;
+}
