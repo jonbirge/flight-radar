@@ -435,3 +435,25 @@ document.getElementById('toggle-rotate').addEventListener('change', (e) => {
     stopRotation();
   }
 });
+
+// ============================================================
+// Collapsible Panels
+// ============================================================
+
+// Controls panel collapse/expand
+const collapseControlsBtn = document.getElementById('btn-collapse-controls');
+if (collapseControlsBtn) {
+  collapseControlsBtn.addEventListener('click', () => {
+    const controls = document.getElementById('controls');
+    controls.classList.toggle('collapsed');
+  });
+}
+
+// Aircraft info panel collapse/expand
+const collapseInfoBtn = document.getElementById('btn-collapse-info');
+if (collapseInfoBtn) {
+  collapseInfoBtn.addEventListener('click', () => {
+    const infoPanel = document.getElementById('aircraft-info');
+    infoPanel.classList.toggle('collapsed');
+  });
+}
