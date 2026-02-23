@@ -24,6 +24,7 @@ let isRotating = false;
 let rotateHandler = null;
 let frozenBounds = null;          // locked viewport bounds during rotation
 let lastPollTime = null;
+let rateLimitedUntil = 0;           // timestamp: suppress all polling until this time
 let lastIconSize = -1;
 let lastPollBounds = null;
 let lastPollHeight = null;          // camera height at last poll interval adjustment
