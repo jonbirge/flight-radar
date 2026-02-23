@@ -867,7 +867,7 @@ if (trackBtn) {
     trackBtn.classList.add('active');
 
     const heading = viewer.camera.heading;
-    const range = 400000;
+    const range = 200000;
     const pitchRad = Cesium.Math.toRadians(35);
     const hDist = range * Math.cos(pitchRad);
 
