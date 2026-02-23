@@ -65,9 +65,12 @@ function updateInfoPanelRoute(flight) {
     ? arrTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZoneName: 'short' })
     : '---';
 
+  const filedAlt = flight.filed_altitude != null ? `FL${flight.filed_altitude}` : null;
+
   // Insert route rows right after the info-details opening, before ALT
   const routeHTML = `
     <div><span class="label">ROUTE</span><span>${originCode} → ${destCode}</span></div>
+    ${filedAlt ? `<div><span class="label">FILED ALT</span><span>${filedAlt}</span></div>` : ''}
     <div><span class="label">ELAPSED</span><span>${elapsed}</span></div>
     <div><span class="label">REMAINING</span><span>${remaining}</span></div>
     <div><span class="label">ETA</span><span>${eta}</span></div>

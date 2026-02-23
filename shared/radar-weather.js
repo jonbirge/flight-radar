@@ -249,16 +249,38 @@ async function makeTurbProvider(level) {
 }
 
 async function addTurbLayer() {
-  const provider = await makeTurbProvider(CONFIG.turbulenceLevel);
-  if (!provider || CONFIG.turbulenceLevel === 'none') return;
-  // Insert turbulence layer after base map but before radar
-  if (radarLayer) {
-    const radarIdx = viewer.imageryLayers.indexOf(radarLayer);
-    turbLayer = viewer.imageryLayers.addImageryProvider(provider, radarIdx);
-  } else {
-    turbLayer = viewer.imageryLayers.addImageryProvider(provider);
+  const primaryLevel = CONFIG.turbulenceLevel;
+  if (primaryLevel === 'none') return;
+
+  // Build ordered list of levels to try: primary first, then nearest alternatives
+  const levelsToTry = [primaryLevel];
+  if (primaryLevel !== 'maxa') {
+    const primaryNum = parseInt(primaryLevel, 10);
+    const sorted = TURB_LEVELS
+      .filter(l => l !== primaryNum)
+      .sort((a, b) => Math.abs(a - primaryNum) - Math.abs(b - primaryNum));
+    for (const l of sorted.slice(0, 4)) {
+      levelsToTry.push(String(l));
+    }
   }
-  turbLayer.alpha = 0.65;
+
+  for (const level of levelsToTry) {
+    const provider = await makeTurbProvider(level);
+    if (provider) {
+      if (radarLayer) {
+        const radarIdx = viewer.imageryLayers.indexOf(radarLayer);
+        turbLayer = viewer.imageryLayers.addImageryProvider(provider, radarIdx);
+      } else {
+        turbLayer = viewer.imageryLayers.addImageryProvider(provider);
+      }
+      turbLayer.alpha = 0.65;
+      if (level !== primaryLevel) {
+        console.log(`[Weather] GTG fallback: used level ${level} instead of ${primaryLevel}`);
+      }
+      return;
+    }
+  }
+  console.warn('[Weather] GTG: all level attempts failed');
 }
 
 function removeTurbLayer() {
