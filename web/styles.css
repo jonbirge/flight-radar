@@ -117,11 +117,11 @@
   --settings-text-color: var(--md-on-surface);
   --settings-input-bg: rgba(0, 0, 0, 0.2);
   --settings-input-color: var(--md-on-surface);
-  --settings-btn-bg: var(--md-primary-container);
-  --settings-btn-color: var(--md-on-primary-container);
+  --settings-btn-bg: transparent;
+  --settings-btn-color: var(--md-on-surface);
   --settings-btn-hover-bg: var(--md-surface-container-highest);
   --settings-btn-active-bg: var(--md-primary);
-  --settings-btn-active-color: var(--md-on-primary);
+  --settings-btn-active-color: #000000;
   --settings-btn-active-border: var(--md-primary);
   --swatch-active-border: var(--md-on-surface);
   --swatch-active-shadow: rgba(255, 255, 255, 0.3);
@@ -129,6 +129,7 @@
 
 .theme-light #settings-container {
   --settings-btn-bg: #ffffff;
+  --settings-btn-active-color: #ffffff;
 }
 
 #settings-container .settings-toggle-label {
