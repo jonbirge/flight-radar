@@ -86,9 +86,14 @@ function setTickInterval(ms) {
 // of the viewport.  Keeps the selected aircraft live with up-to-date data
 // and full track history regardless of display toggle or camera position.
 async function pollSelectedAircraft() {
+  if (_selectedPollInFlight) return;
   if (!selectedIcao) return;
   const ac = aircraft.get(selectedIcao);
   if (!ac) return;
+  const now = Date.now();
+  if (now - _lastApiCallMs < RATE_LIMIT_MS) return;
+  _selectedPollInFlight = true;
+  _lastApiCallMs = now;
   const s = ac.state;
   const pad = 1;
   const bounds = {
@@ -124,6 +129,8 @@ async function pollSelectedAircraft() {
     }
   } catch (err) {
     console.warn('[Poll] Selected aircraft poll error:', err);
+  } finally {
+    _selectedPollInFlight = false;
   }
 }
 
@@ -957,41 +964,50 @@ function padBounds(bounds, fraction) {
 }
 
 async function pollStates() {
-  const viewBounds = frozenBounds || getViewBounds();
-  // Fetch aircraft from a 50% larger region so small pans don't re-poll
-  const bounds = padBounds(viewBounds, 0.5);
-  console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
-  const data = await window.flightAPI.getStates(bounds);
-  const warningEl = document.getElementById('throttle-warning');
+  if (_pollInFlight) return;
+  const now = Date.now();
+  if (now - _lastApiCallMs < RATE_LIMIT_MS) return;
+  _pollInFlight = true;
+  _lastApiCallMs = now;
+  try {
+    const viewBounds = frozenBounds || getViewBounds();
+    // Fetch aircraft from a 50% larger region so small pans don't re-poll
+    const bounds = padBounds(viewBounds, 0.5);
+    console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
+    const data = await window.flightAPI.getStates(bounds);
+    const warningEl = document.getElementById('throttle-warning');
 
-  if (data.error) {
-    // Silently ignore our own client-side rate limiting (has retryIn field)
-    if (!data.retryIn) {
-      console.warn('[Poll] Error:', data.error);
-      if (/429/.test(data.error) || /rate.?limit/i.test(data.error)) {
-        rateLimitedUntil = Date.now() + 60000;
-        console.warn('[Poll] Rate limited — pausing all polling for 60s');
-        warningEl.classList.remove('hidden');
-        setTimeout(() => warningEl.classList.add('hidden'), 60000);
+    if (data.error) {
+      // Silently ignore our own client-side rate limiting (has retryIn field)
+      if (!data.retryIn) {
+        console.warn('[Poll] Error:', data.error);
+        if (/429/.test(data.error) || /rate.?limit/i.test(data.error)) {
+          rateLimitedUntil = Date.now() + 60000;
+          console.warn('[Poll] Rate limited — pausing all polling for 60s');
+          warningEl.classList.remove('hidden');
+          setTimeout(() => warningEl.classList.add('hidden'), 60000);
+        }
       }
+      return;
     }
-    return;
-  }
 
-  warningEl.classList.add('hidden');
+    warningEl.classList.add('hidden');
 
-  const stateCount = data.states ? data.states.length : 0;
-  console.log(`[OpenSky] Got ${stateCount} aircraft`);
+    const stateCount = data.states ? data.states.length : 0;
+    console.log(`[OpenSky] Got ${stateCount} aircraft`);
 
-  // Update HUD immediately so the user sees fresh data before heavy processing
-  lastPollTime = new Date();
-  lastPollBounds = bounds;
-  document.getElementById('track-count').textContent = stateCount;
-  document.getElementById('last-update').textContent =
-    lastPollTime.toLocaleTimeString('en-US', { hour12: false });
+    // Update HUD immediately so the user sees fresh data before heavy processing
+    lastPollTime = new Date();
+    lastPollBounds = bounds;
+    document.getElementById('track-count').textContent = stateCount;
+    document.getElementById('last-update').textContent =
+      lastPollTime.toLocaleTimeString('en-US', { hour12: false });
 
-  if (stateCount > 0) {
-    updateAircraft(data.states);
+    if (stateCount > 0) {
+      updateAircraft(data.states);
+    }
+  } finally {
+    _pollInFlight = false;
   }
 }
 

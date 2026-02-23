@@ -53,6 +53,9 @@ let searchedIcao = null;         // ICAO24 of the matched live aircraft (for vis
 let selectedRouteFlight = null;  // picked flight from activeFlightPlan for info panel
 let lastSelectedPollMs = 0;      // timestamp of last selected-aircraft poll
 let lastTrackFetchMs = 0;        // timestamp of last track queue processing
+let _pollInFlight = false;       // guard: true while pollStates() is running
+let _selectedPollInFlight = false; // guard: true while pollSelectedAircraft() is running
+let _lastApiCallMs = 0;          // timestamp of last OpenSky API call (hard floor enforcement)
 const SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s
 const TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
 
