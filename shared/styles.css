@@ -589,7 +589,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   height: 48px;
   font-family: 'Roboto Flex', sans-serif;
   font-size: 15px;
-  width: 255px;
+  width: 300px;
   outline: none;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }

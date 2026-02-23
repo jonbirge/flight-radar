@@ -32,7 +32,7 @@ function addSatelliteIRLayer() {
   } else {
     satelliteIRLayer = viewer.imageryLayers.addImageryProvider(provider);
   }
-  satelliteIRLayer.alpha = 0.5;
+  satelliteIRLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
 }
 
 function enableSatelliteIR() {
@@ -180,7 +180,7 @@ function enableRadar() {
   if (radarLayer) return;
   const provider = makeRadarProvider();
   radarLayer = viewer.imageryLayers.addImageryProvider(provider);
-  radarLayer.alpha = 0.5;
+  radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
   CONFIG.radarEnabled = true;
   console.log('[Radar] NEXRAD overlay enabled');
   // Auto-refresh every 5 minutes
@@ -209,7 +209,7 @@ function refreshRadar() {
   }
   const provider = makeRadarProvider();
   radarLayer = viewer.imageryLayers.addImageryProvider(provider);
-  radarLayer.alpha = 0.5;
+  radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
   console.log('[Radar] NEXRAD overlay refreshed');
 }
 
@@ -338,7 +338,7 @@ async function addTurbLayer() {
       } else {
         turbLayer = viewer.imageryLayers.addImageryProvider(provider);
       }
-      turbLayer.alpha = 0.65;
+      turbLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
       if (level !== primaryLevel) {
         console.log(`[Weather] GTG fallback: used level ${level} instead of ${primaryLevel}`);
       }

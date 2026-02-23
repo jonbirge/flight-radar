@@ -45,6 +45,7 @@ async function loadAndApplySettings() {
         CONFIG.trailMode = DEFAULT_SETTINGS.trailMode;
       }
       CONFIG.trailMaxAge = saved.trailLength || DEFAULT_SETTINGS.trailLength;
+      CONFIG.weatherOverlayOpacity = saved.weatherOverlayOpacity ?? DEFAULT_SETTINGS.weatherOverlayOpacity;
       CONFIG.rotationSpeed = saved.rotationSpeed || DEFAULT_SETTINGS.rotationSpeed;
       const prevEdges = CONFIG.airspaceEdges;
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : DEFAULT_SETTINGS.airspaceEdges;
@@ -82,6 +83,11 @@ async function loadAndApplySettings() {
       CONFIG.turbulenceLevel = CONFIG.turbForecastEnabled ? computeTurbLevel() : 'none';
       CONFIG.savedView = saved.savedView !== undefined ? saved.savedView : DEFAULT_SETTINGS.savedView;
       await applyTheme(); // adds turb + radar layers on top if enabled
+      // Apply weather overlay opacity to any existing layers
+      const wxAlpha = CONFIG.weatherOverlayOpacity / 100;
+      if (radarLayer) radarLayer.alpha = wxAlpha;
+      if (satelliteIRLayer) satelliteIRLayer.alpha = wxAlpha;
+      if (turbLayer) turbLayer.alpha = wxAlpha;
       if (!CONFIG.aircraftEnabled) toggleAircraft(false);
       // Sync main window checkboxes
       const aircraftToggle = document.getElementById('toggle-aircraft');

@@ -242,18 +242,18 @@ async function applyMapLayerValue(value) {
   // Layer order: [base] → map → satellite IR → turbulence forecast → radar
   if (CONFIG.satelliteIREnabled) {
     satelliteIRLayer = layers.addImageryProvider(makeSatelliteIRProvider());
-    satelliteIRLayer.alpha = 0.5;
+    satelliteIRLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
   }
   if (CONFIG.turbulenceLevel !== 'none') {
     const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
     if (turbProvider) {
       turbLayer = layers.addImageryProvider(turbProvider);
-      turbLayer.alpha = 0.65;
+      turbLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
     }
   }
   if (CONFIG.radarEnabled) {
     radarLayer = layers.addImageryProvider(makeRadarProvider());
-    radarLayer.alpha = 0.5;
+    radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
   }
   // Persist the selection
   const settings = await window.flightAPI.getSettings();
