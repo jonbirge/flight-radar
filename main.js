@@ -254,7 +254,7 @@ ipcMain.handle('get-flight-plan', async (event, request) => {
     let url;
     if (request && typeof request === 'object' && request.searchQuery) {
       const safeQuery = String(request.searchQuery)
-        .replace(/[^a-zA-Z0-9\s\-_:>]/g, ' ')
+        .replace(/[^a-zA-Z0-9\s\-_]/g, ' ')
         .trim()
         .slice(0, 120);
       if (!safeQuery) return { error: 'Invalid flight search query' };

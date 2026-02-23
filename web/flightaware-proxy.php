@@ -88,7 +88,7 @@ if ($endpoint === 'flights') {
         exit;
     }
     // Sanitize search query: airport/airline/search tokens only
-    $searchQuery = preg_replace('/[^a-zA-Z0-9\s\-_>:]/', ' ', $searchQuery);
+    $searchQuery = preg_replace('/[^a-zA-Z0-9\s\-_]/', ' ', $searchQuery);
     $searchQuery = trim(substr($searchQuery, 0, 120));
     if (empty($searchQuery)) {
         http_response_code(400);
