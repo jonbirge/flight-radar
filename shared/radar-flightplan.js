@@ -33,6 +33,48 @@ handler.setInputAction((click) => {
   // the info panel close button is the only way to deselect.
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+// Format a duration in milliseconds as "Xh Ym".
+function formatDuration(ms) {
+  if (ms < 0) return '---';
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+// Append route timing details to the info panel from the active flight plan.
+function updateInfoPanelRoute(flight) {
+  const details = document.getElementById('info-details');
+  if (!details) return;
+
+  const origin = flight.origin;
+  const dest = flight.destination;
+  const originCode = origin ? (origin.code_iata || origin.code_icao || '??') : '??';
+  const destCode = dest ? (dest.code_iata || dest.code_icao || '??') : '??';
+
+  const depStr = flight.actual_out || flight.estimated_out || flight.scheduled_out;
+  const arrStr = flight.estimated_in || flight.scheduled_in;
+
+  const now = Date.now();
+  const depTime = depStr ? new Date(depStr) : null;
+  const arrTime = arrStr ? new Date(arrStr) : null;
+
+  const elapsed = depTime ? formatDuration(now - depTime.getTime()) : '---';
+  const remaining = arrTime ? formatDuration(arrTime.getTime() - now) : '---';
+  const eta = arrTime
+    ? arrTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZoneName: 'short' })
+    : '---';
+
+  // Insert route rows right after the info-details opening, before ALT
+  const routeHTML = `
+    <div><span class="label">ROUTE</span><span>${originCode} → ${destCode}</span></div>
+    <div><span class="label">ELAPSED</span><span>${elapsed}</span></div>
+    <div><span class="label">REMAINING</span><span>${remaining}</span></div>
+    <div><span class="label">ETA</span><span>${eta}</span></div>
+  `;
+  details.insertAdjacentHTML('afterbegin', routeHTML);
+}
+
 function showAircraftInfo(icao) {
   const ac = aircraft.get(icao);
   if (!ac) return;
@@ -54,19 +96,18 @@ function showAircraftInfo(icao) {
   const fpm = s.verticalRate ? Math.round(s.verticalRate * 196.85) : null;
 
   document.getElementById('info-details').innerHTML = `
-    <div><span class="label">ICAO24</span><span>${icao.toUpperCase()}</span></div>
-    <div><span class="label">SQUAWK</span><span>${s.squawk || '----'}</span></div>
-    <div><span class="label">ORIGIN</span><span>${s.origin || '??'}</span></div>
     <div><span class="label">ALT</span><span data-field="alt">${feetAlt != null ? feetAlt.toLocaleString() + ' ft' : '---'}</span></div>
     <div><span class="label">GND SPD</span><span>${knots != null ? knots + ' kts' : '---'}</span></div>
     <div><span class="label">HDG</span><span>${s.heading != null ? Math.round(s.heading) + '°' : '---'}</span></div>
     <div><span class="label">VS</span><span>${fpm != null ? (fpm > 0 ? '+' : '') + fpm + ' fpm' : '---'}</span></div>
     <div><span class="label">LAT</span><span data-field="lat">${s.lat.toFixed(4)}</span></div>
     <div><span class="label">LON</span><span data-field="lon">${s.lon.toFixed(4)}</span></div>
-    <div><span class="label">TRAIL PTS</span><span>${ac.history.length}${ac.granularTrack ? '+' + (ac.granularTrack.path || []).length : ''}</span></div>
     <div><span class="label">LAST POLL</span><span>${lastPollTime ? lastPollTime.toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
     <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
   `;
+
+  // Re-apply persisted route info (ROUTE/ELAPSED/REMAINING/ETA) after innerHTML rebuild
+  if (selectedRouteFlight) updateInfoPanelRoute(selectedRouteFlight);
 
   // Fetch full track history only on initial selection (not on every info refresh)
   if (prevSelected !== icao && !trackFetchQueue.includes(icao)) {
@@ -104,6 +145,13 @@ function showAircraftInfo(icao) {
     const cs = (s.callsign || '').trim();
     if (cs && cs.toUpperCase() !== (searchedFlightIdent || '')) {
       enrichSelectedWithFlightAware(icao, cs);
+    } else if (activeFlightPlan && activeFlightPlan.flights) {
+      // Already have flight plan data from a prior search — show route timing
+      const flight = pickBestFlight(activeFlightPlan.flights);
+      if (flight) {
+        selectedRouteFlight = flight;
+        updateInfoPanelRoute(flight);
+      }
     }
   }
 
@@ -231,8 +279,12 @@ async function enrichSelectedWithFlightAware(icao, callsign) {
     // Bail if user deselected or selected a different aircraft while we were fetching
     if (selectedIcao !== icao) return;
 
-    displayFlightPlanRoute(data);
+    const result = displayFlightPlanRoute(data);
     searchedIcao = icao;
+    if (result && result.flight) {
+      selectedRouteFlight = result.flight;
+      updateInfoPanelRoute(result.flight);
+    }
 
     console.log(`[FlightPlan] Enriched selected aircraft ${icao} (${callsign}) with FlightAware data`);
   } catch (err) {
@@ -302,6 +354,7 @@ function clearFlightPlanRoute() {
   }
   flightPlanEntities.length = 0;
   activeFlightPlan = null;
+  selectedRouteFlight = null;
   searchedFlightIdent = null;
   searchedIcao = null;
   refreshTurbLevel();
