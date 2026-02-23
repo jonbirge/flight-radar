@@ -39,6 +39,8 @@ let _renderGeneration = 0;       // incremented to cancel stale chunked renders
 let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft/PIREPs
 let radarLayer = null;
 let radarRefreshTimer = null;
+let satelliteIRLayer = null;
+let satelliteIRRefreshTimer = null;
 let turbLayer = null;
 let turbRefreshTimer = null;
 let pirepRefreshTimer = null;
@@ -286,6 +288,7 @@ async function applyTheme() {
   layers.removeAll();
   radarLayer = null; // cleared by removeAll
   turbLayer = null;  // cleared by removeAll
+  satelliteIRLayer = null; // cleared by removeAll
   makeMapTiles(CONFIG.mapLayer).then(async (provider) => {
     // FAA chart layers have limited zoom — add CartoDB base underneath
     if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
@@ -293,7 +296,11 @@ async function applyTheme() {
     }
     const mapLayer = layers.addImageryProvider(provider);
     styleMapLayer(mapLayer, CONFIG.mapLayer);
-    // Layer order: [base] → map → turbulence forecast → radar
+    // Layer order: [base] → map → satellite IR → turbulence forecast → radar
+    if (CONFIG.satelliteIREnabled) {
+      satelliteIRLayer = layers.addImageryProvider(makeSatelliteIRProvider());
+      satelliteIRLayer.alpha = 0.5;
+    }
     if (CONFIG.turbulenceLevel !== 'none') {
       const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
       if (turbProvider) {

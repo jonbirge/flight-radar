@@ -49,6 +49,7 @@ const CONFIG = {
   sigmetsEnabled: DEFAULT_SETTINGS.sigmetsEnabled,
   airmetsEnabled: DEFAULT_SETTINGS.airmetsEnabled,
   pirepsEnabled: DEFAULT_SETTINGS.pirepsEnabled,
+  satelliteIREnabled: DEFAULT_SETTINGS.satelliteIREnabled,
   turbForecastEnabled: DEFAULT_SETTINGS.turbForecastEnabled,
   turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access

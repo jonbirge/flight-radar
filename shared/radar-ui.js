@@ -141,6 +141,20 @@ if (radarToggle) {
   });
 }
 
+const satelliteIRToggle = document.getElementById('toggle-satellite-ir');
+if (satelliteIRToggle) {
+  satelliteIRToggle.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      enableSatelliteIR();
+    } else {
+      disableSatelliteIR();
+    }
+    const settings = await window.flightAPI.getSettings();
+    settings.satelliteIREnabled = CONFIG.satelliteIREnabled;
+    await window.flightAPI.saveSettings(settings);
+  });
+}
+
 const sigmetsToggle = document.getElementById('toggle-sigmets');
 if (sigmetsToggle) {
   sigmetsToggle.addEventListener('change', async (e) => {
@@ -217,6 +231,7 @@ async function applyMapLayerValue(value) {
   layers.removeAll();
   radarLayer = null; // cleared by removeAll
   turbLayer = null;  // cleared by removeAll
+  satelliteIRLayer = null; // cleared by removeAll
   const provider = await makeMapTiles(CONFIG.mapLayer);
   // FAA chart layers have limited zoom — add CartoDB base underneath
   if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
@@ -224,7 +239,11 @@ async function applyMapLayerValue(value) {
   }
   const mapLayer = layers.addImageryProvider(provider);
   styleMapLayer(mapLayer, CONFIG.mapLayer);
-  // Layer order: [base] → map → turbulence forecast → radar
+  // Layer order: [base] → map → satellite IR → turbulence forecast → radar
+  if (CONFIG.satelliteIREnabled) {
+    satelliteIRLayer = layers.addImageryProvider(makeSatelliteIRProvider());
+    satelliteIRLayer.alpha = 0.5;
+  }
   if (CONFIG.turbulenceLevel !== 'none') {
     const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
     if (turbProvider) {
