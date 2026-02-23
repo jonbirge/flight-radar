@@ -33,6 +33,14 @@
       <span>Alt: <span id="camera-alt">--</span></span>
     </div>
   </div>
+  <div id="flightplan-timeline" class="hidden">
+    <div id="flightplan-timeline-labels">
+      <span id="timeline-origin">---</span>
+      <span id="timeline-elapsed">---</span>
+      <span id="timeline-destination">---</span>
+    </div>
+    <input type="range" id="timeline-slider" min="0" max="1000" step="1" value="0">
+  </div>
   <div id="throttle-warning" class="hidden">API rate limited — displaying last known positions</div>
 
   <div id="hud-instructions">

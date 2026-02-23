@@ -42,6 +42,125 @@ function formatDuration(ms) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function parseFlightWindow(flight) {
+  if (!flight) return null;
+  const dep = Date.parse(flight.actual_out || flight.estimated_out || flight.scheduled_out || '');
+  const arr = Date.parse(flight.estimated_in || flight.scheduled_in || '');
+  if (!Number.isFinite(dep) || !Number.isFinite(arr) || arr <= dep) return null;
+  return { dep, arr };
+}
+
+function routePointsFromPositions(routePositions) {
+  if (!Array.isArray(routePositions) || routePositions.length < 2) return null;
+  const points = routePositions.map((pos) => {
+    const carto = Cesium.Cartographic.fromCartesian(pos);
+    return {
+      lon: Cesium.Math.toDegrees(carto.longitude),
+      lat: Cesium.Math.toDegrees(carto.latitude),
+      alt: carto.height || 0,
+      dist: 0,
+    };
+  });
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const d = Math.hypot(b.lon - a.lon, b.lat - a.lat, (b.alt - a.alt) / 10000);
+    total += d;
+    points[i].dist = total;
+  }
+  if (total <= 0) return null;
+  return points;
+}
+
+function updateTimelineUI() {
+  const panel = document.getElementById('flightplan-timeline');
+  const slider = document.getElementById('timeline-slider');
+  const elapsedEl = document.getElementById('timeline-elapsed');
+  if (!panel || !slider || !elapsedEl || timelineStartMs == null || timelineEndMs == null || timelineCurrentMs == null) return;
+  const span = timelineEndMs - timelineStartMs;
+  const pct = span > 0 ? (timelineCurrentMs - timelineStartMs) / span : 0;
+  slider.value = String(Math.round(Math.max(0, Math.min(1, pct)) * 1000));
+  elapsedEl.textContent = `${formatDuration(timelineCurrentMs - timelineStartMs)} / ${formatDuration(span)}`;
+  panel.classList.remove('hidden');
+}
+
+function applyTimelineCursor(ms) {
+  if (timelineStartMs == null || timelineEndMs == null) return;
+  timelineCurrentMs = Math.max(timelineStartMs, Math.min(timelineEndMs, ms));
+  updateTimelineUI();
+  renderAircraft();
+  if (typeof applyTimelineWeatherVisibility === 'function') {
+    applyTimelineWeatherVisibility();
+  }
+}
+
+function resetFlightTimeline() {
+  timelineStartMs = null;
+  timelineEndMs = null;
+  timelineCurrentMs = null;
+  timelineRoutePoints = null;
+  const panel = document.getElementById('flightplan-timeline');
+  if (panel) panel.classList.add('hidden');
+  renderAircraft();
+  if (typeof applyTimelineWeatherVisibility === 'function') {
+    applyTimelineWeatherVisibility();
+  }
+}
+
+function setupFlightTimeline(flight, routePositions) {
+  const flightWindow = parseFlightWindow(flight);
+  const panel = document.getElementById('flightplan-timeline');
+  const originEl = document.getElementById('timeline-origin');
+  const destEl = document.getElementById('timeline-destination');
+  if (!flightWindow || !panel || !originEl || !destEl) {
+    resetFlightTimeline();
+    return;
+  }
+  timelineStartMs = flightWindow.dep;
+  timelineEndMs = flightWindow.arr;
+  timelineRoutePoints = routePointsFromPositions(routePositions);
+  originEl.textContent = (flight.origin && (flight.origin.code_iata || flight.origin.code_icao || flight.origin.code)) || 'DEP';
+  destEl.textContent = (flight.destination && (flight.destination.code_iata || flight.destination.code_icao || flight.destination.code)) || 'ARR';
+  const initialMs = (timelineCurrentMs != null && timelineCurrentMs >= timelineStartMs && timelineCurrentMs <= timelineEndMs)
+    ? timelineCurrentMs
+    : Math.max(timelineStartMs, Math.min(timelineEndMs, Date.now()));
+  applyTimelineCursor(initialMs);
+}
+
+function getTimelineRoutePosition() {
+  if (!timelineRoutePoints || timelineRoutePoints.length < 2 || timelineStartMs == null || timelineEndMs == null || timelineCurrentMs == null) return null;
+  const span = timelineEndMs - timelineStartMs;
+  if (span <= 0) return null;
+  const pct = Math.max(0, Math.min(1, (timelineCurrentMs - timelineStartMs) / span));
+  const total = timelineRoutePoints[timelineRoutePoints.length - 1].dist;
+  const targetDist = total * pct;
+  for (let i = 1; i < timelineRoutePoints.length; i++) {
+    const a = timelineRoutePoints[i - 1];
+    const b = timelineRoutePoints[i];
+    if (targetDist <= b.dist) {
+      const seg = b.dist - a.dist;
+      const t = seg > 0 ? (targetDist - a.dist) / seg : 0;
+      return Cesium.Cartesian3.fromDegrees(
+        a.lon + (b.lon - a.lon) * t,
+        a.lat + (b.lat - a.lat) * t,
+        a.alt + (b.alt - a.alt) * t
+      );
+    }
+  }
+  const last = timelineRoutePoints[timelineRoutePoints.length - 1];
+  return Cesium.Cartesian3.fromDegrees(last.lon, last.lat, last.alt);
+}
+
+const timelineSlider = document.getElementById('timeline-slider');
+if (timelineSlider) {
+  timelineSlider.addEventListener('input', () => {
+    if (timelineStartMs == null || timelineEndMs == null) return;
+    const pct = Math.max(0, Math.min(1, Number(timelineSlider.value) / 1000));
+    applyTimelineCursor(timelineStartMs + pct * (timelineEndMs - timelineStartMs));
+  });
+}
+
 // Append route timing details to the info panel from the active flight plan.
 function updateInfoPanelRoute(flight) {
   const details = document.getElementById('info-details');
@@ -364,6 +483,7 @@ function clearFlightPlanRoute() {
   selectedRouteFlight = null;
   searchedFlightIdent = null;
   searchedIcao = null;
+  resetFlightTimeline();
   refreshTurbLevel();
 }
 
@@ -472,6 +592,15 @@ function displayFlightPlanRoute(flightData) {
 
   drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointColor);
 
+  if (originCoords && destCoords) {
+    setupFlightTimeline(flight, [
+      Cesium.Cartesian3.fromDegrees(originCoords.lon, originCoords.lat, 0),
+      Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat, 0),
+    ]);
+  } else {
+    setupFlightTimeline(flight, null);
+  }
+
   // Fly to origin/dest markers immediately so the user sees something right away
   if (flightPlanEntities.length > 0) {
     flyToRouteOverview();
@@ -482,7 +611,7 @@ function displayFlightPlanRoute(flightData) {
   if (flight.fa_flight_id) {
     fetchAndDisplayFiledRoute(flight.fa_flight_id, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
   } else if (originCoords && destCoords) {
-    drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
+    drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters, flight);
   }
 
   return { flight, originCoords, destCoords };
@@ -642,6 +771,7 @@ async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destC
           }
 
           if (routePositions.length >= 2) {
+            setupFlightTimeline(flight, routePositions);
             viewer.entities.suspendEvents();
             try {
               flightPlanEntities.push(viewer.entities.add({
@@ -679,13 +809,13 @@ async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destC
   }
 
   // Fallback: parse the route string from the flights response using local waypoint DB
-  drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters);
+  drawRouteFromString(flight.route, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters, flight);
 }
 
 // Parse the filed route string (space-separated waypoint names) and draw using
 // local waypoint database lookups. Used as fallback when /route endpoint fails.
 // cruiseAltMeters is the filed cruise altitude in meters (null if unknown).
-function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters) {
+function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters, flight = null) {
   const alt = cruiseAltMeters || 0;
   const routeWaypoints = [];
   if (routeStr && cachedWaypointData && cachedWaypointData.length > 0) {
@@ -705,6 +835,8 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
   if (destCoords) routePositions.push(Cesium.Cartesian3.fromDegrees(destCoords.lon, destCoords.lat, 0));
 
   if (routePositions.length < 2) return;
+
+  if (flight) setupFlightTimeline(flight, routePositions);
 
   viewer.entities.suspendEvents();
   try {

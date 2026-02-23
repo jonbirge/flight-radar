@@ -448,6 +448,8 @@ function extrapolatePositions() {
   let updated = false;
 
   for (const [icao, ac] of aircraft) {
+    const isSelectedAc = icao === selectedIcao;
+    if (isSelectedAc && timelineCurrentMs != null) continue;
     // Skip if no entity created yet or missing required data
     if (!ac.entity || ac.state.heading == null || !ac.state.velocity) continue;
 
@@ -468,7 +470,6 @@ function extrapolatePositions() {
 
     // Handle trails based on mode.
     // Selected aircraft always use history-style trail regardless of trail mode.
-    const isSelectedAc = icao === selectedIcao;
     if (!isSelectedAc && CONFIG.trailMode === 'velocity') {
       // Velocity vector mode: apply same delta to trail endpoints
       for (const trailEntity of ac.trailEntities) {
@@ -523,12 +524,58 @@ function computeHorizonDist(camHeight) {
   return Math.sqrt(2 * R * camHeight + camHeight * camHeight) * 1.25;
 }
 
+function timelineFarFromNow() {
+  return timelineCurrentMs != null && Math.abs(timelineCurrentMs - Date.now()) > 5 * 60 * 1000;
+}
+
+function historicalPositionAtTime(ac, targetTimeSec) {
+  const points = buildTrailPositions(ac, true);
+  if (points.length === 0) return null;
+  if (targetTimeSec <= points[0].time) {
+    return Cesium.Cartesian3.fromDegrees(points[0].lon, points[0].lat, points[0].alt);
+  }
+  const last = points[points.length - 1];
+  if (targetTimeSec >= last.time) {
+    return Cesium.Cartesian3.fromDegrees(last.lon, last.lat, last.alt);
+  }
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    if (targetTimeSec <= b.time) {
+      const seg = b.time - a.time;
+      const t = seg > 0 ? (targetTimeSec - a.time) / seg : 0;
+      return Cesium.Cartesian3.fromDegrees(
+        a.lon + (b.lon - a.lon) * t,
+        a.lat + (b.lat - a.lat) * t,
+        a.alt + (b.alt - a.alt) * t
+      );
+    }
+  }
+  return null;
+}
+
 // Render a single aircraft entity (billboard + trail). Called per-aircraft by renderAircraft.
 function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
-    // Use extrapolated position if available, otherwise compute from state
-    const pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
     const isSelected = icao === selectedIcao;
+    const hideForTimeline = timelineFarFromNow() && !isSelected;
+    if (hideForTimeline) {
+      if (ac.entity) ac.entity.show = false;
+      removeTrailEntities(ac);
+      return;
+    }
+
+    // Use extrapolated position if available, otherwise compute from state
+    let pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
+    if (isSelected && timelineCurrentMs != null) {
+      if (timelineCurrentMs <= Date.now()) {
+        const histPos = historicalPositionAtTime(ac, timelineCurrentMs / 1000);
+        if (histPos) pos = histPos;
+      } else if (typeof getTimelineRoutePosition === 'function') {
+        const routePos = getTimelineRoutePosition();
+        if (routePos) pos = routePos;
+      }
+    }
 
     // Altitude-based color computation
     let altColor = null;
@@ -601,6 +648,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         viewer.trackedEntity = ac.entity;
       }
     } else {
+      ac.entity.show = true;
       // Update position
       ac.entity.position = pos;
 

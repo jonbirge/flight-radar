@@ -311,6 +311,30 @@ function removeAirmetEntities() {
   airmetEntities.length = 0;
 }
 
+function parseTimeMs(value) {
+  const ms = Date.parse(value || '');
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function applyTimelineWeatherVisibility() {
+  const nowMs = timelineCurrentMs != null ? timelineCurrentMs : Date.now();
+  for (const e of pirepEntities) {
+    const from = e._validFromMs;
+    const to = e._validToMs;
+    e.show = (from == null || nowMs >= from) && (to == null || nowMs <= to);
+  }
+  for (const e of sigmetEntities) {
+    const from = e._validFromMs;
+    const to = e._validToMs;
+    e.show = (from == null || nowMs >= from) && (to == null || nowMs <= to);
+  }
+  for (const e of airmetEntities) {
+    const from = e._validFromMs;
+    const to = e._validToMs;
+    e.show = (from == null || nowMs >= from) && (to == null || nowMs <= to);
+  }
+}
+
 const PIREP_CSS_COLORS = {
   NEG:   'rgba(51, 128, 255, 0.7)',
   SMT:   'rgba(51, 128, 255, 0.7)',
@@ -349,6 +373,7 @@ async function fetchPireps() {
           const icon = createPirepIcon(intensity, cssColor);
 
           const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 25) + 'Z' : '?';
+          const obsMs = parseTimeMs(props.obsTime);
           const camH = viewer.camera.positionCartographic ? viewer.camera.positionCartographic.height : 1e7;
           const pirepDisplayCond = acDisplayCond || new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camH));
           const entity = viewer.entities.add({
@@ -370,10 +395,13 @@ async function fetchPireps() {
               rawOb: props.rawOb || '',
             },
           });
+          entity._validFromMs = obsMs;
+          entity._validToMs = obsMs != null ? (obsMs + 2 * 60 * 60 * 1000) : null;
           pirepEntities.push(entity);
           pirepCount++;
         }
         console.log(`[Weather] Added ${pirepCount} turbulence PIREP entities`);
+        applyTimelineWeatherVisibility();
       }
     } else {
       console.warn(`[Weather] PIREPs response not ok: ${resp ? resp.status : 'null'}`);
@@ -437,11 +465,14 @@ async function fetchSigmets() {
                 rawText: sp.rawAirSigmet || sp.rawSigmet || '',
               },
             });
+            entity._validFromMs = parseTimeMs(sp.validTimeFrom);
+            entity._validToMs = parseTimeMs(sp.validTimeTo);
             sigmetEntities.push(entity);
             count++;
           }
         }
         console.log(`[Weather] Added ${count} SIGMET polygons`);
+        applyTimelineWeatherVisibility();
       }
     }
   } catch (err) {
@@ -492,11 +523,14 @@ async function fetchAirmets() {
                 validTo: ap.validTimeTo || '?',
               },
             });
+            entity._validFromMs = parseTimeMs(ap.validTime || ap.validTimeFrom);
+            entity._validToMs = parseTimeMs(ap.validTimeTo);
             airmetEntities.push(entity);
             count++;
           }
         }
         console.log(`[Weather] Added ${count} G-AIRMET polygons`);
+        applyTimelineWeatherVisibility();
       }
     }
   } catch (err) {

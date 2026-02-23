@@ -112,6 +112,36 @@ body {
   white-space: nowrap;
 }
 
+#flightplan-timeline {
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  min-width: 360px;
+  width: min(560px, calc(100vw - 48px));
+  padding: 8px 12px 10px;
+  border-radius: var(--md-shape-lg);
+  background: var(--md-surface-container);
+  box-shadow: var(--md-elevation-1);
+}
+
+#flightplan-timeline.hidden { display: none; }
+
+#flightplan-timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: var(--md-typescale-label-small);
+  color: var(--md-on-surface-variant);
+  margin-bottom: 6px;
+}
+
+#timeline-elapsed {
+  font: var(--md-typescale-label-medium);
+  color: var(--md-on-surface);
+}
+
 #clock {
   font: var(--md-typescale-label-medium);
   font-weight: 500;
