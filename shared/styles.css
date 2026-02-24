@@ -250,6 +250,8 @@ body {
 }
 
 input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
   width: 80px;
   height: 4px;
   background: var(--md-outline-variant);
@@ -594,8 +596,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 #flight-search:focus {
-  border-color: var(--md-primary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 0 0 1px var(--md-primary);
+  border-color: var(--md-outline-variant);
 }
 
 .theme-light #flight-search {
