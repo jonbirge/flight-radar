@@ -123,6 +123,7 @@ function hideTimeline() {
   if (panel) panel.classList.add('hidden');
   stopLiveTimer();
   resetTimelineToLive();
+  resumeWeatherRefresh();
   clearTurbCache();
   _timelineFlight = null;
 }
@@ -149,6 +150,7 @@ function enterLiveMode() {
 
   // Exit scrubbing: restore weather to normal live updates
   resetTimelineToLive();
+  resumeWeatherRefresh();
 
   // Update the label and slider to current time
   updateLiveSliderPosition();
@@ -163,6 +165,7 @@ function enterScrubbingMode() {
   const btn = document.getElementById('timeline-live');
   if (btn) btn.classList.remove('active');
   stopLiveTimer();
+  pauseWeatherRefresh();
 }
 
 function startLiveTimer() {
