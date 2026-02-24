@@ -103,10 +103,18 @@ async function pollSelectedAircraft() {
     west: s.lon - pad, east: s.lon + pad,
   };
   try {
+    console.log(`[Poll] Selected aircraft poll for ${selectedIcao}...`);
+    const t0 = Date.now();
     const data = await window.flightAPI.getStates(bounds);
-    if (data.error && data.retryIn) {
-      // Main process rate limited us — allow retry after the specified delay
-      _lastSelectedPollApiMs = Date.now() - RATE_LIMIT_MS + data.retryIn;
+    console.log(`[Poll] Selected poll IPC returned in ${Date.now() - t0}ms`);
+    if (data.error) {
+      if (data.retryIn) {
+        // Main process rate limited us — allow retry after the specified delay
+        _lastSelectedPollApiMs = Date.now() - RATE_LIMIT_MS + data.retryIn;
+        console.log(`[Poll] Selected poll rate limited, retryIn=${data.retryIn}ms`);
+      } else {
+        console.warn('[Poll] Selected poll error:', data.error);
+      }
     }
     if (!data.error && data.states) {
       const now = Date.now() / 1000;
@@ -146,6 +154,17 @@ function tick() {
 
   // 1. Always extrapolate aircraft positions between server polls
   extrapolatePositions();
+
+  // Safety valve: force-reset in-flight guards if they've been stuck too long
+  // (covers cases where the IPC call hangs or the Promise never resolves)
+  if (_pollInFlight && now - _lastBulkPollMs > 30000) {
+    console.warn('[Poll] Force-resetting _pollInFlight (stuck >30s)');
+    _pollInFlight = false;
+  }
+  if (_selectedPollInFlight && now - _lastSelectedPollApiMs > 30000) {
+    console.warn('[Poll] Force-resetting _selectedPollInFlight (stuck >30s)');
+    _selectedPollInFlight = false;
+  }
 
   // Skip all OpenSky polling while rate-limited
   if (now < rateLimitedUntil) {
@@ -988,9 +1007,15 @@ function padBounds(bounds, fraction) {
 }
 
 async function pollStates() {
-  if (_pollInFlight) return;
+  if (_pollInFlight) {
+    console.log('[Poll] Skipped: _pollInFlight');
+    return;
+  }
   const now = Date.now();
-  if (now - _lastBulkPollMs < RATE_LIMIT_MS) return;
+  if (now - _lastBulkPollMs < RATE_LIMIT_MS) {
+    console.log(`[Poll] Skipped: rate limit (${Math.round((RATE_LIMIT_MS - (now - _lastBulkPollMs)) / 1000)}s remaining)`);
+    return;
+  }
   _pollInFlight = true;
   _lastBulkPollMs = now;
   try {
@@ -998,13 +1023,16 @@ async function pollStates() {
     // Fetch aircraft from a 50% larger region so small pans don't re-poll
     const bounds = padBounds(viewBounds, 0.5);
     console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
+    const t0 = Date.now();
     const data = await window.flightAPI.getStates(bounds);
+    console.log(`[OpenSky] IPC returned in ${Date.now() - t0}ms`);
     const warningEl = document.getElementById('throttle-warning');
 
     if (data.error) {
       if (data.retryIn) {
         // Main process rate limited us — allow retry after the specified delay
         // instead of being blocked for the full RATE_LIMIT_MS window.
+        console.log(`[Poll] Main process rate limited, retryIn=${data.retryIn}ms`);
         _lastBulkPollMs = now - RATE_LIMIT_MS + data.retryIn;
       } else {
         console.warn('[Poll] Error:', data.error);
@@ -1033,6 +1061,8 @@ async function pollStates() {
     if (stateCount > 0) {
       updateAircraft(data.states);
     }
+  } catch (err) {
+    console.error('[Poll] pollStates exception:', err);
   } finally {
     _pollInFlight = false;
   }
@@ -1055,15 +1085,21 @@ async function fetchNextTrack() {
 }
 
 function startPolling() {
-  if (!CONFIG.aircraftEnabled) return;
+  if (!CONFIG.aircraftEnabled) {
+    console.log('[Poll] startPolling: aircraft disabled, skipping');
+    return;
+  }
   // Set initial poll interval based on current zoom level
   const camHeight = viewer.camera.positionCartographic
     ? viewer.camera.positionCartographic.height
     : CONFIG.startAlt;
   lastPollHeight = camHeight;
   lastPositionUpdateHeight = camHeight;
-  setPollInterval(computePollInterval(camHeight));
-  setTickInterval(computePositionUpdateInterval(camHeight));
+  const pollMs = computePollInterval(camHeight);
+  const tickMs = computePositionUpdateInterval(camHeight);
+  setPollInterval(pollMs);
+  setTickInterval(tickMs);
+  console.log(`[Poll] startPolling: camHeight=${Math.round(camHeight)}m, pollInterval=${pollMs}ms, tickInterval=${tickMs}ms`);
 
   // Initial fetch
   pollStates();

@@ -80,26 +80,36 @@ function httpGet(url, bearerToken) {
     if (bearerToken) {
       opts.headers['Authorization'] = `Bearer ${bearerToken}`;
     }
+    let settled = false;
+    const settle = (fn, val) => { if (!settled) { settled = true; fn(val); } };
+    // Hard deadline: destroy the request and reject if it hasn't completed in 20s.
+    // The socket-level timeout (15s) only fires on idle sockets — a slow server
+    // sending data trickle-style could keep the socket alive indefinitely.
+    const deadline = setTimeout(() => {
+      settle(reject, new Error('Hard timeout (20s)'));
+      try { req.destroy(); } catch (_) {}
+    }, 20000);
     const client = url.startsWith('https') ? https : http;
     const req = client.get(opts, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
+        clearTimeout(deadline);
         if (res.statusCode === 200) {
           try {
-            resolve(JSON.parse(data));
+            settle(resolve, JSON.parse(data));
           } catch (e) {
-            reject(new Error(`JSON parse error: ${e.message}`));
+            settle(reject, new Error(`JSON parse error: ${e.message}`));
           }
         } else if (res.statusCode === 429) {
-          reject(new Error('Rate limited by OpenSky API'));
+          settle(reject, new Error('Rate limited by OpenSky API'));
         } else {
-          reject(new Error(`HTTP ${res.statusCode}: ${data.substring(0, 200)}`));
+          settle(reject, new Error(`HTTP ${res.statusCode}: ${data.substring(0, 200)}`));
         }
       });
     });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+    req.on('error', (err) => { clearTimeout(deadline); settle(reject, err); });
+    req.on('timeout', () => { clearTimeout(deadline); req.destroy(); settle(reject, new Error('Request timeout')); });
   });
 }
 
@@ -178,15 +188,21 @@ async function getOpenSkyToken() {
 ipcMain.handle('get-states', async (event, bounds) => {
   const now = Date.now();
   if (now - lastStatesCall < STATES_MIN_INTERVAL) {
-    return { error: 'Rate limited', retryIn: STATES_MIN_INTERVAL - (now - lastStatesCall) };
+    const retryIn = STATES_MIN_INTERVAL - (now - lastStatesCall);
+    console.log(`[OpenSky] IPC rate limited, retryIn=${retryIn}ms`);
+    return { error: 'Rate limited', retryIn };
   }
   lastStatesCall = now;
 
   try {
     const { south, west, north, east } = bounds;
     const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
+    console.log('[OpenSky] Fetching states...');
+    const t0 = Date.now();
     const token = await getOpenSkyToken();
     const data = await httpGet(url, token);
+    const stateCount = data && data.states ? data.states.length : 0;
+    console.log(`[OpenSky] Got ${stateCount} states in ${Date.now() - t0}ms`);
     return data;
   } catch (err) {
     console.error('[OpenSky] States error:', err.message);
