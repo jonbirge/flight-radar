@@ -550,10 +550,10 @@ async function fetchAirmets() {
   try {
     // G-AIRMETs are 3-hour snapshots at forecast hours 0, 3, 6, 9, 12.
     // In live mode only fetch the current snapshot (hour 0) to avoid showing
-    // expired or not-yet-valid AIRMETs. When the timeline is active, fetch all
-    // snapshots so scrubbing has full time coverage.
-    const timelineActive = typeof _timelineFlight !== 'undefined' && _timelineFlight != null;
-    const forecastHours = timelineActive ? [0, 3, 6, 9, 12] : [0];
+    // expired or not-yet-valid AIRMETs. When actively scrubbing the timeline,
+    // fetch all snapshots so scrubbing has full time coverage.
+    const scrubbing = typeof _timelineLive !== 'undefined' && !_timelineLive;
+    const forecastHours = scrubbing ? [0, 3, 6, 9, 12] : [0];
     const responses = await Promise.all(forecastHours.map(fh =>
       fetch(awcUrl(`gairmet?format=geojson&fore=${fh}`))
         .catch(err => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; })
