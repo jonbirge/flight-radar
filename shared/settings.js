@@ -11,11 +11,11 @@
 // Use DEFAULT_SETTINGS from shared/defaults.js (loaded before this script)
 
 const COLOR_PRESETS = [
-  { color: '#00cc44', label: 'Phosphor Green' },
+  { color: '#cccccc', label: 'White' },
   { color: '#00cccc', label: 'Cyan' },
   { color: '#cc8800', label: 'Amber' },
-  { color: '#cc4444', label: 'Red' },
-  { color: '#cccccc', label: 'White' },
+  { color: '#00cc44', label: 'Phosphor Green' },
+  { color: '#6c7f70', label: 'Sage' },
 ];
 
 const LIGHT_COLOR_PRESETS = [
@@ -455,15 +455,31 @@ function populateSettingsForm(container, settings) {
   // Mute map colors
   container.querySelector('#set-mute-map-colors').checked = s.muteMapColors;
 
-  // Dark color swatches
+  // Dark color swatches — apply saved preset overrides before checking active
   const darkSwatches = container.querySelectorAll('.dark-color-swatch');
+  if (s.darkColorPresets) {
+    darkSwatches.forEach((sw, i) => {
+      if (s.darkColorPresets[i]) {
+        sw.dataset.color = s.darkColorPresets[i];
+        sw.style.background = s.darkColorPresets[i];
+      }
+    });
+  }
   darkSwatches.forEach(sw => {
     sw.classList.toggle('active', sw.dataset.color === s.darkColor);
   });
   container.querySelector('#set-custom-color').value = s.darkColor;
 
-  // Light color swatches
+  // Light color swatches — apply saved preset overrides before checking active
   const lightSwatches = container.querySelectorAll('.light-color-swatch');
+  if (s.lightColorPresets) {
+    lightSwatches.forEach((sw, i) => {
+      if (s.lightColorPresets[i]) {
+        sw.dataset.color = s.lightColorPresets[i];
+        sw.style.background = s.lightColorPresets[i];
+      }
+    });
+  }
   lightSwatches.forEach(sw => {
     sw.classList.toggle('active', sw.dataset.color === s.lightColor);
   });
@@ -581,6 +597,8 @@ function initSettingsPanel(options) {
       muteMapColors: muteMapColors.checked,
       darkColor: formState.darkColor,
       lightColor: formState.lightColor,
+      darkColorPresets: Array.from(darkSwatches).map(sw => sw.dataset.color),
+      lightColorPresets: Array.from(lightSwatches).map(sw => sw.dataset.color),
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
       trailMode: formState.trailMode,
@@ -659,10 +677,14 @@ function initSettingsPanel(options) {
     });
   });
 
-  // --- Dark custom color picker ---
+  // --- Dark custom color picker (overrides active preset) ---
   customColor.addEventListener('input', () => {
     formState.darkColor = customColor.value;
-    updateDarkSwatchActive(''); // deselect all presets
+    const activeSwatch = container.querySelector('.dark-color-swatch.active');
+    if (activeSwatch) {
+      activeSwatch.dataset.color = customColor.value;
+      activeSwatch.style.background = customColor.value;
+    }
     debouncedBroadcast();
   });
 
@@ -676,10 +698,14 @@ function initSettingsPanel(options) {
     });
   });
 
-  // --- Light custom color picker ---
+  // --- Light custom color picker (overrides active preset) ---
   lightCustomColor.addEventListener('input', () => {
     formState.lightColor = lightCustomColor.value;
-    updateLightSwatchActive(''); // deselect all presets
+    const activeSwatch = container.querySelector('.light-color-swatch.active');
+    if (activeSwatch) {
+      activeSwatch.dataset.color = lightCustomColor.value;
+      activeSwatch.style.background = lightCustomColor.value;
+    }
     debouncedBroadcast();
   });
 

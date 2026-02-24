@@ -7,8 +7,10 @@
 const DEFAULT_SETTINGS = {
   fontSize: 12,
   theme: 'system',
-  darkColor: '#ffffff',
+  darkColor: '#cccccc',
   lightColor: '#000000',
+  darkColorPresets: null,
+  lightColorPresets: null,
   colorByAltitude: true,
   trailMode: 'velocity',
   thickTrailsByAltitude: false,
