@@ -332,6 +332,9 @@ async function addTurbLayer(dateSecs) {
   const primaryLevel = CONFIG.turbulenceLevel;
   if (primaryLevel === 'none') return;
 
+  // Capture generation — if another add/remove happens while we await, bail out
+  const gen = ++_turbAddGen;
+
   // Build ordered list of levels to try: primary first, then nearest alternatives
   const levelsToTry = [primaryLevel];
   if (primaryLevel !== 'maxa') {
@@ -346,6 +349,8 @@ async function addTurbLayer(dateSecs) {
 
   for (const level of levelsToTry) {
     const provider = await makeTurbProvider(level, dateSecs);
+    // Check if superseded by a newer add/remove while we were fetching
+    if (_turbAddGen !== gen) return;
     if (provider) {
       if (radarLayer) {
         const radarIdx = viewer.imageryLayers.indexOf(radarLayer);
@@ -364,6 +369,7 @@ async function addTurbLayer(dateSecs) {
 }
 
 function removeTurbLayer() {
+  _turbAddGen++; // Cancel any in-flight async addTurbLayer()
   if (turbLayer) {
     viewer.imageryLayers.remove(turbLayer);
     turbLayer = null;
@@ -457,6 +463,10 @@ async function fetchPireps() {
         }
         console.log(`[Weather] Added ${pirepCount} turbulence PIREP entities`);
       }
+      // If scrubbing, immediately filter new entities to the current timeline position
+      if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
+        filterWeatherByTime(timelineTime);
+      }
     } else {
       console.warn(`[Weather] PIREPs response not ok: ${resp ? resp.status : 'null'}`);
     }
@@ -525,6 +535,10 @@ async function fetchSigmets() {
         }
         console.log(`[Weather] Added ${count} SIGMET polygons`);
       }
+      // If scrubbing, immediately filter new entities to the current timeline position
+      if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
+        filterWeatherByTime(timelineTime);
+      }
     }
   } catch (err) {
     console.warn('[Weather] Error fetching SIGMETs:', err);
@@ -535,8 +549,11 @@ async function fetchAirmets() {
   console.log('[Weather] Fetching G-AIRMETs...');
   try {
     // G-AIRMETs are 3-hour snapshots at forecast hours 0, 3, 6, 9, 12.
-    // Fetch all snapshots so timeline scrubbing has full time coverage.
-    const forecastHours = [0, 3, 6, 9, 12];
+    // In live mode only fetch the current snapshot (hour 0) to avoid showing
+    // expired or not-yet-valid AIRMETs. When the timeline is active, fetch all
+    // snapshots so scrubbing has full time coverage.
+    const timelineActive = typeof _timelineFlight !== 'undefined' && _timelineFlight != null;
+    const forecastHours = timelineActive ? [0, 3, 6, 9, 12] : [0];
     const responses = await Promise.all(forecastHours.map(fh =>
       fetch(awcUrl(`gairmet?format=geojson&fore=${fh}`))
         .catch(err => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; })
@@ -592,6 +609,10 @@ async function fetchAirmets() {
       }
     }
     console.log(`[Weather] Added ${count} G-AIRMET polygons across ${forecastHours.length} forecast snapshots`);
+    // If scrubbing, immediately filter new entities to the current timeline position
+    if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
+      filterWeatherByTime(timelineTime);
+    }
   } catch (err) {
     console.warn('[Weather] Error fetching G-AIRMETs:', err);
   }
@@ -658,6 +679,46 @@ function disableAirmets() {
     airmetRefreshTimer = null;
   }
   console.log('[Weather] AIRMETs disabled');
+}
+
+// ============================================================
+// Pause / Resume Weather Refresh Timers (for timeline scrubbing)
+// ============================================================
+
+// Pause all weather refresh timers without touching CONFIG flags or entities/layers.
+// Called when entering scrubbing mode so background refreshes don't add unfiltered data.
+function pauseWeatherRefresh() {
+  if (pirepRefreshTimer) { clearInterval(pirepRefreshTimer); pirepRefreshTimer = null; }
+  if (sigmetRefreshTimer) { clearInterval(sigmetRefreshTimer); sigmetRefreshTimer = null; }
+  if (airmetRefreshTimer) { clearInterval(airmetRefreshTimer); airmetRefreshTimer = null; }
+  if (turbRefreshTimer) { clearInterval(turbRefreshTimer); turbRefreshTimer = null; }
+  if (radarRefreshTimer) { clearInterval(radarRefreshTimer); radarRefreshTimer = null; }
+  if (satelliteIRRefreshTimer) { clearInterval(satelliteIRRefreshTimer); satelliteIRRefreshTimer = null; }
+  console.log('[Weather] Refresh timers paused');
+}
+
+// Restart refresh timers for any currently-enabled overlay.
+// Called when returning to live mode or closing the timeline.
+function resumeWeatherRefresh() {
+  if (CONFIG.pirepsEnabled && !pirepRefreshTimer) {
+    pirepRefreshTimer = setInterval(() => { removePirepEntities(); fetchPireps(); }, 5 * 60 * 1000);
+  }
+  if (CONFIG.sigmetsEnabled && !sigmetRefreshTimer) {
+    sigmetRefreshTimer = setInterval(() => { removeSigmetEntities(); fetchSigmets(); }, 5 * 60 * 1000);
+  }
+  if (CONFIG.airmetsEnabled && !airmetRefreshTimer) {
+    airmetRefreshTimer = setInterval(() => { removeAirmetEntities(); fetchAirmets(); }, 5 * 60 * 1000);
+  }
+  if (CONFIG.turbForecastEnabled && !turbRefreshTimer) {
+    turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
+  }
+  if (CONFIG.radarEnabled && !radarRefreshTimer) {
+    radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+  }
+  if (CONFIG.satelliteIREnabled && !satelliteIRRefreshTimer) {
+    satelliteIRRefreshTimer = setInterval(refreshSatelliteIR, 10 * 60 * 1000);
+  }
+  console.log('[Weather] Refresh timers resumed');
 }
 
 // GTG forecast dropdown: heatmap imagery layer (independent of TURB toggle)
@@ -735,6 +796,7 @@ function refreshTurbLevel() {
 const TURB_PRELOAD_INTERVAL = 3600;
 
 let _turbTimelineDate = null;  // current forecast date (Unix secs) being displayed (null = live)
+let _turbAddGen = 0;           // generation counter — cancels in-flight async addTurbLayer() calls
 
 // Update the turb forecast layer for a given scrubbed time.
 // Finds the nearest preloaded timestamp and applies it from cache instantly.
