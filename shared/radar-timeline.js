@@ -332,7 +332,10 @@ function filterWeatherByTime(timeMs) {
 function restoreWeatherVisibility() {
   for (const entity of pirepEntities) entity.show = true;
   for (const entity of sigmetEntities) entity.show = true;
-  for (const entity of airmetEntities) entity.show = true;
+  // AIRMETs may contain multi-snapshot data from scrubbing (hours 0,3,6,9,12).
+  // Clear and re-fetch so only the current snapshot (hour 0) is shown.
+  removeAirmetEntities();
+  if (CONFIG.airmetsEnabled) fetchAirmets();
 }
 
 // ============================================================
