@@ -601,7 +601,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .theme-light #flight-search {
-  background: var(--md-surface-container-solid);
+  background: #ffffff;
 }
 
 #flight-search::placeholder {
