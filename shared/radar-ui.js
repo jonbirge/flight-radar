@@ -4,6 +4,16 @@
 'use strict';
 
 // ============================================================
+// Diagnostics
+// ============================================================
+
+const DIAGNOSTICS = false;
+
+// Hide diagnostic HUD fields (lat/lon/alt) when not in diagnostics mode
+const hudDiagEl = document.getElementById('hud-diagnostics');
+if (hudDiagEl) hudDiagEl.style.display = DIAGNOSTICS ? '' : 'none';
+
+// ============================================================
 // HUD Clock
 // ============================================================
 
