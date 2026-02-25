@@ -34,6 +34,12 @@ function refreshAllEntities() {
 function toggleAircraft(show) {
   CONFIG.aircraftEnabled = show;
   if (!show) {
+    // Cancel any in-progress chunked render so it doesn't create orphaned entities
+    _renderGeneration++;
+
+    // Reset poll guard so the next enable doesn't hang waiting for a stale lock
+    _pollInFlight = false;
+
     // Determine which aircraft to keep: any selected or searched aircraft
     const keepIcao = selectedIcao || searchedIcao;
 
@@ -848,8 +854,8 @@ function renderAircraft(filterIcaos) {
   let idx = 0;
 
   function renderChunk() {
-    // Abort if a newer render has been requested
-    if (gen !== _renderGeneration) return;
+    // Abort if a newer render has been requested or aircraft display was disabled
+    if (gen !== _renderGeneration || !CONFIG.aircraftEnabled) return;
 
     const end = Math.min(idx + RENDER_CHUNK_SIZE, entries.length);
     viewer.entities.suspendEvents();
@@ -1047,6 +1053,13 @@ async function pollStates() {
     }
 
     warningEl.classList.add('hidden');
+
+    // If aircraft display was disabled while the poll was in-flight, discard
+    // the results to avoid creating orphaned entities in Cesium.
+    if (!CONFIG.aircraftEnabled) {
+      console.log('[Poll] Discarding results: aircraft disabled during poll');
+      return;
+    }
 
     const stateCount = data.states ? data.states.length : 0;
     console.log(`[OpenSky] Got ${stateCount} aircraft`);
