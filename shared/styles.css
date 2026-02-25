@@ -96,7 +96,7 @@ body {
 /* HUD */
 #hud {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -580,9 +580,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
 #flight-search {
   position: absolute;
   top: 16px;
-  left: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 100;
-  background: var(--md-surface-container-highest);
+  background: var(--md-surface-container-solid);
   border: 1px solid var(--md-outline-variant);
   border-radius: var(--md-shape-full);
   color: var(--md-on-surface);
@@ -590,7 +591,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   height: 48px;
   font-family: 'Roboto Flex', sans-serif;
   font-size: 15px;
-  width: 300px;
+  width: 420px;
   outline: none;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
@@ -600,7 +601,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .theme-light #flight-search {
-  background: #ffffff;
+  background: var(--md-surface-container-solid);
 }
 
 #flight-search::placeholder {
