@@ -266,6 +266,7 @@ function hideAircraftInfo() {
 document.getElementById('info-close').addEventListener('click', () => {
   clearFlightPlanRoute();
   hideAircraftInfo();
+  hideFlightResults();
   const searchInput = document.getElementById('flight-search');
   if (searchInput) searchInput.value = '';
 });
@@ -436,7 +437,7 @@ function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointC
 // Draw a flight plan route on the map. Picks the best flight from the response,
 // draws origin/dest markers and the filed route polyline, and flies to it.
 // Returns { flight, originCoords, destCoords } so callers can use them, or null.
-function displayFlightPlanRoute(flightData) {
+function displayFlightPlanRoute(flightData, preSelectedFlight = null) {
   clearFlightPlanRoute();
   activeFlightPlan = flightData;
   refreshTurbLevel();
@@ -445,7 +446,7 @@ function displayFlightPlanRoute(flightData) {
   const flights = flightData.flights || [];
   if (flights.length === 0) return null;
 
-  const flight = pickBestFlight(flights);
+  const flight = preSelectedFlight || pickBestFlight(flights);
 
   // Store the searched flight identifier for visibility bypass and aircraft matching
   searchedFlightIdent = (flight.ident || flight.ident_iata || '').trim().toUpperCase();
@@ -799,6 +800,88 @@ function showFlightPlanInfo(flight) {
   `;
 }
 
+// Show a dropdown panel of flight results below the search box.
+// Displays all en-route and upcoming flights and the one most recent past flight.
+function showFlightResults(flights, flightData) {
+  const panel = document.getElementById('flight-results');
+  if (!panel) return;
+
+  const now = new Date();
+
+  // Categorize each flight
+  const categorized = flights.map(f => {
+    const isEnRoute = f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100;
+    const arr = f.scheduled_in || f.estimated_in;
+    const isCompleted = f.progress_percent != null && f.progress_percent >= 100;
+    const isUpcoming = !isEnRoute && !isCompleted && arr && new Date(arr) > now;
+    const category = isEnRoute ? 'enroute' : (isUpcoming ? 'upcoming' : 'past');
+    return { flight: f, category };
+  });
+
+  // Sort: en-route first, then upcoming (earliest dep first), then past (most recent first, max 3)
+  const enRoute = categorized.filter(c => c.category === 'enroute');
+  const upcoming = categorized
+    .filter(c => c.category === 'upcoming')
+    .sort((a, b) => new Date(a.flight.scheduled_out || a.flight.estimated_out) - new Date(b.flight.scheduled_out || b.flight.estimated_out));
+  const past = categorized
+    .filter(c => c.category === 'past')
+    .sort((a, b) => new Date(b.flight.scheduled_out || b.flight.estimated_out) - new Date(a.flight.scheduled_out || a.flight.estimated_out))
+    .slice(0, 1);
+
+  const ordered = [...enRoute, ...upcoming, ...past];
+
+  panel.innerHTML = '';
+  for (const { flight: f, category } of ordered) {
+    const depStr = f.actual_out || f.scheduled_out;
+    const depDate = depStr ? new Date(depStr) : null;
+    const depDateStr = depDate
+      ? depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '---';
+    const depTimeStr = depDate
+      ? depDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : '---';
+
+    const originCode = f.origin ? (f.origin.code_iata || f.origin.code_icao || '??') : '??';
+    const destCode = f.destination ? (f.destination.code_iata || f.destination.code_icao || '??') : '??';
+
+    let badgeLabel, badgeClass;
+    if (category === 'enroute') { badgeLabel = 'EN ROUTE'; badgeClass = 'badge-enroute'; }
+    else if (category === 'upcoming') { badgeLabel = 'UPCOMING'; badgeClass = 'badge-upcoming'; }
+    else { badgeLabel = 'PAST'; badgeClass = 'badge-past'; }
+
+    const item = document.createElement('div');
+    item.className = 'flight-result-item';
+    item.innerHTML = `
+      <span class="flight-result-badge ${badgeClass}">${badgeLabel}</span>
+      <span class="flight-result-route">${originCode} → ${destCode}</span>
+      <span class="flight-result-time">${depDateStr} ${depTimeStr}</span>
+    `;
+    item.addEventListener('click', () => {
+      hideFlightResults();
+      selectFlightFromResults(f, flightData);
+    });
+    panel.appendChild(item);
+  }
+
+  panel.classList.remove('hidden');
+}
+
+function hideFlightResults() {
+  const panel = document.getElementById('flight-results');
+  if (panel) panel.classList.add('hidden');
+}
+
+// Called when the user selects a specific flight from the results panel.
+async function selectFlightFromResults(flight, flightData) {
+  const result = displayFlightPlanRoute(flightData, flight);
+  if (result) {
+    console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+    if (!selectSearchedAircraft()) {
+      findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+    }
+  }
+}
+
 async function searchFlightPlan(ident) {
   if (!ident || ident.trim().length === 0) return;
 
@@ -826,14 +909,18 @@ async function searchFlightPlan(ident) {
     }
 
     console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
-    const result = displayFlightPlanRoute(data);
 
-    // Try to find and select the matching live aircraft on OpenSky
-    if (result) {
-      console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
-      if (!selectSearchedAircraft()) {
-        findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+    // If only one result, select it immediately; otherwise let the user pick.
+    if (data.flights.length === 1) {
+      const result = displayFlightPlanRoute(data);
+      if (result) {
+        console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+        if (!selectSearchedAircraft()) {
+          findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+        }
       }
+    } else {
+      showFlightResults(data.flights, data);
     }
   } catch (err) {
     console.error('[FlightPlan] Search error:', err);
@@ -863,6 +950,14 @@ if (flightSearchInput) {
     }
   });
 }
+
+// Hide flight results when clicking outside the search area
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('flight-search-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    hideFlightResults();
+  }
+});
 
 function stopTracking() {
   if (!isTracking) return;

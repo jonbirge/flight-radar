@@ -86,9 +86,18 @@
   <h3>Flight Search</h3>
   <p>
     Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) in the
-    search panel at the top-left and press <strong>Search</strong> or
-    <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s AeroAPI for current and upcoming flights
-    matching that identifier, then displays the planned route and flight status on the map.
+    search panel at the top-left and press <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s
+    AeroAPI for flights matching that identifier and presents a results panel showing recent and
+    upcoming flights. Each result is labelled with its status:
+  </p>
+  <ul>
+    <li><strong>EN ROUTE</strong> — Flight currently in the air.</li>
+    <li><strong>UPCOMING</strong> — Future scheduled or delayed flight.</li>
+    <li><strong>PAST</strong> — The most recently completed flight (one shown).</li>
+  </ul>
+  <p>
+    Click a result to select that specific flight and display its planned route on the map.
+    If only one flight is returned it is selected automatically.
   </p>
   <ul>
     <li><strong>Filed route</strong> — Dashed line from origin to destination through decoded

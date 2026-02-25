@@ -576,13 +576,19 @@ input[type="range"]::-webkit-slider-thumb:hover {
   flex: 1;
 }
 
-/* Flight search input */
-#flight-search {
+/* Flight search wrapper */
+#flight-search-wrap {
   position: absolute;
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
+  width: 420px;
+}
+
+/* Flight search input */
+#flight-search {
+  width: 100%;
   background: var(--md-surface-container-solid);
   border: 1px solid var(--md-outline-variant);
   border-radius: var(--md-shape-full);
@@ -591,7 +597,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   height: 48px;
   font-family: 'Roboto Flex', sans-serif;
   font-size: 15px;
-  width: 420px;
   outline: none;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
@@ -606,6 +611,86 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 #flight-search::placeholder {
   color: var(--md-on-surface-variant);
+}
+
+/* Flight search results dropdown */
+#flight-results {
+  margin-top: 4px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-lg);
+  max-height: 320px;
+  overflow-y: auto;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--md-elevation-3);
+}
+
+#flight-results.hidden {
+  display: none;
+}
+
+.theme-light #flight-results {
+  background: #ffffff;
+}
+
+.flight-result-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--md-outline-variant);
+  font: var(--md-typescale-body-small);
+}
+
+.flight-result-item:last-child {
+  border-bottom: none;
+}
+
+.flight-result-item:hover {
+  background: var(--md-surface-container-highest);
+}
+
+.flight-result-badge {
+  font: var(--md-typescale-label-small);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--md-shape-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 72px;
+  text-align: center;
+}
+
+.badge-enroute {
+  background: rgba(0, 204, 68, 0.2);
+  color: var(--md-primary);
+}
+
+.badge-upcoming {
+  background: rgba(66, 165, 245, 0.2);
+  color: #42A5F5;
+}
+
+.badge-past {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--md-on-surface-variant);
+}
+
+.theme-light .badge-past {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.flight-result-route {
+  font-weight: 600;
+  flex: 1;
+}
+
+.flight-result-time {
+  color: var(--md-on-surface-variant);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 /* Flight Plan Timeline Scrubber */
