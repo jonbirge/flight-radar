@@ -117,7 +117,10 @@
   </div>
 
   <!-- Search -->
-  <input type="text" id="flight-search" placeholder="Flight # (e.g. UAL123)" autocomplete="off" spellcheck="false">
+  <div id="flight-search-wrap">
+    <input type="text" id="flight-search" placeholder="Flight # (e.g. UAL123)" autocomplete="off" spellcheck="false">
+    <div id="flight-results" class="hidden"></div>
+  </div>
 
   <!-- Selected aircraft info panel -->
   <div id="aircraft-info" class="hidden">
