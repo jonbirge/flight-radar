@@ -92,6 +92,8 @@ function showAircraftInfo(icao) {
 
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
+  const trackBtn = document.getElementById('btn-track');
+  if (trackBtn) { trackBtn.classList.remove('hidden'); trackBtn.disabled = false; }
 
   document.getElementById('info-callsign').textContent = s.callsign || icao;
 
@@ -763,6 +765,15 @@ function showFlightPlanInfo(flight) {
   panel.classList.remove('hidden');
   panel.classList.remove('collapsed');
 
+  // Show buttons but disable Track (no live aircraft to track)
+  const infoButtons = document.getElementById('info-buttons');
+  if (infoButtons) infoButtons.classList.remove('hidden');
+  const trackBtn = document.getElementById('btn-track');
+  if (trackBtn) { trackBtn.classList.remove('hidden'); trackBtn.disabled = true; }
+
+  // Store route flight for potential later use if aircraft appears
+  selectedRouteFlight = flight;
+
   const ident = flight.ident || flight.ident_iata || '---';
   document.getElementById('info-callsign').textContent = ident;
 
@@ -782,9 +793,11 @@ function showFlightPlanInfo(flight) {
   const filedAlt = flight.filed_altitude != null
     ? 'FL' + flight.filed_altitude
     : '---';
-  const route = flight.route || '---';
-  const depTime = flight.scheduled_out || flight.actual_out || '---';
-  const arrTime = flight.scheduled_in || flight.estimated_in || '---';
+  const depStr = flight.actual_out || flight.scheduled_out;
+  const arrStr = flight.estimated_in || flight.scheduled_in;
+  const fmtOpts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
+  const depTime = depStr ? new Date(depStr).toLocaleString('en-US', fmtOpts) : '---';
+  const arrTime = arrStr ? new Date(arrStr).toLocaleString('en-US', fmtOpts) : '---';
 
   document.getElementById('info-details').innerHTML = `
     <div><span class="label">ROUTE</span><span>${originCode} → ${destCode}</span></div>
@@ -796,7 +809,6 @@ function showFlightPlanInfo(flight) {
     <div><span class="label">GND SPD</span><span>${gs}</span></div>
     <div><span class="label">DEPART</span><span>${depTime}</span></div>
     <div><span class="label">ARRIVE</span><span>${arrTime}</span></div>
-    <div><span class="label">FILED</span><span style="font-size:11px;word-break:break-all">${route}</span></div>
   `;
 }
 
@@ -871,14 +883,33 @@ function hideFlightResults() {
   if (panel) panel.classList.add('hidden');
 }
 
+// Try to find a live aircraft for the given flight plan result.
+// Skips the OpenSky API entirely for scheduled flights (not yet airborne).
+async function searchForLiveAircraft(result) {
+  const isScheduled = result.flight.status === 'Scheduled'
+    || (result.flight.progress_percent != null && result.flight.progress_percent === 0);
+
+  if (isScheduled) {
+    console.log(`[FlightPlan] Flight is scheduled — skipping OpenSky lookup`);
+    showFlightPlanInfo(result.flight);
+    return;
+  }
+
+  console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
+  if (!selectSearchedAircraft()) {
+    await findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+    // No live aircraft found — show flight plan info panel instead
+    if (!selectedIcao) {
+      showFlightPlanInfo(result.flight);
+    }
+  }
+}
+
 // Called when the user selects a specific flight from the results panel.
 async function selectFlightFromResults(flight, flightData) {
   const result = displayFlightPlanRoute(flightData, flight);
   if (result) {
-    console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
-    if (!selectSearchedAircraft()) {
-      findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
-    }
+    await searchForLiveAircraft(result);
   }
 }
 
@@ -914,10 +945,7 @@ async function searchFlightPlan(ident) {
     if (data.flights.length === 1) {
       const result = displayFlightPlanRoute(data);
       if (result) {
-        console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
-        if (!selectSearchedAircraft()) {
-          findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
-        }
+        await searchForLiveAircraft(result);
       }
     } else {
       showFlightResults(data.flights, data);
