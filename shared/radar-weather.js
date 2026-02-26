@@ -550,7 +550,7 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
   let count = 0;
   for (const resp of responses) {
     if (!resp) continue;
-    const turbFeatures = ((resp).features || []).filter(f => {
+    const turbFeatures = (resp.features || []).filter(f => {
       const hazard = (f.properties || {}).hazard || '';
       return hazard === 'TURB-HI' || hazard === 'TURB-LO';
     });
