@@ -111,6 +111,15 @@ initSettingsPanel({
       originalSettings = {};
       populateSettingsForm(container, DEFAULT_SETTINGS);
       applySettingsTheme(DEFAULT_SETTINGS);
+      window.settingsAPI.resizeToContent();
     }
   },
 });
+
+// Resize Electron window when credentials section is toggled
+const credDetails = container.querySelector('#cred-details');
+if (credDetails) {
+  credDetails.addEventListener('toggle', () => {
+    window.settingsAPI.resizeToContent();
+  });
+}

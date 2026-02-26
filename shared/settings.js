@@ -134,6 +134,39 @@ const SETTINGS_CSS = `
   background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.04)));
 }
 
+.settings-cred-details {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.settings-cred-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
+  font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
+  user-select: none;
+}
+.settings-cred-details > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-cred-details > summary::before {
+  content: '\\25B6';
+  font-size: 10px;
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+.settings-cred-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+.settings-cred-details > .settings-cred-body {
+  padding-top: 10px;
+}
+
 .settings-seg-group {
   display: inline-flex;
   border-radius: 9999px;
@@ -401,27 +434,31 @@ function createSettingsFormHTML() {
 
     <div class="settings-section" style="border-bottom:none;border-top:1px solid var(--md-outline-variant, var(--settings-border, #ccc));">
       <div class="settings-cred-section" id="cred-drop-zone">
-        <div class="settings-label">API credentials</div>
-        <div class="settings-hint">
-          Drag &amp; drop a <code>creds.json</code> or <code>credentials.json</code> file here, or enter manually.
-        </div>
-        <div class="settings-color-label" style="margin-top:4px;">OpenSky Network</div>
-        <div class="settings-row" style="margin-bottom:6px">
-          <span class="settings-field-label">Client ID</span>
-          <input type="text" id="set-client-id" class="settings-cred-input"
-                 placeholder="client_id" spellcheck="false" autocomplete="off">
-        </div>
-        <div class="settings-row" style="margin-bottom:10px">
-          <span class="settings-field-label">Secret</span>
-          <input type="text" id="set-client-secret" class="settings-cred-input"
-                 placeholder="client_secret" autocomplete="off">
-        </div>
-        <div class="settings-color-label">FlightAware AeroAPI</div>
-        <div class="settings-row">
-          <span class="settings-field-label">API Key</span>
-          <input type="text" id="set-fa-api-key" class="settings-cred-input"
-                 placeholder="flightaware_api_key" spellcheck="false" autocomplete="off">
-        </div>
+        <details class="settings-cred-details" id="cred-details">
+          <summary>API credentials</summary>
+          <div class="settings-cred-body">
+            <div class="settings-hint">
+              Drag &amp; drop a <code>creds.json</code> or <code>credentials.json</code> file here, or enter manually.
+            </div>
+            <div class="settings-color-label" style="margin-top:4px;">OpenSky Network</div>
+            <div class="settings-row" style="margin-bottom:6px">
+              <span class="settings-field-label">Client ID</span>
+              <input type="text" id="set-client-id" class="settings-cred-input"
+                     placeholder="client_id" spellcheck="false" autocomplete="off">
+            </div>
+            <div class="settings-row" style="margin-bottom:10px">
+              <span class="settings-field-label">Secret</span>
+              <input type="text" id="set-client-secret" class="settings-cred-input"
+                     placeholder="client_secret" autocomplete="off">
+            </div>
+            <div class="settings-color-label">FlightAware AeroAPI</div>
+            <div class="settings-row">
+              <span class="settings-field-label">API Key</span>
+              <input type="text" id="set-fa-api-key" class="settings-cred-input"
+                     placeholder="flightaware_api_key" spellcheck="false" autocomplete="off">
+            </div>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -534,6 +571,10 @@ function populateSettingsForm(container, settings) {
   container.querySelector('#set-client-secret').value = s.openskyClientSecret || '';
   const faKeyEl = container.querySelector('#set-fa-api-key');
   if (faKeyEl) faKeyEl.value = s.flightawareApiKey || '';
+
+  // Credentials collapsed/expanded
+  const credDetails = container.querySelector('#cred-details');
+  if (credDetails) credDetails.open = !!s.credentialsExpanded;
 }
 
 // ============================================================
@@ -586,6 +627,7 @@ function initSettingsPanel(options) {
   const clientId = container.querySelector('#set-client-id');
   const clientSecret = container.querySelector('#set-client-secret');
   const faApiKey = container.querySelector('#set-fa-api-key');
+  const credDetails = container.querySelector('#cred-details');
 
   // Current form state
   let formState = { ...DEFAULT_SETTINGS };
@@ -615,6 +657,7 @@ function initSettingsPanel(options) {
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
       flightawareApiKey: faApiKey ? faApiKey.value.trim() : '',
+      credentialsExpanded: credDetails ? credDetails.open : false,
     };
   }
 
@@ -761,6 +804,11 @@ function initSettingsPanel(options) {
   clientId.addEventListener('change', broadcast);
   clientSecret.addEventListener('change', broadcast);
   if (faApiKey) faApiKey.addEventListener('change', broadcast);
+
+  // --- Credentials collapse/expand ---
+  if (credDetails) {
+    credDetails.addEventListener('toggle', broadcast);
+  }
 
   // --- Footer buttons ---
   const btnDone = container.querySelector('#btn-settings-done');

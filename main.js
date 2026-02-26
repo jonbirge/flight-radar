@@ -413,6 +413,18 @@ ipcMain.handle('open-settings-window', () => {
   return true;
 });
 
+// IPC: resize settings window to fit content
+ipcMain.handle('resize-settings', () => {
+  if (!settingsWindow || settingsWindow.isDestroyed()) return;
+  settingsWindow.webContents.executeJavaScript(
+    '(() => { document.body.style.height = "auto"; document.body.style.overflow = "hidden"; return JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight }); })()'
+  ).then(json => {
+    if (!settingsWindow || settingsWindow.isDestroyed()) return;
+    const { width, height } = JSON.parse(json);
+    settingsWindow.setContentSize(Math.max(width, 700), height);
+  }).catch(() => {});
+});
+
 // IPC: update settings live — save and notify renderer, but keep window open
 ipcMain.handle('update-settings', (event, settings) => {
   saveSettings(settings);

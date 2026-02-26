@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS = {
   turbulenceLevel: 'none',
   weatherOverlayOpacity: 25,
   rotationSpeed: 6,
+  credentialsExpanded: false,
   openskyClientId: '',
   openskyClientSecret: '',
   flightawareApiKey: '',
