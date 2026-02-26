@@ -1,9 +1,9 @@
 // Shared aircraft icon generation
-// Canvas-based symbols used as Cesium billboards
+// Canvas-rendered symbols returned as data URLs for Cesium billboards
 
 'use strict';
 
-// Icon caches: avoid creating new canvas elements (and GPU texture uploads) on every render
+// Icon caches: store data URL strings to avoid redundant canvas rendering and GPU texture issues
 const _iconCache = { aircraft: new Map(), dot: new Map(), navaid: new Map(), pirep: new Map() };
 
 function clearIconCaches() {
@@ -44,9 +44,10 @@ function createAircraftIcon(heading = 0, selected = false, colorOverride = null)
   ctx.lineWidth = 0.5;
   ctx.stroke();
 
+  const dataUrl = canvas.toDataURL();
   if (_iconCache.aircraft.size > 2000) _iconCache.aircraft.clear();
-  _iconCache.aircraft.set(key, canvas);
-  return canvas;
+  _iconCache.aircraft.set(key, dataUrl);
+  return dataUrl;
 }
 
 // Create a triangle icon for navaids (VOR, NDB, etc.)
@@ -75,8 +76,9 @@ function createNavaidIcon(size, cssColor) {
 
   ctx.fillStyle = cssColor;
   ctx.fill();
-  _iconCache.navaid.set(key, canvas);
-  return canvas;
+  const dataUrl = canvas.toDataURL();
+  _iconCache.navaid.set(key, dataUrl);
+  return dataUrl;
 }
 
 // Create a simple dot icon for zoomed-out LOD
@@ -97,9 +99,10 @@ function createDotIcon(size, bright = false, colorOverride = null) {
   ctx.arc(res / 2, res / 2, res / 2, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
+  const dataUrl = canvas.toDataURL();
   if (_iconCache.dot.size > 500) _iconCache.dot.clear();
-  _iconCache.dot.set(key, canvas);
-  return canvas;
+  _iconCache.dot.set(key, dataUrl);
+  return dataUrl;
 }
 
 // Standard turbulence symbology for PIREPs
@@ -167,7 +170,8 @@ function createPirepIcon(intensity, cssColor) {
     }
   }
 
+  const dataUrl = canvas.toDataURL();
   if (_iconCache.pirep.size > 200) _iconCache.pirep.clear();
-  _iconCache.pirep.set(key, canvas);
-  return canvas;
+  _iconCache.pirep.set(key, dataUrl);
+  return dataUrl;
 }
