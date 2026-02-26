@@ -291,9 +291,8 @@ function updateOrCreateTimelineMarker(position) {
 // ============================================================
 
 function filterWeatherByTime(timeMs) {
-  // Filter PIREPs: hide if observation time is more than 1 hour before slider time
-  // or if observation time is after slider time (report hasn't happened yet)
-  const pirepMaxAge = 60 * 60 * 1000; // 1 hour in ms
+  // Filter PIREPs: visible from observation time until PIREP_MAX_AGE_MS after.
+  // Hide if the report hasn't happened yet or has expired.
   for (const entity of pirepEntities) {
     const p = entity.properties;
     if (!p || !p.obsTimeISO) { entity.show = true; continue; }
@@ -301,8 +300,7 @@ function filterWeatherByTime(timeMs) {
     if (!isoStr) { entity.show = true; continue; }
     const obsMs = new Date(isoStr).getTime();
     if (isNaN(obsMs)) { entity.show = true; continue; }
-    // Hide PIREPs that haven't been reported yet or are too old for the slider time
-    entity.show = (obsMs <= timeMs) && (timeMs - obsMs <= pirepMaxAge);
+    entity.show = (obsMs <= timeMs) && (timeMs - obsMs <= PIREP_MAX_AGE_MS);
   }
 
   // Filter SIGMETs: hide if slider time is outside validTimeFrom - validTimeTo

@@ -3,6 +3,11 @@
 
 'use strict';
 
+// Maximum age of PIREPs to display (both live and scrubbing).
+// In live mode, PIREPs older than this are discarded at fetch time.
+// In scrubbing mode, PIREPs are visible from observation time until this duration after.
+const PIREP_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours
+
 // ============================================================
 // GOES Satellite IR Overlay
 // ============================================================
@@ -417,17 +422,27 @@ function pirepCssColor(intensity) {
 
 async function fetchPireps() {
   console.log('[Weather] Fetching PIREPs...');
+  const pirepMaxAgeHours = Math.ceil(PIREP_MAX_AGE_MS / (60 * 60 * 1000));
   try {
-    const resp = await fetch(awcUrl('pirep?format=geojson&type=turb&age=12&bbox=15,-180,75,-50')).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; });
+    const resp = await fetch(awcUrl(`pirep?format=geojson&type=turb&age=${pirepMaxAgeHours}&bbox=15,-180,75,-50`)).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; });
     if (resp && resp.ok) {
       const data = await resp.json();
       console.log(`[Weather] PIREPs response: ${(data.features || []).length} total reports`);
       let pirepCount = 0;
+      const now = Date.now();
       if (data.features) {
         for (const f of data.features) {
           const props = f.properties || {};
           const coords = f.geometry && f.geometry.coordinates;
           if (!coords || coords.length < 2) continue;
+
+          // Skip PIREPs older than the max age
+          const obsTimeISO = props.obsTime || null;
+          if (obsTimeISO) {
+            const obsMs = new Date(obsTimeISO).getTime();
+            if (!isNaN(obsMs) && now - obsMs > PIREP_MAX_AGE_MS) continue;
+          }
+
           const lon = coords[0], lat = coords[1];
           const alt = (props.fltlvl || 0) * 100 * 0.3048; // FL to meters
           const intensity = props.tbInt1 || 'LGT';
@@ -435,7 +450,6 @@ async function fetchPireps() {
           const icon = createPirepIcon(intensity, cssColor);
 
           const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 25) + 'Z' : '?';
-          const obsTimeISO = props.obsTime || null;
           const camH = viewer.camera.positionCartographic ? viewer.camera.positionCartographic.height : 1e7;
           const pirepDisplayCond = acDisplayCond || new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camH));
           const entity = viewer.entities.add({
