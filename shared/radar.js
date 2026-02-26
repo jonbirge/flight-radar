@@ -82,6 +82,7 @@ async function loadAndApplySettings() {
       }
       CONFIG.turbulenceLevel = CONFIG.turbForecastEnabled ? computeTurbLevel() : 'none';
       CONFIG.savedView = saved.savedView !== undefined ? saved.savedView : DEFAULT_SETTINGS.savedView;
+      CONFIG.searchHistory = Array.isArray(saved.searchHistory) ? saved.searchHistory : DEFAULT_SETTINGS.searchHistory;
       await applyTheme(); // adds turb + radar layers on top if enabled
       // Apply weather overlay opacity to any existing layers
       const wxAlpha = CONFIG.weatherOverlayOpacity / 100;
