@@ -379,13 +379,15 @@ function positionTimeline() {
   // If controls panel is collapsed or absent, centering is fine
   if (!controls || controls.classList.contains('collapsed')) return;
 
-  const controlsRect = controls.getBoundingClientRect();
+  // Use the toggle tab's right edge if present, otherwise the controls panel's
+  const toggle = document.getElementById('controls-toggle');
+  const edgeRect = (toggle || controls).getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
   const gap = 12;
 
-  // If the centered timeline overlaps the controls panel, shift it right
-  if (panelRect.left < controlsRect.right + gap) {
-    panel.style.left = (controlsRect.right + gap) + 'px';
+  // If the centered timeline overlaps the controls + toggle tab, shift it right
+  if (panelRect.left < edgeRect.right + gap) {
+    panel.style.left = (edgeRect.right + gap) + 'px';
     panel.style.transform = 'none';
   }
 }
