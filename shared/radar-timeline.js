@@ -109,6 +109,7 @@ function showTimeline(flight) {
   }
 
   panel.classList.remove('hidden');
+  positionTimeline();
 
   // Start in live mode — weather overlays refresh normally
   enterLiveMode();
@@ -360,4 +361,40 @@ if (_tlLiveBtn) {
     if (!_timelineFlight) return;
     enterLiveMode();
   });
+}
+
+// ============================================================
+// Timeline Panel Positioning (avoid overlapping controls)
+// ============================================================
+
+function positionTimeline() {
+  const panel = document.getElementById('timeline-panel');
+  const controls = document.getElementById('controls');
+  if (!panel || panel.classList.contains('hidden')) return;
+
+  // Reset to centered default so we can measure the natural position
+  panel.style.left = '';
+  panel.style.transform = '';
+
+  // If controls panel is collapsed or absent, centering is fine
+  if (!controls || controls.classList.contains('collapsed')) return;
+
+  const controlsRect = controls.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const gap = 12;
+
+  // If the centered timeline overlaps the controls panel, shift it right
+  if (panelRect.left < controlsRect.right + gap) {
+    panel.style.left = (controlsRect.right + gap) + 'px';
+    panel.style.transform = 'none';
+  }
+}
+
+// Reposition timeline when window resizes
+window.addEventListener('resize', positionTimeline);
+
+// Reposition timeline when controls panel finishes collapsing/expanding
+const _tlControls = document.getElementById('controls');
+if (_tlControls) {
+  _tlControls.addEventListener('transitionend', positionTimeline);
 }
