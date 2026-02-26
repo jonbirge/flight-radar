@@ -383,7 +383,7 @@ function positionTimeline() {
   const toggle = document.getElementById('controls-toggle');
   const edgeRect = (toggle || controls).getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
-  const gap = 12;
+  const gap = 20;
 
   // If the centered timeline overlaps the controls + toggle tab, shift it right
   if (panelRect.left < edgeRect.right + gap) {
