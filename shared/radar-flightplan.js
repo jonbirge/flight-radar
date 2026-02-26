@@ -87,8 +87,9 @@ function showAircraftInfo(icao) {
 
   const s = ac.state;
   const panel = document.getElementById('aircraft-info');
+  const wasHidden = panel.classList.contains('hidden');
   panel.classList.remove('hidden');
-  panel.classList.remove('collapsed');
+  if (wasHidden) panel.classList.remove('collapsed');
 
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
