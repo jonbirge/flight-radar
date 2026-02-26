@@ -545,77 +545,112 @@ async function fetchSigmets() {
   }
 }
 
-async function fetchAirmets() {
-  console.log('[Weather] Fetching G-AIRMETs...');
-  try {
-    // G-AIRMETs are 3-hour snapshots at forecast hours 0, 3, 6, 9, 12.
-    // In live mode only fetch the current snapshot (hour 0) to avoid showing
-    // expired or not-yet-valid AIRMETs. When actively scrubbing the timeline,
-    // fetch all snapshots so scrubbing has full time coverage.
-    const scrubbing = typeof _timelineLive !== 'undefined' && !_timelineLive;
-    const forecastHours = scrubbing ? [0, 3, 6, 9, 12] : [0];
-    const responses = await Promise.all(forecastHours.map(fh =>
-      fetch(awcUrl(`gairmet?format=geojson&fore=${fh}`))
-        .catch(err => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; })
-    ));
-    let count = 0;
-    for (const resp of responses) {
-      if (!resp || !resp.ok) continue;
-      const data = await resp.json();
-      const turbFeatures = (data.features || []).filter(f => {
-        const hazard = (f.properties || {}).hazard || '';
-        return hazard === 'TURB-HI' || hazard === 'TURB-LO';
-      });
-      for (const f of turbFeatures) {
-        const geom = f.geometry;
-        if (!geom) continue;
-        const ap = f.properties || {};
-        // Each snapshot is valid from validTime for 3 hours (until the next snapshot)
-        const validFrom = ap.validTime || null;
-        let validTo = null;
-        if (validFrom) {
-          const fromMs = new Date(validFrom).getTime();
-          if (!isNaN(fromMs)) validTo = new Date(fromMs + 3 * 60 * 60 * 1000).toISOString();
-        }
-        const polygons = geom.type === 'Polygon' ? [geom.coordinates]
-          : geom.type === 'MultiPolygon' ? geom.coordinates : [];
-        for (const rings of polygons) {
-          if (!rings || !rings[0] || rings[0].length < 3) continue;
-          const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
-          const entity = viewer.entities.add({
-            id: `turb-airmet-${count}`,
-            polygon: {
-              hierarchy: new Cesium.PolygonHierarchy(positions),
-              material: new Cesium.Color(1.0, 0.5, 0.0, 0.15),
-              outline: true,
-              outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
-              outlineWidth: 1,
-              height: 0,
-              classificationType: Cesium.ClassificationType.BOTH,
-            },
-            properties: {
-              turbType: 'G-AIRMET',
-              hazard: ap.hazard || '?',
-              severity: ap.severity || '?',
-              base: ap.base || '?',
-              top: ap.top || '?',
-              validFrom: validFrom || '?',
-              validTo: validTo || '?',
-            },
-          });
-          airmetEntities.push(entity);
-          count++;
-        }
+// Internal helper: create AIRMET entities from fetched responses and push into the given array.
+function _buildAirmetEntities(responses, targetArray, idPrefix) {
+  let count = 0;
+  for (const resp of responses) {
+    if (!resp) continue;
+    const turbFeatures = ((resp).features || []).filter(f => {
+      const hazard = (f.properties || {}).hazard || '';
+      return hazard === 'TURB-HI' || hazard === 'TURB-LO';
+    });
+    for (const f of turbFeatures) {
+      const geom = f.geometry;
+      if (!geom) continue;
+      const ap = f.properties || {};
+      // Each snapshot is valid from validTime for 3 hours (until the next snapshot)
+      const validFrom = ap.validTime || null;
+      let validTo = null;
+      if (validFrom) {
+        const fromMs = new Date(validFrom).getTime();
+        if (!isNaN(fromMs)) validTo = new Date(fromMs + 3 * 60 * 60 * 1000).toISOString();
+      }
+      const polygons = geom.type === 'Polygon' ? [geom.coordinates]
+        : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+      for (const rings of polygons) {
+        if (!rings || !rings[0] || rings[0].length < 3) continue;
+        const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
+        const entity = viewer.entities.add({
+          id: `${idPrefix}-${count}`,
+          polygon: {
+            hierarchy: new Cesium.PolygonHierarchy(positions),
+            material: new Cesium.Color(1.0, 0.5, 0.0, 0.15),
+            outline: true,
+            outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
+            outlineWidth: 1,
+            height: 0,
+            classificationType: Cesium.ClassificationType.BOTH,
+          },
+          properties: {
+            turbType: 'G-AIRMET',
+            hazard: ap.hazard || '?',
+            severity: ap.severity || '?',
+            base: ap.base || '?',
+            top: ap.top || '?',
+            validFrom: validFrom || '?',
+            validTo: validTo || '?',
+          },
+        });
+        targetArray.push(entity);
+        count++;
       }
     }
-    console.log(`[Weather] Added ${count} G-AIRMET polygons across ${forecastHours.length} forecast snapshots`);
-    // If scrubbing, immediately filter new entities to the current timeline position
+  }
+  return count;
+}
+
+// Fetch only the current G-AIRMET snapshot (forecast hour 0) for live display.
+async function fetchAirmets() {
+  console.log('[Weather] Fetching G-AIRMETs (live, hour 0)...');
+  try {
+    const resp = await fetch(awcUrl('gairmet?format=geojson&fore=0'))
+      .catch(err => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; });
+    if (!resp || !resp.ok) return;
+    const data = await resp.json();
+    const count = _buildAirmetEntities([data], airmetEntities, 'turb-airmet');
+    console.log(`[Weather] Added ${count} G-AIRMET polygons (live, hour 0)`);
+  } catch (err) {
+    console.warn('[Weather] Error fetching G-AIRMETs:', err);
+  }
+}
+
+// Fetch all G-AIRMET forecast snapshots (hours 0,3,6,9,12) into the scrubbing array.
+// Called when entering timeline scrubbing mode so scrubbing has full time coverage.
+// Live AIRMET entities are hidden while scrub entities are active.
+async function fetchAirmetsForScrubbing() {
+  console.log('[Weather] Fetching G-AIRMETs for scrubbing (hours 0,3,6,9,12)...');
+  removeScrubAirmetEntities();
+  try {
+    const forecastHours = [0, 3, 6, 9, 12];
+    const responses = await Promise.all(forecastHours.map(fh =>
+      fetch(awcUrl(`gairmet?format=geojson&fore=${fh}`))
+        .catch(err => { console.warn('[Weather] G-AIRMET scrub fetch failed:', err.message); return null; })
+    ));
+    const jsonResults = [];
+    for (const resp of responses) {
+      if (resp && resp.ok) jsonResults.push(await resp.json());
+    }
+    // Hide live AIRMET entities while scrub entities are shown
+    for (const entity of airmetEntities) entity.show = false;
+    const count = _buildAirmetEntities(jsonResults, _scrubAirmetEntities, 'turb-airmet-scrub');
+    console.log(`[Weather] Added ${count} G-AIRMET scrub polygons across ${forecastHours.length} forecast snapshots`);
+    // Immediately filter to current timeline position
     if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
       filterWeatherByTime(timelineTime);
     }
   } catch (err) {
-    console.warn('[Weather] Error fetching G-AIRMETs:', err);
+    console.warn('[Weather] Error fetching G-AIRMETs for scrubbing:', err);
   }
+}
+
+// Remove scrubbing AIRMET entities and restore live AIRMET visibility.
+function removeScrubAirmetEntities() {
+  for (const entity of _scrubAirmetEntities) {
+    viewer.entities.remove(entity);
+  }
+  _scrubAirmetEntities.length = 0;
+  // Restore live AIRMET entity visibility
+  for (const entity of airmetEntities) entity.show = true;
 }
 
 function enablePireps() {
@@ -673,6 +708,7 @@ function enableAirmets() {
 
 function disableAirmets() {
   removeAirmetEntities();
+  removeScrubAirmetEntities();
   CONFIG.airmetsEnabled = false;
   if (airmetRefreshTimer) {
     clearInterval(airmetRefreshTimer);
