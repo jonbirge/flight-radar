@@ -123,7 +123,11 @@ function showAircraftInfo(icao) {
   }
 
   // Stop tracking when selecting a different aircraft
-  if (prevSelected !== icao) stopTracking();
+  if (prevSelected !== icao) {
+    stopTracking();
+    // Apply altitude-based weather filter for newly selected aircraft
+    updateLiveAltitudeFilter(true);
+  }
 
   // Re-render to apply highlight to newly selected and dim previously selected
   if (prevSelected !== icao) {
@@ -264,6 +268,8 @@ function hideAircraftInfo() {
   }
   // Stop tick if nothing needs it (no selected aircraft, display off)
   if (!CONFIG.aircraftEnabled) stopTick();
+  // Clear altitude-based weather filter (no aircraft selected → show all)
+  updateLiveAltitudeFilter();
 }
 
 document.getElementById('info-close').addEventListener('click', () => {
