@@ -569,17 +569,10 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       altCesiumColor = Cesium.Color.fromBytes(altRgb[0], altRgb[1], altRgb[2], 255);
     }
 
-    // Icon type: dots in 3D or when zoomed out; arrows in 2D close-up.
-    // Canvas rendered at fixed resolution (cache-friendly); billboard
-    // width/height handles on-screen sizing via computeDisplaySize.
-    const use3dDot = !is2D && !useDot;
-    const usesDot = useDot || use3dDot;
-    const iconImage = usesDot
-      ? createDotIcon(8, isSelected, altColor)
-      : createAircraftIcon(s.heading || 0, isSelected, altColor);
-    const iconKey = usesDot
-      ? `D:${isSelected}:${altColor || ''}`
-      : `A:${Math.round((s.heading||0)/5)*5}:${isSelected}:${altColor || ''}`;
+    // Always use dots in both 2D and 3D; billboard width/height
+    // handles on-screen sizing via computeDisplaySize.
+    const iconImage = createDotIcon(8, isSelected, altColor);
+    const iconKey = `D:${isSelected}:${altColor || ''}`;
     const iconSize = computeDisplaySize(camHeight);
     const labelColor = altCesiumColor || (isSelected
       ? Cesium.Color.fromCssColorString(CONFIG.phosphorSelect)
