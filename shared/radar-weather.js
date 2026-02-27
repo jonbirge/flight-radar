@@ -837,8 +837,8 @@ function getSelectedAircraftFL() {
   if (!selectedIcao) return null;
   const ac = aircraft.get(selectedIcao);
   if (!ac) return null;
-  const altMeters = ac.lastKnownAlt || (ac.state && ac.state.altitude) || 0;
-  if (altMeters <= 0) return null;
+  const altMeters = ac.lastKnownAlt || (ac.state && ac.state.altitude);
+  if (!altMeters || altMeters <= 0) return null;
   return Math.round(altMeters / 0.3048 / 100);
 }
 

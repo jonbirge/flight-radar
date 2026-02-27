@@ -312,11 +312,8 @@ function filterWeatherByTime(timeMs) {
 function restoreWeatherVisibility() {
   // Clear scrubbing AIRMET entities and restore live ones
   removeScrubAirmetEntities();
-  // Reset live filter threshold and re-apply: if a flight is selected, apply
-  // altitude filter; otherwise show all weather entities.
-  _lastLiveFilterFL = null;
-  const altFL = getSelectedAircraftFL();
-  filterAllWeather(null, altFL);
+  // Show all weather entities, then re-apply altitude filter if a flight is selected
+  filterAllWeather(null, getSelectedAircraftFL());
 }
 
 // ============================================================
