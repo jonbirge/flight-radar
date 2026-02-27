@@ -370,6 +370,7 @@ function updateAircraft(states) {
   if (selectedIcao && aircraft.has(selectedIcao)) {
     showAircraftInfo(selectedIcao);
   } else if (selectedIcao && !aircraft.has(selectedIcao)) {
+    clearFlightPlanRoute();
     hideAircraftInfo();
   }
 }
