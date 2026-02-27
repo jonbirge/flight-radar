@@ -339,6 +339,7 @@ async function addTurbLayer(dateSecs) {
 
   // Capture generation — if another add/remove happens while we await, bail out
   const gen = ++_turbAddGen;
+  const oldLayer = turbLayer;
 
   // Build ordered list of levels to try: primary first, then nearest alternatives
   const levelsToTry = [primaryLevel];
@@ -364,6 +365,10 @@ async function addTurbLayer(dateSecs) {
         turbLayer = viewer.imageryLayers.addImageryProvider(provider);
       }
       turbLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+      // Remove old layer AFTER adding new one to avoid flash
+      if (oldLayer) {
+        viewer.imageryLayers.remove(oldLayer);
+      }
       if (level !== primaryLevel) {
         console.log(`[Weather] GTG fallback: used level ${level} instead of ${primaryLevel}`);
       }
@@ -793,7 +798,6 @@ function refreshTurbForecast() {
   if (CONFIG.turbulenceLevel === 'none') return;
   // During timeline scrubbing with preloaded cache, skip network refresh
   if (_turbTimelineDate != null && _turbImageCache.size > 0) return;
-  removeTurbLayer();
   // Respect timeline scrub position if active
   const dateSecs = _turbTimelineDate != null ? _turbTimelineDate : undefined;
   addTurbLayer(dateSecs);
@@ -878,8 +882,7 @@ function updateTurbForTimelineTime(timeMs) {
   // Try preloaded cache first (instant)
   if (applyTurbFromCache(bestDate)) return;
 
-  // Cache miss — fall back to network fetch
-  removeTurbLayer();
+  // Cache miss — fall back to network fetch (addTurbLayer handles old layer removal)
   addTurbLayer(bestDate);
 }
 
@@ -888,11 +891,11 @@ function resetTurbToLive() {
   if (_turbTimelineDate != null) {
     console.log('[Weather] Timeline: restoring GTG to live');
     _turbTimelineDate = null;
-    // Always remove the scrubbed/cached layer
-    removeTurbLayer();
-    // Only re-add the live layer if turb is still enabled
+    // Re-add live layer (handles old layer removal) or just remove if disabled
     if (CONFIG.turbForecastEnabled) {
       addTurbLayer();
+    } else {
+      removeTurbLayer();
     }
   }
   _turbTimelineDate = null;
@@ -965,7 +968,8 @@ function applyTurbFromCache(dateSecs) {
   const dataUrl = _turbImageCache.get(dateSecs);
   if (!dataUrl) return false;
 
-  removeTurbLayer();
+  const oldLayer = turbLayer;
+  _turbAddGen++; // Cancel any in-flight async addTurbLayer()
   const provider = createTurbProviderFromDataUrl(dataUrl);
   if (radarLayer) {
     const radarIdx = viewer.imageryLayers.indexOf(radarLayer);
@@ -974,5 +978,9 @@ function applyTurbFromCache(dateSecs) {
     turbLayer = viewer.imageryLayers.addImageryProvider(provider);
   }
   turbLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+  // Remove old layer AFTER adding new one to avoid flash
+  if (oldLayer) {
+    viewer.imageryLayers.remove(oldLayer);
+  }
   return true;
 }
