@@ -942,6 +942,9 @@ async function searchFlightPlan(ident) {
 
     console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
 
+    // Save successful search to history
+    addSearchHistory(ident.trim().toUpperCase());
+
     // If only one result, select it immediately; otherwise let the user pick.
     if (data.flights.length === 1) {
       const result = displayFlightPlanRoute(data);
@@ -987,6 +990,82 @@ document.addEventListener('click', (e) => {
     hideFlightResults();
   }
 });
+
+// ============================================================
+// Search History
+// ============================================================
+
+const MAX_SEARCH_HISTORY = 10;
+
+async function addSearchHistory(ident) {
+  if (!ident || !window.flightAPI) return;
+  try {
+    const saved = await window.flightAPI.getSettings();
+    let history = Array.isArray(saved.searchHistory) ? saved.searchHistory : [];
+    // Remove duplicate if present, then prepend
+    history = history.filter(h => h !== ident);
+    history.unshift(ident);
+    // Keep only the most recent entries
+    if (history.length > MAX_SEARCH_HISTORY) history = history.slice(0, MAX_SEARCH_HISTORY);
+    saved.searchHistory = history;
+    await window.flightAPI.saveSettings(saved);
+    console.log(`[FlightPlan] Search history updated: ${history.join(', ')}`);
+  } catch (err) {
+    console.warn('[FlightPlan] Could not save search history:', err);
+  }
+}
+
+async function showSearchHistory() {
+  const panel = document.getElementById('flight-results');
+  if (!panel || !window.flightAPI) return;
+
+  try {
+    const saved = await window.flightAPI.getSettings();
+    const history = Array.isArray(saved.searchHistory) ? saved.searchHistory : [];
+
+    panel.innerHTML = '';
+
+    if (history.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'search-history-empty';
+      empty.textContent = 'No recent searches';
+      panel.appendChild(empty);
+    } else {
+      for (const ident of history) {
+        const item = document.createElement('div');
+        item.className = 'search-history-item';
+        item.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7a6.97 6.97 0 0 1-4.95-2.05l-1.41 1.41A8.97 8.97 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+          <span class="search-history-ident">${ident}</span>
+        `;
+        item.addEventListener('click', () => {
+          hideFlightResults();
+          if (flightSearchInput) flightSearchInput.value = ident;
+          searchFlightPlan(ident);
+        });
+        panel.appendChild(item);
+      }
+    }
+
+    panel.classList.remove('hidden');
+  } catch (err) {
+    console.warn('[FlightPlan] Could not load search history:', err);
+  }
+}
+
+// Wire up search history button
+const searchHistoryBtn = document.getElementById('btn-search-history');
+if (searchHistoryBtn) {
+  searchHistoryBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = document.getElementById('flight-results');
+    if (panel && !panel.classList.contains('hidden')) {
+      hideFlightResults();
+    } else {
+      showSearchHistory();
+    }
+  });
+}
 
 function stopTracking() {
   if (!isTracking) return;
