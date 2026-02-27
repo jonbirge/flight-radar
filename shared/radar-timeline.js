@@ -123,6 +123,7 @@ function hideTimeline() {
   const panel = document.getElementById('timeline-panel');
   if (panel) panel.classList.add('hidden');
   stopLiveTimer();
+  _timelineLive = true; // reset to live mode before cleanup
   resetTimelineToLive();
   resumeWeatherRefresh();
   clearTurbCache();
@@ -167,6 +168,8 @@ function enterScrubbingMode() {
   if (btn) btn.classList.remove('active');
   stopLiveTimer();
   pauseWeatherRefresh();
+  // Fetch all AIRMET forecast snapshots for scrubbing into separate array
+  if (CONFIG.airmetsEnabled) fetchAirmetsForScrubbing();
 }
 
 function startLiveTimer() {
@@ -315,8 +318,8 @@ function filterWeatherByTime(timeMs) {
     entity.show = !isNaN(fromMs) && !isNaN(toMs) ? (timeMs >= fromMs && timeMs <= toMs) : true;
   }
 
-  // Filter AIRMETs: hide if slider time is outside validTime - validTimeTo
-  for (const entity of airmetEntities) {
+  // Filter AIRMETs: use scrub entities (multi-snapshot) during scrubbing
+  for (const entity of _scrubAirmetEntities) {
     const p = entity.properties;
     if (!p) { entity.show = true; continue; }
     const from = p.validFrom ? p.validFrom.getValue() : null;
@@ -331,10 +334,8 @@ function filterWeatherByTime(timeMs) {
 function restoreWeatherVisibility() {
   for (const entity of pirepEntities) entity.show = true;
   for (const entity of sigmetEntities) entity.show = true;
-  // AIRMETs may contain multi-snapshot data from scrubbing (hours 0,3,6,9,12).
-  // Clear and re-fetch so only the current snapshot (hour 0) is shown.
-  removeAirmetEntities();
-  if (CONFIG.airmetsEnabled) fetchAirmets();
+  // Clear scrubbing AIRMET entities and restore live ones
+  removeScrubAirmetEntities();
 }
 
 // ============================================================

@@ -49,6 +49,7 @@ let airmetRefreshTimer = null;
 const pirepEntities = [];
 const sigmetEntities = [];
 const airmetEntities = [];
+const _scrubAirmetEntities = [];  // separate AIRMET entities for timeline scrubbing (all forecast hours)
 const flightPlanEntities = [];  // Cesium entities for flight plan route
 let activeFlightPlan = null;     // current flight plan data
 let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
