@@ -14,7 +14,7 @@ const CONFIG = {
   startAlt: 6000000,           // initial camera height in meters
 
   pollInterval: 15000,        // ms between state polls
-  positionUpdateInterval: 1000, // ms between position extrapolation updates
+  positionUpdateInterval: 3000, // ms between position extrapolation updates
   trailMaxAge: DEFAULT_SETTINGS.trailLength,
   trailMode: DEFAULT_SETTINGS.trailMode,
   labelsEnabled: DEFAULT_SETTINGS.labelsEnabled,
@@ -192,6 +192,6 @@ function computePollInterval(camHeight) {
 
 function computePositionUpdateInterval(camHeight) {
   const t = getZoomFraction(camHeight);
-  // Linear interpolation: 200ms at city (t=0), 1000ms at CONUS (t=1)
-  return Math.round(200 + (1000 - 200) * t);
+  // Linear interpolation: 200ms at city (t=0), 3000ms at CONUS (t=1)
+  return Math.round(200 + (3000 - 200) * t);
 }
