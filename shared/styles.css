@@ -625,16 +625,21 @@ input[type="range"]::-webkit-slider-thumb:hover {
   flex-shrink: 0;
 }
 
-.search-history-btn:hover {
+.search-history-btn:hover,
+.search-history-btn:active,
+.search-history-btn:focus {
   background: var(--md-surface-container-highest);
   color: var(--md-on-surface);
+  outline: none;
 }
 
 .theme-light .search-history-btn {
   background: #ffffff;
 }
 
-.theme-light .search-history-btn:hover {
+.theme-light .search-history-btn:hover,
+.theme-light .search-history-btn:active,
+.theme-light .search-history-btn:focus {
   background: var(--md-surface-container-highest);
 }
 
