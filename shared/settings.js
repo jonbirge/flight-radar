@@ -438,7 +438,7 @@ function createSettingsFormHTML() {
           <summary>API credentials</summary>
           <div class="settings-cred-body">
             <div class="settings-hint">
-              Drag &amp; drop a <code>creds.json</code> or <code>credentials.json</code> file here, or enter manually.
+              Drag &amp; drop a JSON credentials file here in the format provided by OpenSky, or enter manually.
             </div>
             <div class="settings-color-label" style="margin-top:4px;">OpenSky Network</div>
             <div class="settings-row" style="margin-bottom:6px">
