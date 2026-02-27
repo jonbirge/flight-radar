@@ -69,8 +69,18 @@ function toggleAircraft(show) {
       stopTick();
     }
   } else {
-    _lastBulkPollMs = 0;           // allow immediate bulk poll after re-enabling
+    // Reset all poll guards and timestamps for a clean restart.
+    // Any in-flight poll from the "selected only" period will complete
+    // harmlessly in its finally block.
+    _pollInFlight = false;
+    _selectedPollInFlight = false;
+    _lastBulkPollMs = 0;
     _lastSelectedPollApiMs = 0;
+    lastSelectedPollMs = 0;
+    // Suspend → resume: fully stop the tick timer (which may have been
+    // running for selected-aircraft-only polling) so startPolling() can
+    // do a clean restart with the correct interval and initial fetch.
+    stopTick();
     startPolling();
   }
   const labelsToggle = document.getElementById('toggle-labels');
