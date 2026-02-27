@@ -628,9 +628,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .search-history-btn:hover,
 .search-history-btn:active,
 .search-history-btn:focus {
-  background: var(--md-surface-container-highest);
+  background: var(--md-surface-container-solid);
   color: var(--md-on-surface);
   outline: none;
+  filter: brightness(1.4);
 }
 
 .theme-light .search-history-btn {
@@ -640,7 +641,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .theme-light .search-history-btn:hover,
 .theme-light .search-history-btn:active,
 .theme-light .search-history-btn:focus {
-  background: var(--md-surface-container-highest);
+  background: #f0f0f0;
+  filter: none;
 }
 
 #flight-search:focus {
