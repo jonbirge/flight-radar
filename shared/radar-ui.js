@@ -22,7 +22,16 @@ function updateClock() {
   const utc = now.toUTCString().slice(17, 25);
   document.getElementById('clock').textContent = `${utc}Z`;
 }
-setInterval(updateClock, 1000);
+
+function startClock() {
+  if (!clockTimer) clockTimer = setInterval(updateClock, 1000);
+}
+
+function stopClock() {
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+}
+
+startClock();
 updateClock();
 
 // ============================================================
@@ -483,5 +492,31 @@ if (infoToggleBtn) {
   infoToggleBtn.addEventListener('click', () => {
     document.getElementById('aircraft-info').classList.toggle('collapsed');
   });
+}
+
+// ============================================================
+// Visibility-based timer pause/resume (used by web layer)
+// ============================================================
+
+function pauseAllTimers() {
+  stopTick();
+  pauseWeatherRefresh();
+  stopClock();
+  if (typeof stopLiveTimer === 'function') stopLiveTimer();
+  console.log('[Visibility] All timers paused');
+}
+
+function resumeAllTimers() {
+  ensureTick();
+  resumeWeatherRefresh();
+  startClock();
+  updateClock();
+  if (typeof _timelineLive !== 'undefined' && _timelineLive
+      && typeof startLiveTimer === 'function') {
+    startLiveTimer();
+  }
+  // Trigger immediate data refresh since data is stale
+  if (CONFIG.aircraftEnabled) pollStates();
+  console.log('[Visibility] All timers resumed');
 }
 
