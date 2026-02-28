@@ -382,6 +382,7 @@ function updateAircraft(states) {
     showAircraftInfo(selectedIcao);
     updateLiveAltitudeFilter();
   } else if (selectedIcao && !aircraft.has(selectedIcao)) {
+    clearFlightPlanRoute();
     hideAircraftInfo();
   }
 }
