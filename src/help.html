@@ -150,7 +150,10 @@
     <li><strong>Other aircraft</strong> — When the slider is more than 5 minutes from the current
       time, other aircraft are hidden since their positions cannot be predicted.</li>
     <li><strong>Weather filtering</strong> — SIGMETs and AIRMETs that are not valid at the
-      selected time are automatically hidden.</li>
+      selected time are automatically hidden. When the Radar overlay is enabled, the radar
+      imagery switches to historical or nowcast frames (up to ~2&nbsp;hours back and ~30&nbsp;minutes
+      ahead) sourced from RainViewer, allowing weather to be evaluated relative to the filed
+      route.</li>
     <li><strong>Historical position</strong> — When scrubbing into the past, the marker shows the
       aircraft&rsquo;s position from its recorded track history.</li>
     <li><strong>Live button</strong> — Click <strong>Live</strong> or double-click the slider to
@@ -172,6 +175,10 @@
   <p>
     The Radar toggle displays composite NEXRAD reflectivity over CONUS via WMS tiles
     from the Iowa State Mesonet. The overlay refreshes automatically every 5 minutes.
+    When the <strong>Flight Plan Timeline</strong> is active and the slider is scrubbed,
+    the radar imagery automatically switches to historical and nowcast frames (up to ~2&nbsp;hours
+    in the past and ~30&nbsp;minutes ahead) from <strong>RainViewer</strong>, enabling
+    prediction of weather relative to a filed aircraft route.
   </p>
 
   <h3>Weather Hazard Overlays (SIGMETs / AIRMETs / PIREPs toggles)</h3>
@@ -357,6 +364,7 @@
     <li><strong>FAA Aviation Weather Center (AWC)</strong> — Weather hazard data including
       GTG turbulence forecasts, PIREPs, turbulence and convective SIGMETs, and G-AIRMETs.</li>
     <li><strong>Iowa State Mesonet</strong> — NEXRAD composite radar reflectivity and GOES satellite IR imagery.</li>
+    <li><strong>RainViewer</strong> — Historical and nowcast radar frames used when scrubbing the flight plan timeline.</li>
     <li><strong>FAA</strong> — VFR/IFR aeronautical charts, airspace boundaries,
       airport data, and navigation aids.</li>
   </ul>

@@ -219,6 +219,79 @@ function refreshRadar() {
 }
 
 // ============================================================
+// RainViewer — historical and nowcast radar for timeline scrubbing
+// ============================================================
+
+// RainViewer tile URL: {host}{path}/{size}/{z}/{x}/{y}/{color}/{options}.png
+// Color 6 = NEXRAD Level-III palette (green→yellow→orange→red), options 1_1 = smooth+snow.
+const RAINVIEWER_HOST = 'https://tilecache.rainviewer.com';
+const RAINVIEWER_COLOR = 6;
+const RAINVIEWER_OPTIONS = '1_1';
+
+function makeRainViewerProvider(path) {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: `${RAINVIEWER_HOST}${path}/256/{z}/{x}/{y}/${RAINVIEWER_COLOR}/${RAINVIEWER_OPTIONS}.png`,
+    credit: new Cesium.Credit('RainViewer'),
+    minimumLevel: 0,
+    maximumLevel: 18,
+  });
+}
+
+// Fetch the list of available RainViewer frames (past ~2 h + nowcast ~30 min).
+// Stores results in _rainViewerFrames for use by updateRadarForTimelineTime().
+async function fetchRainViewerFrames() {
+  try {
+    const resp = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const past = (data.radar && data.radar.past) || [];
+    const nowcast = (data.radar && data.radar.nowcast) || [];
+    _rainViewerFrames = [...past, ...nowcast]; // oldest → newest
+    console.log(`[Radar] RainViewer frames loaded: ${past.length} past + ${nowcast.length} nowcast`);
+  } catch (err) {
+    console.warn('[Radar] Failed to fetch RainViewer frames (timeline scrubbing will show live radar):', err.message);
+    _rainViewerFrames = [];
+  }
+}
+
+// Switch the radar imagery layer to the RainViewer frame nearest to timeMs.
+// Called on every timeline slider move when radar is enabled.
+function updateRadarForTimelineTime(timeMs) {
+  if (!CONFIG.radarEnabled) return;
+  if (_rainViewerFrames.length === 0) return;
+
+  // Find the nearest available frame by Unix timestamp (seconds)
+  const timeSecs = Math.round(timeMs / 1000);
+  let best = _rainViewerFrames[0];
+  let bestDiff = Math.abs(timeSecs - best.time);
+  for (const frame of _rainViewerFrames) {
+    const diff = Math.abs(timeSecs - frame.time);
+    if (diff < bestDiff) { bestDiff = diff; best = frame; }
+  }
+
+  // Already showing this frame — nothing to do
+  if (_radarTimelineTime === best.time) return;
+  _radarTimelineTime = best.time;
+
+  console.log(`[Radar] Timeline: switching to RainViewer frame t=${best.time}`);
+
+  // Add new frame layer first, then remove old to avoid visual flash
+  const oldLayer = radarLayer;
+  radarLayer = viewer.imageryLayers.addImageryProvider(makeRainViewerProvider(best.path));
+  radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+  if (oldLayer) viewer.imageryLayers.remove(oldLayer);
+}
+
+// Restore the live Iowa State NEXRAD layer when leaving scrub mode.
+function resetRadarToLive() {
+  if (_radarTimelineTime !== null) {
+    console.log('[Radar] Timeline: restoring live NEXRAD');
+    _radarTimelineTime = null;
+    if (CONFIG.radarEnabled) refreshRadar();
+  }
+}
+
+// ============================================================
 // AWC URL helper — routes through proxy when configured (web), direct otherwise (Electron)
 // ============================================================
 

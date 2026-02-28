@@ -117,6 +117,12 @@ function showTimeline(flight) {
   // Preload all turbulence forecast images covering the flight's time span
   // so the slider can switch maps instantly without network fetches.
   preloadTurbForTimeline(dep, arr);
+
+  // Fetch RainViewer frame list (past + nowcast) so radar can track the slider.
+  // Fire-and-forget: frames arrive before the user typically starts scrubbing;
+  // if not yet loaded when the slider moves, updateRadarForTimelineTime() is a no-op
+  // until the fetch completes and _rainViewerFrames is populated.
+  fetchRainViewerFrames();
 }
 
 function hideTimeline() {
@@ -135,6 +141,7 @@ function resetTimelineToLive() {
     timelineTime = null;
     restoreWeatherVisibility();
     resetTurbToLive();
+    resetRadarToLive();
   }
   // Remove timeline position marker
   if (timelineEntity) {
@@ -248,6 +255,9 @@ function onTimelineInput() {
 
   // Update turbulence forecast for scrubbed time (instant from preloaded cache)
   updateTurbForTimelineTime(sliderTime);
+
+  // Update radar imagery for scrubbed time (RainViewer historical/nowcast frames)
+  updateRadarForTimelineTime(sliderTime);
 }
 
 // Always interpolate along the filed flight plan route (never uses aircraft history).

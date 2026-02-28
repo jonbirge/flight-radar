@@ -40,6 +40,8 @@ let _renderGeneration = 0;       // incremented to cancel stale chunked renders
 let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft/PIREPs
 let radarLayer = null;
 let radarRefreshTimer = null;
+let _rainViewerFrames = [];     // [{time, path}] from RainViewer API (past + nowcast)
+let _radarTimelineTime = null;  // radar frame Unix time (secs) shown in scrub mode, null = live
 let satelliteIRLayer = null;
 let satelliteIRRefreshTimer = null;
 let turbLayer = null;
