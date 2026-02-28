@@ -731,9 +731,10 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           );
 
           const alt = s.altitude || 0;
+          const endAlt = alt - (s.verticalRate || 0) * 60;
           const positions = [
             Cesium.Cartesian3.fromDegrees(acLon, acLat, alt),
-            Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(endLon), Cesium.Math.toDegrees(endLat), alt),
+            Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(endLon), Cesium.Math.toDegrees(endLat), endAlt),
           ];
 
           // Color logic matching existing trail colors
