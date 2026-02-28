@@ -178,7 +178,8 @@ function showTimeline(flight) {
 
   // Preload all turbulence forecast images covering the flight's time span
   // so the slider can switch maps instantly without network fetches.
-  preloadTurbForTimeline(dep, arr);
+  // After preloading, apply the turbulence color gradient to the slider.
+  preloadTurbForTimeline(dep, arr, applySliderGradient);
 
   // Fetch surface weather forecasts at origin (departure time) and destination (arrival time).
   if (_weatherAbortCtrl) _weatherAbortCtrl.abort();
@@ -195,6 +196,7 @@ function hideTimeline() {
   resetTimelineToLive();
   resumeWeatherRefresh();
   clearTurbCache();
+  clearSliderGradient();
   _timelineFlight = null;
   if (_weatherAbortCtrl) { _weatherAbortCtrl.abort(); _weatherAbortCtrl = null; }
   for (const id of ['origin-weather', 'dest-weather']) {
@@ -389,6 +391,66 @@ function restoreWeatherVisibility() {
   removeScrubAirmetEntities();
   // Show all weather entities, then re-apply altitude filter if a flight is selected
   filterAllWeather(null, getSelectedAircraftFL());
+}
+
+// ============================================================
+// Scrubbing Bar Turbulence Gradient
+// ============================================================
+
+// Sample every 5 minutes along the route to build a CSS gradient for the slider.
+const TURB_GRADIENT_INTERVAL_MS = 5 * 60 * 1000;
+
+// Build a CSS linear-gradient string representing the turbulence level along the
+// entire route, sampled at 5-minute intervals.  Returns null if turbulence data
+// is not available.
+function computeSliderGradient(depMs, arrMs) {
+  const total = arrMs - depMs;
+  if (total <= 0) return null;
+
+  const stops = [];
+  for (let t = depMs; t < arrMs; t += TURB_GRADIENT_INTERVAL_MS) {
+    const fraction = Math.max(0, Math.min(1, (t - depMs) / total));
+    const pos = interpolateRoutePosition(fraction);
+    if (!pos) continue;
+    const color = getTurbPixelColor(pos.lon, pos.lat, Math.round(t / 1000));
+    const pct = Math.round(fraction * 100);
+    stops.push({ pct, color: color || 'var(--md-outline-variant)' });
+  }
+
+  // Always include the endpoint
+  const lastPos = interpolateRoutePosition(1);
+  if (lastPos) {
+    const color = getTurbPixelColor(lastPos.lon, lastPos.lat, Math.round(arrMs / 1000));
+    stops.push({ pct: 100, color: color || 'var(--md-outline-variant)' });
+  }
+
+  if (stops.length === 0) return null;
+  return `linear-gradient(to right, ${stops.map(s => `${s.color} ${s.pct}%`).join(', ')})`;
+}
+
+// Apply a turbulence color gradient to the timeline slider track.
+// Always applies when pixel data is available, regardless of whether the
+// turbulence overlay map is shown.
+function applySliderGradient() {
+  if (!_timelineFlight) return;
+  const slider = document.getElementById('timeline-slider');
+  if (!slider) return;
+
+  const { dep, arr } = getFlightTimes(_timelineFlight);
+  if (!dep || !arr) return;
+
+  const gradient = computeSliderGradient(dep, arr);
+  if (gradient) {
+    slider.style.background = gradient;
+  } else {
+    clearSliderGradient();
+  }
+}
+
+// Reset the slider track to its default CSS color.
+function clearSliderGradient() {
+  const slider = document.getElementById('timeline-slider');
+  if (slider) slider.style.background = '';
 }
 
 // ============================================================

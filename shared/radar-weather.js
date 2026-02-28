@@ -1067,13 +1067,75 @@ function resetTurbToLive() {
 // Stores data URL strings so fresh providers can be created instantly.
 const _turbImageCache = new Map(); // Map<number, string> (dateSecs → dataURL)
 
+// Decoded pixel data cache for scrubbing bar color sampling.
+// Populated after preloading completes.
+const _turbPixelCache = new Map(); // Map<number, ImageData> (dateSecs → ImageData)
+
+// Decode a data URL into an ImageData object for pixel sampling.
+async function decodeDataUrlToImageData(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      resolve(ctx.getImageData(0, 0, img.width, img.height));
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+// Sample the turbulence heatmap color (as a CSS rgb() string) at a geographic
+// position and time.  Returns null if the location is outside the image bounds
+// or falls on a transparent pixel (no significant turbulence).
+function getTurbPixelColor(lon, lat, dateSecs) {
+  if (_turbPixelCache.size === 0) return null;
+  // Outside the geographic coverage of the GTG image
+  if (lon < TURB_CROP_LON || lon > TURB_LON_EAST || lat < TURB_LAT_SOUTH || lat > TURB_LAT_NORTH) return null;
+
+  // Find nearest cached time
+  let bestDate = null;
+  let minDiff = Infinity;
+  for (const cachedDate of _turbPixelCache.keys()) {
+    const diff = Math.abs(dateSecs - cachedDate);
+    if (diff < minDiff) { minDiff = diff; bestDate = cachedDate; }
+  }
+  if (bestDate === null) return null;
+
+  const imageData = _turbPixelCache.get(bestDate);
+  if (!imageData) return null;
+
+  // Map geographic coordinates to pixel coordinates
+  const lonFrac = (lon - TURB_CROP_LON) / (TURB_LON_EAST - TURB_CROP_LON);
+  const latFrac = (lat - TURB_LAT_SOUTH) / (TURB_LAT_NORTH - TURB_LAT_SOUTH);
+  const px = Math.round(Math.max(0, Math.min(imageData.width - 1, lonFrac * (imageData.width - 1))));
+  const py = Math.round(Math.max(0, Math.min(imageData.height - 1, (1 - latFrac) * (imageData.height - 1))));
+
+  const idx = (py * imageData.width + px) * 4;
+  const r = imageData.data[idx];
+  const g = imageData.data[idx + 1];
+  const b = imageData.data[idx + 2];
+  const a = imageData.data[idx + 3];
+
+  if (a < 10) return null; // Transparent = no significant turbulence
+  return `rgb(${r},${g},${b})`;
+}
+
 // Preload all GTG turbulence images needed for a flight's time span.
 // Called from showTimeline() in radar-timeline.js.
-// Uses the flight's filed cruise altitude (already set in CONFIG.turbulenceLevel).
-async function preloadTurbForTimeline(depMs, arrMs) {
-  if (!CONFIG.turbForecastEnabled) return;
-
-  const level = CONFIG.turbulenceLevel;
+// Always runs regardless of CONFIG.turbForecastEnabled so the scrubbing bar
+// gradient is always available.  Uses CONFIG.turbulenceLevel when the overlay is
+// enabled, or auto-selects the best level via computeTurbLevel() otherwise.
+// onComplete (optional): called once all images are preloaded and pixel data is decoded.
+async function preloadTurbForTimeline(depMs, arrMs, onComplete) {
+  // Determine the flight level to fetch — prefer the user's chosen level when
+  // the overlay is enabled, otherwise auto-select from the filed altitude.
+  const level = (CONFIG.turbForecastEnabled && CONFIG.turbulenceLevel !== 'none')
+    ? CONFIG.turbulenceLevel
+    : computeTurbLevel();
   if (level === 'none') return;
 
   clearTurbCache();
@@ -1113,10 +1175,23 @@ async function preloadTurbForTimeline(depMs, arrMs) {
 
   await Promise.all(promises);
   console.log(`[Weather] Preloaded ${_turbImageCache.size}/${timestamps.length} GTG images`);
+
+  // Decode pixel data for scrubbing bar color gradient
+  _turbPixelCache.clear();
+  await Promise.all(
+    Array.from(_turbImageCache.entries()).map(async ([dateSecs, dataUrl]) => {
+      const imageData = await decodeDataUrlToImageData(dataUrl);
+      if (imageData) _turbPixelCache.set(dateSecs, imageData);
+    })
+  );
+  console.log(`[Weather] Pixel data decoded for ${_turbPixelCache.size} GTG images`);
+
+  if (typeof onComplete === 'function') onComplete();
 }
 
 function clearTurbCache() {
   _turbImageCache.clear();
+  _turbPixelCache.clear();
 }
 
 // Apply a cached GTG image to the viewer as an imagery layer (instant, no fetch).
