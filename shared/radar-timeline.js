@@ -294,48 +294,26 @@ function updateOrCreateTimelineMarker(position) {
 // ============================================================
 
 function filterWeatherByTime(timeMs) {
-  // Filter PIREPs: visible from observation time until PIREP_MAX_AGE_MS after.
-  // Hide if the report hasn't happened yet or has expired.
-  for (const entity of pirepEntities) {
-    const p = entity.properties;
-    if (!p || !p.obsTimeISO) { entity.show = true; continue; }
-    const isoStr = p.obsTimeISO.getValue();
-    if (!isoStr) { entity.show = true; continue; }
-    const obsMs = new Date(isoStr).getTime();
-    if (isNaN(obsMs)) { entity.show = true; continue; }
-    entity.show = (obsMs <= timeMs) && (timeMs - obsMs <= PIREP_MAX_AGE_MS);
+  // Compute altitude from interpolated route position for altitude filtering
+  let altFL = null;
+  if (_timelineFlight) {
+    const { dep, arr } = getFlightTimes(_timelineFlight);
+    if (dep && arr && arr > dep) {
+      const fraction = (timeMs - dep) / (arr - dep);
+      const pos = interpolateRoutePosition(fraction);
+      if (pos && pos.alt > 0) {
+        altFL = Math.round(pos.alt / 0.3048 / 100); // meters to FL
+      }
+    }
   }
-
-  // Filter SIGMETs: hide if slider time is outside validTimeFrom - validTimeTo
-  for (const entity of sigmetEntities) {
-    const p = entity.properties;
-    if (!p) { entity.show = true; continue; }
-    const from = p.validFrom ? p.validFrom.getValue() : null;
-    const to = p.validTo ? p.validTo.getValue() : null;
-    if (!from || !to || from === '?' || to === '?') { entity.show = true; continue; }
-    const fromMs = new Date(from).getTime();
-    const toMs = new Date(to).getTime();
-    entity.show = !isNaN(fromMs) && !isNaN(toMs) ? (timeMs >= fromMs && timeMs <= toMs) : true;
-  }
-
-  // Filter AIRMETs: use scrub entities (multi-snapshot) during scrubbing
-  for (const entity of _scrubAirmetEntities) {
-    const p = entity.properties;
-    if (!p) { entity.show = true; continue; }
-    const from = p.validFrom ? p.validFrom.getValue() : null;
-    const to = p.validTo ? p.validTo.getValue() : null;
-    if (!from || !to || from === '?' || to === '?') { entity.show = true; continue; }
-    const fromMs = new Date(from).getTime();
-    const toMs = new Date(to).getTime();
-    entity.show = !isNaN(fromMs) && !isNaN(toMs) ? (timeMs >= fromMs && timeMs <= toMs) : true;
-  }
+  filterAllWeather(timeMs, altFL);
 }
 
 function restoreWeatherVisibility() {
-  for (const entity of pirepEntities) entity.show = true;
-  for (const entity of sigmetEntities) entity.show = true;
   // Clear scrubbing AIRMET entities and restore live ones
   removeScrubAirmetEntities();
+  // Show all weather entities, then re-apply altitude filter if a flight is selected
+  filterAllWeather(null, getSelectedAircraftFL());
 }
 
 // ============================================================

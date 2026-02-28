@@ -485,6 +485,8 @@ async function fetchPireps() {
       // If scrubbing, immediately filter new entities to the current timeline position
       if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
         filterWeatherByTime(timelineTime);
+      } else {
+        updateLiveAltitudeFilter(true);
       }
     } else {
       console.warn(`[Weather] PIREPs response not ok: ${resp ? resp.status : 'null'}`);
@@ -557,6 +559,8 @@ async function fetchSigmets() {
       // If scrubbing, immediately filter new entities to the current timeline position
       if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
         filterWeatherByTime(timelineTime);
+      } else {
+        updateLiveAltitudeFilter(true);
       }
     }
   } catch (err) {
@@ -628,6 +632,8 @@ async function fetchAirmets() {
     const data = await resp.json();
     const count = _buildAirmetEntities([data], airmetEntities, 'turb-airmet');
     console.log(`[Weather] Added ${count} G-AIRMET polygons (live, hour 0)`);
+    // Apply altitude filter for new entities in live mode
+    updateLiveAltitudeFilter(true);
   } catch (err) {
     console.warn('[Weather] Error fetching G-AIRMETs:', err);
   }
@@ -656,6 +662,8 @@ async function fetchAirmetsForScrubbing() {
     // Immediately filter to current timeline position
     if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
       filterWeatherByTime(timelineTime);
+    } else {
+      updateLiveAltitudeFilter(true);
     }
   } catch (err) {
     console.warn('[Weather] Error fetching G-AIRMETs for scrubbing:', err);
@@ -737,6 +745,163 @@ function disableAirmets() {
 }
 
 // ============================================================
+// Altitude-Aware Weather Filtering
+// ============================================================
+
+// Altitude filter tolerance: weather is relevant within ±50 flight levels (5,000 ft).
+const ALT_FILTER_TOLERANCE_FL = 50;
+
+// Parse various altitude representations to a flight level number (hundreds of feet).
+// Handles: numeric values, "SFC"/"SURFACE" → 0, "FL350" → 350, "?" → null.
+function parseAltToFL(value) {
+  if (value == null || value === '?' || value === '') return null;
+  if (typeof value === 'number') return value;
+  const s = String(value).trim().toUpperCase();
+  if (s === 'SFC' || s === 'SURFACE') return 0;
+  if (s.startsWith('FL')) {
+    const n = parseInt(s.substring(2), 10);
+    return isNaN(n) ? null : n;
+  }
+  const n = parseInt(s, 10);
+  return isNaN(n) ? null : n;
+}
+
+// Single function that determines if a weather entity is valid for a given time and altitude.
+// timeMs: null = skip time check; altitudeFL: null = skip altitude check.
+function isWeatherEntityVisible(entity, timeMs, altitudeFL) {
+  const p = entity.properties;
+  if (!p) return true;
+
+  // --- Time check ---
+  if (timeMs != null) {
+    const type = p.turbType ? p.turbType.getValue() : null;
+    if (type === 'PIREP') {
+      const isoStr = p.obsTimeISO ? p.obsTimeISO.getValue() : null;
+      if (isoStr) {
+        const obsMs = new Date(isoStr).getTime();
+        if (!isNaN(obsMs) && (obsMs > timeMs || timeMs - obsMs > PIREP_MAX_AGE_MS)) return false;
+      }
+    } else {
+      const from = p.validFrom ? p.validFrom.getValue() : null;
+      const to = p.validTo ? p.validTo.getValue() : null;
+      if (from && to && from !== '?' && to !== '?') {
+        const fromMs = new Date(from).getTime();
+        const toMs = new Date(to).getTime();
+        if (!isNaN(fromMs) && !isNaN(toMs) && (timeMs < fromMs || timeMs > toMs)) return false;
+      }
+    }
+  }
+
+  // --- Altitude check ---
+  if (altitudeFL != null) {
+    const type = p.turbType ? p.turbType.getValue() : null;
+    if (type === 'PIREP') {
+      const fl = p.fltlvl ? parseAltToFL(p.fltlvl.getValue()) : null;
+      if (fl != null && Math.abs(fl - altitudeFL) > ALT_FILTER_TOLERANCE_FL) return false;
+    } else if (type === 'SIGMET' || type === 'CONVECTIVE SIGMET' || type === 'G-AIRMET') {
+      const baseFL = p.base ? parseAltToFL(p.base.getValue()) : null;
+      const topFL = p.top ? parseAltToFL(p.top.getValue()) : null;
+      if (baseFL != null || topFL != null) {
+        if (baseFL != null && topFL != null) {
+          if (altitudeFL < baseFL - ALT_FILTER_TOLERANCE_FL || altitudeFL > topFL + ALT_FILTER_TOLERANCE_FL) return false;
+        } else if (topFL != null) {
+          if (altitudeFL > topFL + ALT_FILTER_TOLERANCE_FL) return false;
+        } else {
+          if (altitudeFL < baseFL - ALT_FILTER_TOLERANCE_FL) return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+// Apply visibility filter to all weather entity arrays.
+// timeMs: null = skip time check; altitudeFL: null = skip altitude check.
+function filterAllWeather(timeMs, altitudeFL) {
+  for (const entity of pirepEntities) {
+    entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
+  }
+  for (const entity of sigmetEntities) {
+    entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
+  }
+  if (_scrubAirmetEntities.length > 0) {
+    for (const entity of _scrubAirmetEntities) {
+      entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
+    }
+  } else {
+    for (const entity of airmetEntities) {
+      entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
+    }
+  }
+}
+
+// Get the selected aircraft's altitude as a flight level (hundreds of feet).
+// Returns null if no selected aircraft or altitude unknown.
+function getSelectedAircraftFL() {
+  if (!selectedIcao) return null;
+  const ac = aircraft.get(selectedIcao);
+  if (!ac) return null;
+  const altMeters = ac.lastKnownAlt || (ac.state && ac.state.altitude);
+  if (!altMeters || altMeters <= 0) return null;
+  return Math.round(altMeters / 0.3048 / 100);
+}
+
+// Apply altitude filter in live mode based on selected aircraft's current altitude.
+// Called after aircraft poll updates, weather refreshes, and selection changes.
+// force: if true, always re-filter (use after new weather entities are fetched).
+let _lastLiveFilterFL = null;
+function updateLiveAltitudeFilter(force) {
+  // Don't interfere with scrubbing mode
+  if (timelineTime !== null) return;
+
+  const altFL = getSelectedAircraftFL();
+
+  if (altFL == null) {
+    // No selected aircraft or unknown altitude — show all weather
+    if (_lastLiveFilterFL !== null) {
+      _lastLiveFilterFL = null;
+      filterAllWeather(null, null);
+    }
+    return;
+  }
+
+  // Only re-filter if altitude changed significantly (≥10 FL / 1,000 ft) or forced
+  const altChanged = _lastLiveFilterFL == null || Math.abs(altFL - _lastLiveFilterFL) >= 10;
+  if (!force && !altChanged) return;
+
+  _lastLiveFilterFL = altFL;
+  filterAllWeather(null, altFL);
+
+  // Update turb forecast level only when altitude changed significantly
+  if (altChanged) updateLiveTurbLevel(altFL);
+}
+
+// Snap a flight level to the nearest available GTG turbulence forecast level.
+function computeTurbLevelForFL(fl) {
+  let closest = TURB_LEVELS[0];
+  let minDiff = Math.abs(fl - closest);
+  for (const level of TURB_LEVELS) {
+    const diff = Math.abs(fl - level);
+    if (diff < minDiff) { minDiff = diff; closest = level; }
+  }
+  return String(closest);
+}
+
+// Update the turbulence forecast layer level based on live altitude.
+function updateLiveTurbLevel(altFL) {
+  if (!CONFIG.turbForecastEnabled) return;
+  const newLevel = computeTurbLevelForFL(altFL);
+  if (newLevel !== CONFIG.turbulenceLevel) {
+    CONFIG.turbulenceLevel = newLevel;
+    clearTurbCache();
+    disableTurbForecast();
+    enableTurbForecast();
+    console.log(`[Weather] Turb level updated to ${newLevel} for live altitude FL${altFL}`);
+  }
+}
+
+// ============================================================
 // Pause / Resume Weather Refresh Timers (for timeline scrubbing)
 // ============================================================
 
@@ -814,14 +979,7 @@ function computeTurbLevel() {
     const flights = activeFlightPlan.flights || [];
     const flight = flights.length > 0 ? pickBestFlight(flights) : null;
     if (flight && flight.filed_altitude != null) {
-      const fl = flight.filed_altitude; // already in hundreds of feet
-      let closest = TURB_LEVELS[0];
-      let minDiff = Math.abs(fl - closest);
-      for (const level of TURB_LEVELS) {
-        const diff = Math.abs(fl - level);
-        if (diff < minDiff) { minDiff = diff; closest = level; }
-      }
-      return String(closest);
+      return computeTurbLevelForFL(flight.filed_altitude);
     }
   }
   return 'maxa';
