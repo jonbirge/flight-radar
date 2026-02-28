@@ -655,6 +655,11 @@ async function fetchAirmetsForScrubbing() {
     for (const resp of responses) {
       if (resp && resp.ok) jsonResults.push(await resp.json());
     }
+    // Guard: if scrubbing was exited while the fetch was in flight, discard the data
+    if (timelineTime === null) {
+      updateLiveAltitudeFilter(true);
+      return;
+    }
     // Hide live AIRMET entities while scrub entities are shown
     for (const entity of airmetEntities) entity.show = false;
     const count = _buildAirmetEntities(jsonResults, _scrubAirmetEntities, 'turb-airmet-scrub');
@@ -858,8 +863,8 @@ function updateLiveAltitudeFilter(force) {
   const altFL = getSelectedAircraftFL();
 
   if (altFL == null) {
-    // No selected aircraft or unknown altitude — show all weather
-    if (_lastLiveFilterFL !== null) {
+    // No selected aircraft — show all weather (API already returns only currently-relevant data)
+    if (force || _lastLiveFilterFL !== null) {
       _lastLiveFilterFL = null;
       filterAllWeather(null, null);
     }

@@ -312,8 +312,8 @@ function filterWeatherByTime(timeMs) {
 function restoreWeatherVisibility() {
   // Clear scrubbing AIRMET entities and restore live ones
   removeScrubAirmetEntities();
-  // Show all weather entities, then re-apply altitude filter if a flight is selected
-  filterAllWeather(null, getSelectedAircraftFL());
+  // Re-apply live filter: time-only when no aircraft selected, altitude when one is selected
+  updateLiveAltitudeFilter(true);
 }
 
 // ============================================================
