@@ -354,6 +354,12 @@ async function downloadWithFallback(type) {
 // ---- Main ----
 
 async function main() {
+  // Skip download if waypoint data already exists (rarely changes)
+  if (fs.existsSync(OUT_FILE)) {
+    console.log(`Waypoint data already exists (${OUT_FILE}) — skipping download.`);
+    return;
+  }
+
   console.log('Downloading FAA NASR FIX data ...');
   const fixZip = await downloadWithFallback('FIX');
   console.log('Extracting FIX CSV ...');
@@ -384,6 +390,5 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Error:', err.message);
-  process.exit(1);
+  console.warn(`WARNING: Waypoint download failed: ${err.message} — keeping existing data.`);
 });

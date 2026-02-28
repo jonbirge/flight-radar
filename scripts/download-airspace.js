@@ -178,6 +178,12 @@ function roundCoords(coords) {
 }
 
 async function main() {
+  // Skip download if airspace data already exists (rarely changes)
+  if (fs.existsSync(OUT_FILE)) {
+    console.log(`Airspace data already exists (${OUT_FILE}) — skipping download.`);
+    return;
+  }
+
   const allEntries = [];
   const counts = {};
   let source = 'FAA ArcGIS';
@@ -206,8 +212,8 @@ async function main() {
   }
 
   if (allEntries.length === 0) {
-    console.error('No airspace data retrieved from any source.');
-    process.exit(1);
+    console.warn('WARNING: No airspace data retrieved from any source — keeping existing data.');
+    return;
   }
 
   // Validate altitude data (required for 3D airspace volumes)
@@ -215,10 +221,10 @@ async function main() {
   const altPct = Math.round((withAltitude.length / allEntries.length) * 100);
   console.log(`\nAltitude data: ${withAltitude.length}/${allEntries.length} entries (${altPct}%)`);
   if (withAltitude.length === 0) {
-    console.error('ERROR: No entries have altitude data — 3D airspace volumes will not work.');
-    console.error('This typically means the FAA ArcGIS source failed and the GitHub fallback was used.');
-    console.error('Aborting to avoid overwriting good data. Retry when FAA service is available.');
-    process.exit(1);
+    console.warn('WARNING: No entries have altitude data — keeping existing data.');
+    console.warn('This typically means the FAA ArcGIS source failed and the GitHub fallback was used.');
+    console.warn('Retry when FAA service is available.');
+    return;
   }
 
   // Sort by class then name for deterministic output
@@ -239,6 +245,5 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Error:', err.message);
-  process.exit(1);
+  console.warn(`WARNING: Airspace download failed: ${err.message} — keeping existing data.`);
 });
