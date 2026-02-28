@@ -833,3 +833,69 @@ input[type="range"]::-webkit-slider-thumb:hover {
   min-height: 28px;
   padding: 0 12px;
 }
+
+/* ============================================================
+   Mobile layout (portrait / narrow screens)
+   ============================================================ */
+
+@media (max-width: 767px) {
+  /* Hide keyboard/mouse interaction hints */
+  #hud-instructions {
+    display: none;
+  }
+
+  /* Full-width search bar */
+  #flight-search-wrap {
+    width: calc(100% - 32px);
+  }
+
+  /* Center and widen controls panel; collapse downward instead of leftward */
+  #controls {
+    left: 50%;
+    right: auto;
+    bottom: 16px;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 480px;
+    font: var(--md-typescale-label-large);
+  }
+
+  #controls.collapsed {
+    transform: translateX(-50%) translateY(calc(100% + 20px));
+  }
+
+  /* Reposition toggle tab to top-center as a drag handle */
+  #controls-toggle {
+    right: auto;
+    bottom: auto;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 24px;
+    border-radius: var(--md-shape-sm) var(--md-shape-sm) 0 0;
+  }
+
+  /* When expanded: chevron points down (swipe down to hide) */
+  #controls-toggle svg {
+    transform: rotate(-90deg);
+  }
+
+  /* When collapsed: chevron points up (tap/swipe up to show) */
+  #controls.collapsed #controls-toggle svg {
+    transform: rotate(90deg);
+  }
+
+  /* Position timeline scrubber above the controls panel */
+  #timeline-panel {
+    bottom: 210px;
+    width: calc(100% - 32px);
+    max-width: 480px;
+  }
+
+  /* Larger checkboxes and touch targets */
+  .toggle-label input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+}

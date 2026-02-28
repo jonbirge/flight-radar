@@ -478,13 +478,36 @@ document.getElementById('toggle-rotate').addEventListener('change', (e) => {
 // Collapsible Panels
 // ============================================================
 
-// Controls panel — slide off-screen to the left
+// Controls panel — slide off-screen to the left (desktop) or down (mobile)
 const controlsToggle = document.getElementById('controls-toggle');
 if (controlsToggle) {
   controlsToggle.addEventListener('click', () => {
     document.getElementById('controls').classList.toggle('collapsed');
   });
 }
+
+// Mobile swipe gesture: swipe down on controls to collapse, swipe up to expand
+(function () {
+  const controlsEl = document.getElementById('controls');
+  if (!controlsEl) return;
+  let _swipeStartY = 0;
+  let _swipeStartX = 0;
+  controlsEl.addEventListener('touchstart', (e) => {
+    _swipeStartY = e.touches[0].clientY;
+    _swipeStartX = e.touches[0].clientX;
+  }, { passive: true });
+  controlsEl.addEventListener('touchend', (e) => {
+    const dy = e.changedTouches[0].clientY - _swipeStartY;
+    const dx = e.changedTouches[0].clientX - _swipeStartX;
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+      if (dy > 0 && !controlsEl.classList.contains('collapsed')) {
+        controlsEl.classList.add('collapsed');
+      } else if (dy < 0 && controlsEl.classList.contains('collapsed')) {
+        controlsEl.classList.remove('collapsed');
+      }
+    }
+  }, { passive: true });
+}());
 
 // Aircraft info panel — collapse to show only callsign
 const infoToggleBtn = document.getElementById('info-toggle');
