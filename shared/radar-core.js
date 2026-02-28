@@ -17,6 +17,7 @@ const navaidEntities = [];       // Cesium entities for navaid markers
 let cachedAirportData = null;     // Cached airport JSON for rebuilds
 let cachedWaypointData = null;    // Cached waypoint JSON for rebuilds
 let tickTimer = null;              // unified timer for extrapolation + polling + track fetches
+let clockTimer = null;             // HUD clock update interval
 let viewer = null;
 let is2D = false;
 let selectedIcao = null;

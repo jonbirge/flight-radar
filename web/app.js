@@ -337,3 +337,15 @@ async function init() {
 }
 
 init();
+
+// ============================================================
+// Pause/resume timers when browser tab loses/gains visibility
+// ============================================================
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pauseAllTimers();
+  } else {
+    resumeAllTimers();
+  }
+});
