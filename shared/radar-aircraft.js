@@ -146,6 +146,7 @@ async function pollSelectedAircraft() {
       lastPollTime = new Date();
       renderAircraft(new Set([selectedIcao]));
       showAircraftInfo(selectedIcao);
+      updateLiveAltitudeFilter();
     }
   } catch (err) {
     console.warn('[Poll] Selected aircraft poll error:', err);
@@ -369,6 +370,7 @@ function updateAircraft(states) {
   // Live-update the info panel if a selected aircraft still exists
   if (selectedIcao && aircraft.has(selectedIcao)) {
     showAircraftInfo(selectedIcao);
+    updateLiveAltitudeFilter();
   } else if (selectedIcao && !aircraft.has(selectedIcao)) {
     hideAircraftInfo();
   }
