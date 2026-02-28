@@ -6,6 +6,77 @@
 'use strict';
 
 // ============================================================
+// Destination Weather
+// ============================================================
+
+// WMO weather interpretation code → representative emoji icon.
+const WMO_WEATHER_ICON = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌧️',
+  56: '🌨️', 57: '🌨️',
+  61: '🌧️', 63: '🌧️', 65: '🌧️',
+  66: '🌨️', 67: '🌨️',
+  71: '🌨️', 73: '🌨️', 75: '❄️', 77: '🌨️',
+  80: '🌦️', 81: '🌧️', 82: '⛈️',
+  85: '🌨️', 86: '🌨️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️',
+};
+
+// Fetch the surface weather forecast at the destination airport for the estimated arrival time
+// and populate the #dest-weather element. Uses the Open-Meteo free forecast API.
+let _destWeatherAbortCtrl = null;
+
+async function fetchDestWeather(flight) {
+  const el = document.getElementById('dest-weather');
+  if (!el) return;
+
+  const dest = flight.destination;
+  const destCoords = dest ? lookupAirportCoords(dest) : null;
+  if (!destCoords) { el.textContent = ''; return; }
+
+  const { arr } = getFlightTimes(flight);
+  if (!arr) { el.textContent = ''; return; }
+
+  // Cancel any in-flight request for a previous aircraft selection.
+  if (_destWeatherAbortCtrl) _destWeatherAbortCtrl.abort();
+  _destWeatherAbortCtrl = new AbortController();
+  const { signal } = _destWeatherAbortCtrl;
+
+  el.textContent = '…';
+
+  try {
+    const arrDate = new Date(arr);
+    const dateStr = arrDate.toISOString().slice(0, 10); // YYYY-MM-DD
+    const url = 'https://api.open-meteo.com/v1/forecast' +
+      `?latitude=${destCoords.lat.toFixed(4)}&longitude=${destCoords.lon.toFixed(4)}` +
+      `&hourly=temperature_2m,weather_code&timezone=UTC&start_date=${dateStr}&end_date=${dateStr}`;
+
+    const resp = await fetch(url, { signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    const times = data.hourly.time; // ["YYYY-MM-DDTHH:00", ...]
+    // Find the hourly slot closest to the arrival time (times are sorted, so stop when diff grows).
+    let idx = 0;
+    let minDiff = Math.abs(new Date(times[0] + 'Z').getTime() - arr);
+    for (let i = 1; i < times.length; i++) {
+      const diff = Math.abs(new Date(times[i] + 'Z').getTime() - arr);
+      if (diff < minDiff) { minDiff = diff; idx = i; } else { break; }
+    }
+
+    const temp = data.hourly.temperature_2m[idx];
+    const code = data.hourly.weather_code[idx];
+    const icon = WMO_WEATHER_ICON[code] ?? '🌡️';
+    el.textContent = temp != null ? `${icon} ${Math.round(temp)}°C` : icon;
+  } catch (err) {
+    if (err.name === 'AbortError') return; // superseded by a newer selection
+    console.warn('[Timeline] Destination weather fetch failed:', err.message);
+    el.textContent = '';
+  }
+}
+
+// ============================================================
 // Helpers
 // ============================================================
 
@@ -117,6 +188,9 @@ function showTimeline(flight) {
   // Preload all turbulence forecast images covering the flight's time span
   // so the slider can switch maps instantly without network fetches.
   preloadTurbForTimeline(dep, arr);
+
+  // Fetch surface weather forecast at the destination for the estimated arrival time.
+  fetchDestWeather(flight);
 }
 
 function hideTimeline() {
@@ -128,6 +202,9 @@ function hideTimeline() {
   resumeWeatherRefresh();
   clearTurbCache();
   _timelineFlight = null;
+  if (_destWeatherAbortCtrl) { _destWeatherAbortCtrl.abort(); _destWeatherAbortCtrl = null; }
+  const destWeatherEl = document.getElementById('dest-weather');
+  if (destWeatherEl) destWeatherEl.textContent = '';
 }
 
 function resetTimelineToLive() {

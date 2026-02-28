@@ -801,6 +801,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
   gap: 12px;
 }
 
+#timeline-dest-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
 .timeline-airport {
   font: var(--md-typescale-label-large);
   font-weight: 600;
@@ -808,6 +815,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
   min-width: 32px;
   text-align: center;
   white-space: nowrap;
+}
+
+.dest-weather {
+  font: var(--md-typescale-body-small);
+  color: var(--md-on-surface-variant);
+  white-space: nowrap;
+  text-align: center;
+  min-height: 1em;
 }
 
 #timeline-slider {
