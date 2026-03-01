@@ -66,6 +66,9 @@
   background: var(--md-surface-container-solid);
   border-radius: var(--md-shape-xl, 28px);
   width: 680px;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
   font-size: 14px;
   font-family: 'Roboto Flex', sans-serif;
   box-shadow: var(--md-elevation-3);
@@ -98,16 +101,7 @@
 @media (max-width: 767px) {
   #settings-panel {
     width: calc(100vw - 32px);
-    max-height: 90dvh;
-    display: flex;
-    flex-direction: column;
     border-radius: var(--md-shape-lg, 16px);
-  }
-
-  #settings-container {
-    flex: 1;
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 }
 
@@ -115,6 +109,9 @@
 #settings-container {
   --settings-input-bg: rgba(0, 0, 0, 0.2);
   --settings-btn-active-color: #000000;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .theme-light #settings-container {
