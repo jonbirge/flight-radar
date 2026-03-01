@@ -554,8 +554,11 @@ if (infoToggleBtn) {
   }, { passive: true });
 }());
 
-// On mobile: force 2D mode and disable rotation controls.
+// On mobile: force 2D mode, disable rotation controls, and start with panels stowed.
 if (isMobile()) {
+  // Collapse the bottom sheet immediately (before user interaction)
+  const bottomSheet = document.getElementById('bottom-sheet');
+  if (bottomSheet) bottomSheet.classList.add('collapsed');
   setTimeout(() => {
     if (!is2D) morphAndPreserveView(false);
     const rotateToggle = document.getElementById('toggle-rotate');

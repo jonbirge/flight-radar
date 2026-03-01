@@ -91,9 +91,26 @@
 }
 
 /* ============================================================
-   Settings panel: vars with no M3 equivalent, and active-button
-   color (deliberately differs from --md-on-primary)
+   Settings panel responsive: full-width on mobile, scrollable
+   with sticky footer
    ============================================================ */
+
+@media (max-width: 767px) {
+  #settings-panel {
+    width: calc(100vw - 32px);
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--md-shape-lg, 16px);
+  }
+
+  #settings-container {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 
 #settings-container {
   --settings-input-bg: rgba(0, 0, 0, 0.2);

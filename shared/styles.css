@@ -841,10 +841,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
   cursor: pointer;
 }
 
-/* Settings icon button — square icon variant of scope-btn */
+/* Settings icon button — square icon variant of scope-btn, centered */
 .scope-btn-icon {
   padding: 0;
   width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Settings button always right-justified in the controls row */
+#btn-settings {
+  margin-left: auto;
 }
 
 .timeline-live-btn {
@@ -968,5 +976,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   .toggle-label input[type="checkbox"] {
     width: 22px;
     height: 22px;
+  }
+
+  /* Search bar shifts down when aircraft info panel is stowed (showing handle only) */
+  body:has(#aircraft-info.mob-collapsed) #flight-search-wrap {
+    top: 44px;
   }
 }
