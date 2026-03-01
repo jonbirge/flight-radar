@@ -43,72 +43,89 @@
     <div>Scroll to zoom, drag to pan.</div>
   </div>
 
-  <!-- Controls panel -->
-  <div id="controls">
-    <button id="controls-toggle" class="panel-toggle" aria-label="Toggle controls panel">
-      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15 19l-7-7 7-7z"/></svg>
-    </button>
-    <div class="control-group">
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-aircraft">
-        <span>Aircraft</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-labels" checked disabled>
-        <span>Data blocks</span>
-      </label>
-      <div class="map-layer-select" id="map-layer">
-        <button class="map-layer-btn" type="button">
-          <span class="map-layer-label">CartoDB</span>
-          <svg class="map-layer-chevron" viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
-        </button>
-        <div class="map-layer-menu">
-          <div class="map-layer-option selected" data-value="carto">CartoDB</div>
-          <div class="map-layer-option" data-value="satellite">Satellite</div>
-          <div class="map-layer-option" data-value="osm">OpenStreetMap</div>
-          <div class="map-layer-option" data-value="topo">Topographic</div>
-          <div class="map-layer-option" data-value="night">Night Lights</div>
+  <!-- Bottom sheet: timeline stacks above controls on mobile -->
+  <div id="bottom-sheet">
+    <!-- Flight plan timeline scrubber -->
+    <div id="timeline-panel" class="hidden">
+      <div id="timeline-bar">
+        <span id="timeline-origin" class="timeline-airport">---</span>
+        <input type="range" id="timeline-slider" min="0" max="1000" value="500" title="Flight plan timeline scrubber" aria-label="Flight plan timeline scrubber">
+        <span id="timeline-dest" class="timeline-airport">---</span>
+      </div>
+      <div id="timeline-info">
+        <span id="timeline-time">NOW</span>
+        <button id="timeline-live" class="scope-btn timeline-live-btn">Live</button>
+      </div>
+    </div>
+
+    <!-- Controls panel -->
+    <div id="controls">
+      <button id="controls-toggle" class="panel-toggle" aria-label="Toggle controls panel">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15 19l-7-7 7-7z"/></svg>
+      </button>
+      <div class="sheet-handle"></div>
+      <div class="control-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-aircraft">
+          <span>Aircraft</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-labels" checked disabled>
+          <span>Data blocks</span>
+        </label>
+        <div class="map-layer-select" id="map-layer">
+          <button class="map-layer-btn" type="button">
+            <span class="map-layer-label">CartoDB</span>
+            <svg class="map-layer-chevron" viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+          </button>
+          <div class="map-layer-menu">
+            <div class="map-layer-option selected" data-value="carto">CartoDB</div>
+            <div class="map-layer-option" data-value="satellite">Satellite</div>
+            <div class="map-layer-option" data-value="osm">OpenStreetMap</div>
+            <div class="map-layer-option" data-value="topo">Topographic</div>
+            <div class="map-layer-option" data-value="night">Night Lights</div>
+          </div>
         </div>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-rotate">
+          <span>Auto rotate</span>
+        </label>
       </div>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-rotate">
-        <span>Auto rotate</span>
-      </label>
-    </div>
-    <div class="control-group">
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-satellite-ir">
-        <span>IR</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-radar">
-        <span>Radar</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-sigmets">
-        <span>SIGMETs</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-airmets">
-        <span>AIRMETs</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-pireps">
-        <span>PIREPs</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" id="toggle-turb-forecast">
-        <span>Turbulence</span>
-      </label>
-    </div>
-    <div class="control-group">
-      <button id="btn-north" class="scope-btn">North up</button>
-      <button id="btn-conus" class="scope-btn">CONUS</button>
-      <div class="scope-btn-group">
-        <button id="btn-2d" class="scope-btn">2D</button>
-        <button id="btn-3d" class="scope-btn active">3D</button>
+      <div class="control-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-satellite-ir">
+          <span>IR</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-radar">
+          <span>Radar</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-sigmets">
+          <span>SIGMETs</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-airmets">
+          <span>AIRMETs</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-pireps">
+          <span>PIREPs</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-turb-forecast">
+          <span>Turbulence</span>
+        </label>
       </div>
-      <button id="btn-settings" class="scope-btn">Settings</button>
+      <div class="control-group">
+        <button id="btn-north" class="scope-btn">North up</button>
+        <button id="btn-conus" class="scope-btn">CONUS</button>
+        <div class="scope-btn-group">
+          <button id="btn-2d" class="scope-btn">2D</button>
+          <button id="btn-3d" class="scope-btn active">3D</button>
+        </div>
+        <button id="btn-settings" class="scope-btn scope-btn-icon" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35C8.66 5.59 8.12 5.92 7.63 6.29L5.24 5.33c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.22-.07.47.12.61l2.03 1.58C4.84 11.36 4.8 11.69 4.8 12s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61L19.14 12.94zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
+      </div>
     </div>
   </div>
 
@@ -137,19 +154,7 @@
         <button id="btn-show-route" class="scope-btn">Show Route</button>
       </div>
     </div>
-  </div>
-
-  <!-- Flight plan timeline scrubber -->
-  <div id="timeline-panel" class="hidden">
-    <div id="timeline-bar">
-      <span id="timeline-origin" class="timeline-airport">---</span>
-      <input type="range" id="timeline-slider" min="0" max="1000" value="500" title="Flight plan timeline scrubber" aria-label="Flight plan timeline scrubber">
-      <span id="timeline-dest" class="timeline-airport">---</span>
-    </div>
-    <div id="timeline-info">
-      <span id="timeline-time">NOW</span>
-      <button id="timeline-live" class="scope-btn timeline-live-btn">Live</button>
-    </div>
+    <div class="sheet-handle"></div>
   </div>
 
   <!-- Shared modules -->

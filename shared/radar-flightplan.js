@@ -90,6 +90,7 @@ function showAircraftInfo(icao) {
   const wasHidden = panel.classList.contains('hidden');
   panel.classList.remove('hidden');
   if (wasHidden) panel.classList.remove('collapsed');
+  panel.classList.remove('mob-collapsed');
 
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
@@ -180,6 +181,7 @@ function showTurbInfo(entity) {
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
   panel.classList.remove('collapsed');
+  panel.classList.remove('mob-collapsed');
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.add('hidden');
 
@@ -771,8 +773,7 @@ function showFlightPlanInfo(flight) {
   const panel = document.getElementById('aircraft-info');
   panel.classList.remove('hidden');
   panel.classList.remove('collapsed');
-
-  // Show buttons but disable Track (no live aircraft to track)
+  panel.classList.remove('mob-collapsed');
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
   const trackBtn = document.getElementById('btn-track');
