@@ -306,6 +306,11 @@ input[type="range"]::-webkit-slider-thumb:hover {
     border-right: none;
     border-bottom: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
   }
+  /* Hide 3D-only options (rotation speed, 3D airspace) — mobile is always 2D */
+  .settings-section:has(#set-rotation-speed),
+  label:has(#set-airspace-3d) {
+    display: none;
+  }
 }
 `;
 

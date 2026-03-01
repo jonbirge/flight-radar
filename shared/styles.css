@@ -926,17 +926,17 @@ input[type="range"]::-webkit-slider-thumb:hover {
     display: none;
   }
 
-  /* Timeline: static inside flex column, full width, same top radius */
+  /* Timeline: static inside flex column, natural width with side margins */
   #timeline-panel {
     position: static;
     transform: none;
     left: auto;
     bottom: auto;
-    width: 100%;
+    width: auto;
     max-width: none;
     min-width: unset;
     border-radius: var(--md-shape-xl) var(--md-shape-xl) 0 0;
-    margin-bottom: 2px;
+    margin: 0 16px 2px;
     box-shadow: none;
   }
 
@@ -947,6 +947,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
     right: 0;
     min-width: unset;
     border-radius: 0 0 var(--md-shape-xl) var(--md-shape-xl);
+    padding-bottom: 12px;
     transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-emphasized);
   }
 
@@ -955,6 +956,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
     transform: translateY(calc(-100% + 36px));
   }
 
+  /* Match control panel proportions: 12px padding at panel edge, 10px to handle */
   /* Handle sits at bottom of the aircraft info panel */
   #aircraft-info .sheet-handle {
     margin-top: 10px;

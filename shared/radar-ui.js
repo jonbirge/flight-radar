@@ -566,6 +566,11 @@ if (isMobile()) {
   }, 500);
 }
 
+// Handle dynamic switch to mobile (e.g., browser window resize or device rotation).
+window.matchMedia('(max-width: 767px)').addEventListener('change', (e) => {
+  if (e.matches && !is2D) morphAndPreserveView(false);
+});
+
 // ============================================================
 // Visibility-based timer pause/resume (used by web layer)
 // ============================================================
