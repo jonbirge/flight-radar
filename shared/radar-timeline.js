@@ -126,7 +126,7 @@ function interpolateRoutePosition(fraction) {
 function getFlightTimes(flight) {
   const depStr = flight.actual_out || flight.estimated_out || flight.scheduled_out;
   const arrStr = flight.estimated_in || flight.scheduled_in
-    || (typeof estimateArrivalTime === 'function' ? estimateArrivalTime(flight) : null);
+    || estimateArrivalTime(flight);
   const dep = depStr ? new Date(depStr).getTime() : null;
   const arr = arrStr ? new Date(arrStr).getTime() : null;
   return { dep, arr };
