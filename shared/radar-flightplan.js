@@ -1121,9 +1121,15 @@ function buildAdvancedQuery(params) {
   return parts.join(' ');
 }
 
+// Guard flag — prevents concurrent search requests without disabling the input
+// (disabling the input can leave it stuck in an uneditable state when alert()
+// dialogs interfere with focus restoration).
+let isSearching = false;
+
 // Handle a natural language flight search query by calling the FlightAware
 // /flights/search/advanced endpoint with a query built from the parsed params.
 async function searchFlightsByNL(query) {
+  if (isSearching) return;
   if (!window.flightAPI.searchFlights) {
     console.warn('[FlightPlan] searchFlights not available on this platform');
     return;
@@ -1135,10 +1141,7 @@ async function searchFlightsByNL(query) {
     return;
   }
 
-  const searchInput = document.getElementById('flight-search');
-  const searchBtn = document.getElementById('btn-flight-search');
-  if (searchBtn) searchBtn.disabled = true;
-  if (searchInput) searchInput.disabled = true;
+  isSearching = true;
 
   try {
     const advQuery = buildAdvancedQuery(params);
@@ -1168,13 +1171,13 @@ async function searchFlightsByNL(query) {
     console.error('[FlightPlan] NL search error:', err);
     alert('Flight search failed. Check console for details.');
   } finally {
-    if (searchBtn) searchBtn.disabled = false;
-    if (searchInput) searchInput.disabled = false;
+    isSearching = false;
   }
 }
 
 async function searchFlightPlan(ident) {
   if (!ident || ident.trim().length === 0) return;
+  if (isSearching) return;
 
   // Route natural language queries to the dedicated NL search handler
   if (isNaturalLanguageQuery(ident)) {
@@ -1182,10 +1185,7 @@ async function searchFlightPlan(ident) {
     return;
   }
 
-  const searchInput = document.getElementById('flight-search');
-  const searchBtn = document.getElementById('btn-flight-search');
-  if (searchBtn) searchBtn.disabled = true;
-  if (searchInput) searchInput.disabled = true;
+  isSearching = true;
 
   try {
     if (!window.flightAPI.getFlightPlan) {
@@ -1223,8 +1223,7 @@ async function searchFlightPlan(ident) {
     console.error('[FlightPlan] Search error:', err);
     alert('Flight search failed. Check console for details.');
   } finally {
-    if (searchBtn) searchBtn.disabled = false;
-    if (searchInput) searchInput.disabled = false;
+    isSearching = false;
   }
 }
 
