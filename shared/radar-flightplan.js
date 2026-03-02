@@ -89,7 +89,12 @@ function showAircraftInfo(icao) {
   const panel = document.getElementById('aircraft-info');
   const wasHidden = panel.classList.contains('hidden');
   panel.classList.remove('hidden');
-  if (wasHidden) panel.classList.remove('collapsed');
+  if (wasHidden) {
+    panel.classList.remove('collapsed');
+    // On mobile default to stowed (mob-collapsed) so user can choose to expand
+    if (isMobile()) panel.classList.add('mob-collapsed');
+    else panel.classList.remove('mob-collapsed');
+  }
 
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
@@ -178,8 +183,13 @@ function showTurbInfo(entity) {
   if (!p) return;
   const type = p.turbType ? p.turbType.getValue() : '?';
   const panel = document.getElementById('aircraft-info');
+  const wasHidden = panel.classList.contains('hidden');
   panel.classList.remove('hidden');
   panel.classList.remove('collapsed');
+  if (wasHidden) {
+    if (isMobile()) panel.classList.add('mob-collapsed');
+    else panel.classList.remove('mob-collapsed');
+  }
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.add('hidden');
 
@@ -769,10 +779,13 @@ function drawRouteFromString(routeStr, originCoords, destCoords, routeColor, way
 
 function showFlightPlanInfo(flight) {
   const panel = document.getElementById('aircraft-info');
+  const wasHidden = panel.classList.contains('hidden');
   panel.classList.remove('hidden');
   panel.classList.remove('collapsed');
-
-  // Show buttons but disable Track (no live aircraft to track)
+  if (wasHidden) {
+    if (isMobile()) panel.classList.add('mob-collapsed');
+    else panel.classList.remove('mob-collapsed');
+  }
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.remove('hidden');
   const trackBtn = document.getElementById('btn-track');
