@@ -268,6 +268,8 @@ async function fetchRainViewerMaps() {
 
 // Create a Cesium imagery provider for a specific RainViewer radar frame.
 // `host` is the CDN base (e.g. "https://tilecache.rainviewer.com"), `path` is the frame path.
+// URL format: {host}{path}/256/{z}/{x}/{y}/{color}/{options}.png
+//   color=2 (universal blue scheme), options=1_1 (smooth + snow).
 function makeRainViewerProvider(host, path) {
   return new FilteredRadarImageryProvider(
     new Cesium.UrlTemplateImageryProvider({

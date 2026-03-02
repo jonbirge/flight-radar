@@ -330,7 +330,9 @@ function onTimelineInput() {
   // Update turbulence forecast for scrubbed time (instant from preloaded cache)
   updateTurbForTimelineTime(sliderTime);
 
-  // Switch radar overlay to the nearest RainViewer frame for the scrubbed time
+  // Switch radar overlay to the nearest RainViewer frame for the scrubbed time.
+  // Guard: skip if loop is somehow still active (defensive, since enterScrubbingMode
+  // disables the loop).
   if (CONFIG.radarEnabled && !_radarLoopPlaying) {
     setRadarForTime(sliderTime);
   }

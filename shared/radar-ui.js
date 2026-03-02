@@ -589,7 +589,7 @@ function pauseAllTimers() {
   pauseWeatherRefresh();
   stopClock();
   if (typeof stopLiveTimer === 'function') stopLiveTimer();
-  // Pause radar loop animation
+  // Pause radar loop timer but keep _radarLoopPlaying=true so we know to restart
   if (_radarLoopTimer) { clearInterval(_radarLoopTimer); _radarLoopTimer = null; }
   console.log('[Visibility] All timers paused');
 }
