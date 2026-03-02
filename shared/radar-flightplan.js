@@ -933,8 +933,148 @@ async function selectFlightFromResults(flight, flightData) {
   }
 }
 
+// ============================================================
+// Natural Language Query Parsing
+// ============================================================
+
+// Returns true if the query looks like a natural language search
+// rather than a plain flight identifier like "UAL123".
+function isNaturalLanguageQuery(query) {
+  if (!query) return false;
+  if (query.includes(' ')) return true;
+  return /\b(from|to|departing|arriving|flights?|between|today|tomorrow|yesterday|morning|afternoon|evening)\b/i.test(query);
+}
+
+// Parse a natural language flight search query.
+// Returns { origin, destination, start, end } (values may be null).
+function parseNaturalLanguage(query) {
+  const q = query.toLowerCase().trim();
+  const result = { origin: null, destination: null, start: null, end: null };
+
+  // Extract origin airport (3–4 letter IATA/ICAO code)
+  const originMatch = q.match(/(?:from\s+|departing\s+(?:from\s+)?|out\s+of\s+)([a-z]{3,4})\b/);
+  if (originMatch) result.origin = originMatch[1].toUpperCase();
+
+  // Extract destination airport (3–4 letter IATA/ICAO code)
+  const destMatch = q.match(/(?:\bto\s+|arriving\s+(?:at\s+|in\s+)?|bound\s+for\s+)([a-z]{3,4})\b/);
+  if (destMatch) result.destination = destMatch[1].toUpperCase();
+
+  // Determine target date
+  const now = new Date();
+  const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let targetDate = localMidnight;
+  if (/\btomorrow\b/.test(q)) {
+    targetDate = new Date(localMidnight.getTime() + 86400000);
+  } else if (/\byesterday\b/.test(q)) {
+    targetDate = new Date(localMidnight.getTime() - 86400000);
+  }
+
+  // Parse "between Xam and Ypm" time range
+  const betweenMatch = q.match(/between\s+(\d{1,2}(?::\d{2})?)\s*(am|pm)?\s+and\s+(\d{1,2}(?::\d{2})?)\s*(am|pm)?/);
+  if (betweenMatch) {
+    const startH = parseHourStr(betweenMatch[1], betweenMatch[2]);
+    const endH   = parseHourStr(betweenMatch[3], betweenMatch[4]);
+    result.start = new Date(targetDate.getTime() + startH * 3600000).toISOString();
+    result.end   = new Date(targetDate.getTime() + endH   * 3600000).toISOString();
+  } else if (/\bmorning\b/.test(q)) {
+    result.start = new Date(targetDate.getTime() +  6 * 3600000).toISOString(); // 06:00
+    result.end   = new Date(targetDate.getTime() + 12 * 3600000).toISOString(); // 12:00
+  } else if (/\bafternoon\b/.test(q)) {
+    result.start = new Date(targetDate.getTime() + 12 * 3600000).toISOString(); // 12:00
+    result.end   = new Date(targetDate.getTime() + 18 * 3600000).toISOString(); // 18:00
+  } else if (/\bevening\b/.test(q)) {
+    result.start = new Date(targetDate.getTime() + 18 * 3600000).toISOString(); // 18:00
+    result.end   = new Date(targetDate.getTime() + 24 * 3600000).toISOString(); // 00:00 next day
+  } else {
+    // Default: full target day
+    result.start = targetDate.toISOString();
+    result.end   = new Date(targetDate.getTime() + 86400000).toISOString();
+  }
+
+  return result;
+}
+
+// Parse a time string like "8", "8:30" with optional am/pm into fractional hours (0–24).
+function parseHourStr(timeStr, ampm) {
+  const parts = timeStr.split(':');
+  let hour = parseInt(parts[0], 10);
+  const min = parts.length > 1 ? parseInt(parts[1], 10) / 60 : 0;
+  if (ampm === 'pm' && hour < 12) hour += 12;
+  if (ampm === 'am' && hour === 12) hour = 0;
+  return hour + min;
+}
+
+// Build a FlightAware AIDL query string from parsed NL parameters.
+function buildAidlQuery(params) {
+  const parts = [];
+  if (params.origin)      parts.push(`-origin ${params.origin}`);
+  if (params.destination) parts.push(`-destination ${params.destination}`);
+  if (params.start)       parts.push(`-startDate ${params.start}`);
+  if (params.end)         parts.push(`-endDate ${params.end}`);
+  return parts.join(' ');
+}
+
+// Handle a natural language flight search query by calling the FlightAware
+// /flights/search endpoint with an AIDL query built from the parsed params.
+async function searchFlightsByNL(query) {
+  if (!window.flightAPI.searchFlights) {
+    console.warn('[FlightPlan] searchFlights not available on this platform');
+    return;
+  }
+
+  const params = parseNaturalLanguage(query);
+  if (!params.origin && !params.destination) {
+    alert('Could not parse search. Try "flights from SFO to LAX today" or a flight number like UAL123.');
+    return;
+  }
+
+  const searchInput = document.getElementById('flight-search');
+  const searchBtn = document.getElementById('btn-flight-search');
+  if (searchBtn) searchBtn.disabled = true;
+  if (searchInput) searchInput.disabled = true;
+
+  try {
+    const aidlQuery = buildAidlQuery(params);
+    console.log(`[FlightPlan] NL search: "${query}" → AIDL: "${aidlQuery}"`);
+    const data = await window.flightAPI.searchFlights(aidlQuery);
+    if (data.error) {
+      console.warn(`[FlightPlan] NL search error: ${data.error}`);
+      alert(`Flight search failed: ${data.error}`);
+      return;
+    }
+
+    const flights = data.flights || [];
+    if (flights.length === 0) {
+      alert(`No flights found for "${query}"`);
+      return;
+    }
+
+    console.log(`[FlightPlan] NL search found ${flights.length} flight(s)`);
+    addSearchHistory(query.trim());
+
+    if (flights.length === 1) {
+      const result = displayFlightPlanRoute(data);
+      if (result) await searchForLiveAircraft(result);
+    } else {
+      showFlightResults(flights, data);
+    }
+  } catch (err) {
+    console.error('[FlightPlan] NL search error:', err);
+    alert('Flight search failed. Check console for details.');
+  } finally {
+    if (searchBtn) searchBtn.disabled = false;
+    if (searchInput) searchInput.disabled = false;
+  }
+}
+
 async function searchFlightPlan(ident) {
   if (!ident || ident.trim().length === 0) return;
+
+  // Route natural language queries to the dedicated NL search handler
+  if (isNaturalLanguageQuery(ident)) {
+    await searchFlightsByNL(ident.trim());
+    return;
+  }
 
   const searchInput = document.getElementById('flight-search');
   const searchBtn = document.getElementById('btn-flight-search');

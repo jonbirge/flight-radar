@@ -85,9 +85,10 @@
 
   <h3>Flight Search</h3>
   <p>
-    Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) in the
+    Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) <strong>or a
+    natural language query</strong> (e.g. <kbd>flights from SFO to LAX today</kbd>) in the
     search panel at the top-left and press <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s
-    AeroAPI for flights matching that identifier and presents a results panel showing recent and
+    AeroAPI for matching flights and presents a results panel showing recent and
     upcoming flights. Each result is labelled with its status:
   </p>
   <ul>
@@ -98,6 +99,26 @@
   <p>
     Click a result to select that specific flight and display its planned route on the map.
     If only one flight is returned it is selected automatically.
+  </p>
+
+  <h4>Natural Language Search</h4>
+  <p>
+    Natural language queries are detected automatically when the input contains spaces or
+    flight-search keywords. Supported patterns include:
+  </p>
+  <ul>
+    <li><kbd>flights from SFO to LAX</kbd> — Search by origin and destination airports.</li>
+    <li><kbd>flights from SFO to LAX today</kbd> — Limit results to today.</li>
+    <li><kbd>flights departing from JFK tomorrow</kbd> — Departures from an airport on a given day.</li>
+    <li><kbd>flights from ORD between 8am and 12pm</kbd> — Flights within a time window.</li>
+    <li><kbd>flights from BOS this morning</kbd> — Morning departures (06:00&ndash;12:00).</li>
+    <li><kbd>flights from LAX this afternoon</kbd> — Afternoon departures (12:00&ndash;18:00).</li>
+    <li><kbd>flights from JFK this evening</kbd> — Evening departures (18:00&ndash;00:00).</li>
+  </ul>
+  <p>
+    Airport codes can be IATA (3-letter, e.g. <kbd>SFO</kbd>) or ICAO (4-letter, e.g. <kbd>KSFO</kbd>).
+    At least one of origin or destination is required. Date and time are optional — omitting them
+    searches the current day by default.
   </p>
   <p>
     <strong>Search history:</strong> Click the clock icon next to the search box to see up to

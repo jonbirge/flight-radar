@@ -316,6 +316,24 @@ ipcMain.handle('get-flight-track', async (event, faFlightId) => {
   }
 });
 
+// IPC handler: search flights via AIDL query (origin, destination, date/time window)
+ipcMain.handle('search-flights', async (event, aidlQuery) => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) {
+    return { error: 'FlightAware API key not configured' };
+  }
+
+  try {
+    const url = `${FA_AEROAPI_BASE}/flights/search?query=${encodeURIComponent(aidlQuery)}`;
+    const data = await httpGetFA(url, apiKey);
+    return data;
+  } catch (err) {
+    console.error('[FlightAware] NL search error:', err.message);
+    return { error: err.message };
+  }
+});
+
 // --- Help Window ---
 let helpWindow = null;
 
