@@ -213,6 +213,23 @@ async function apiGetFlightTrack(faFlightId) {
   }
 }
 
+// Search flights by AIDL query (origin, destination, date/time window)
+async function apiSearchFlights(aidlQuery) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights/search&query=${encodeURIComponent(aidlQuery)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
 // ============================================================
 // window.flightAPI shim (browser equivalent of Electron IPC)
 // ============================================================
@@ -223,6 +240,7 @@ window.flightAPI = {
   getFlightPlan: (ident) => apiGetFlightPlan(ident),
   getFlightRoute: (faFlightId) => apiGetFlightRoute(faFlightId),
   getFlightTrack: (faFlightId) => apiGetFlightTrack(faFlightId),
+  searchFlights: (aidlQuery) => apiSearchFlights(aidlQuery),
   getSettings: () => Promise.resolve(loadSettings()),
   saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
   onOpenSettings: () => {},  // no-op
