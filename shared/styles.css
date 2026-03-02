@@ -784,8 +784,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: var(--md-surface-container);
   border-radius: var(--md-shape-xl);
   padding: 12px 20px;
-  min-width: 320px;
-  max-width: 480px;
+  min-width: 400px;
+  max-width: 600px;
   box-shadow: var(--md-elevation-2);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -796,10 +796,19 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 #timeline-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 2px;
 }
+
+#timeline-origin  { grid-column: 1; grid-row: 1; }
+#timeline-slider  { grid-column: 2; grid-row: 1; }
+#timeline-dest    { grid-column: 3; grid-row: 1; }
+#origin-weather   { grid-column: 1; grid-row: 2; }
+#timeline-time    { grid-column: 2; grid-row: 2; text-align: center; }
+#dest-weather     { grid-column: 3; grid-row: 2; }
 
 .timeline-airport {
   font: var(--md-typescale-label-large);
@@ -810,22 +819,31 @@ input[type="range"]::-webkit-slider-thumb:hover {
   white-space: nowrap;
 }
 
+.timeline-weather {
+  font: var(--md-typescale-body-small);
+  color: var(--md-on-surface-variant);
+  white-space: nowrap;
+  text-align: center;
+  min-height: 1em;
+}
+
 #timeline-slider {
-  flex: 1;
-  width: auto;
+  width: 100%;
   min-width: 180px;
 }
 
 #timeline-info {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   margin-top: 6px;
 }
 
 #timeline-time {
   font: var(--md-typescale-body-small);
   color: var(--md-on-surface-variant);
+  white-space: nowrap;
+  min-height: 1em;
 }
 
 /* Sheet handle pill — hidden on desktop, shown on mobile */
