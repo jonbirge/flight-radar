@@ -784,8 +784,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: var(--md-surface-container);
   border-radius: var(--md-shape-xl);
   padding: 12px 20px;
-  min-width: 400px;
-  max-width: 600px;
+  min-width: 460px;
+  max-width: 690px;
   box-shadow: var(--md-elevation-2);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -948,8 +948,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
   #timeline-panel {
     position: absolute;
     bottom: 100%;
-    left: 16px;
-    right: 16px;
+    left: 8px;
+    right: 8px;
     transform: none;
     width: auto;
     max-width: none;
