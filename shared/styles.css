@@ -846,8 +846,161 @@ input[type="range"]::-webkit-slider-thumb:hover {
   min-height: 1em;
 }
 
+/* Sheet handle pill — hidden on desktop, shown on mobile */
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--md-on-surface-variant);
+  border-radius: 2px;
+  margin: 0 auto;
+  opacity: 0.4;
+  display: none;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* Settings icon button — square icon variant of scope-btn, centered */
+.scope-btn-icon {
+  padding: 0;
+  width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Settings button always right-justified in the controls row */
+#btn-settings {
+  margin-left: auto;
+}
+
 .timeline-live-btn {
   font-size: 12px;
   min-height: 28px;
   padding: 0 12px;
+}
+
+/* ============================================================
+   Mobile layout (portrait / narrow screens)
+   ============================================================ */
+
+@media (max-width: 767px) {
+  /* Hide keyboard/mouse interaction hints */
+  #hud-instructions {
+    display: none;
+  }
+
+  /* Full-width search bar */
+  #flight-search-wrap {
+    width: calc(100% - 32px);
+  }
+
+  /* Reveal sheet handles on mobile */
+  .sheet-handle {
+    display: block;
+  }
+
+  /* ---- Bottom sheet wrapper: timeline stacks above controls ---- */
+  #bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-emphasized);
+  }
+
+  #bottom-sheet.collapsed {
+    /* Slide down leaving the handle bar visible (≈ 36px) */
+    transform: translateY(calc(100% - 36px));
+  }
+
+  /* Controls: static inside flex column, full width, top corners rounded */
+  #controls {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    border-radius: var(--md-shape-xl) var(--md-shape-xl) 0 0;
+    font: var(--md-typescale-label-large);
+    padding-top: 12px;
+  }
+
+  /* Suppress the leftward-slide collapse (wrapper handles hide on mobile) */
+  #controls.collapsed {
+    transform: none;
+  }
+
+  /* Handle sits at top of controls panel */
+  #controls .sheet-handle {
+    margin-bottom: 10px;
+  }
+
+  /* Hide the old desktop side-tab toggle */
+  #controls-toggle {
+    display: none;
+  }
+
+  /* Timeline: floats just above the bottom sheet, moves with it during transition */
+  #timeline-panel {
+    position: absolute;
+    bottom: 100%;
+    left: 16px;
+    right: 16px;
+    transform: none;
+    width: auto;
+    max-width: none;
+    min-width: unset;
+    border-radius: var(--md-shape-xl);
+    margin-bottom: 8px;
+  }
+
+  /* ---- Aircraft info: full-width top sheet ---- */
+  #aircraft-info {
+    top: 0;
+    left: 0;
+    right: 0;
+    min-width: unset;
+    border-radius: 0 0 var(--md-shape-xl) var(--md-shape-xl);
+    padding-bottom: 12px;
+    transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-emphasized);
+  }
+
+  /* Collapse upward leaving handle bar visible at top of screen */
+  #aircraft-info.mob-collapsed {
+    transform: translateY(calc(-100% + 36px));
+  }
+
+  /* Match control panel proportions: 12px padding at panel edge, 20px to handle
+     Total bottom strip = 12 + 20 + 4px pill = 36px = exact stowed reveal height */
+  /* Handle sits at bottom of the aircraft info panel */
+  #aircraft-info .sheet-handle {
+    margin-top: 20px;
+  }
+
+  /* Hide the old desktop bottom-edge tab toggle */
+  #info-toggle {
+    display: none;
+  }
+
+  /* Hide 2D/3D buttons, North up, and Auto rotate on mobile */
+  .scope-btn-group,
+  #btn-north,
+  label:has(#toggle-rotate) {
+    display: none;
+  }
+
+  /* Larger checkboxes for touch targets */
+  .toggle-label input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Search bar shifts down when aircraft info panel is stowed (showing handle only) */
+  body:has(#aircraft-info.mob-collapsed) #flight-search-wrap {
+    top: 44px;
+  }
 }

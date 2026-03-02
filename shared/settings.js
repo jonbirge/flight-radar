@@ -291,8 +291,27 @@ input[type="range"]::-webkit-slider-thumb:hover {
   justify-content: space-between;
   padding: 12px 16px;
   border-top: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
+  position: sticky;
+  bottom: 0;
+  background: var(--md-surface-container-solid, var(--md-surface, #f0f0f0));
+  z-index: 5;
 }
 /* Footer buttons use .scope-btn from shared/styles.css (web) or src/settings.css (Electron) */
+
+@media (max-width: 767px) {
+  .settings-columns {
+    flex-direction: column;
+  }
+  .settings-column:first-child {
+    border-right: none;
+    border-bottom: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
+  }
+  /* Hide 3D-only options (rotation speed, 3D airspace) — mobile is always 2D */
+  .settings-section:has(#set-rotation-speed),
+  label:has(#set-airspace-3d) {
+    display: none;
+  }
+}
 `;
 
 let settingsCssInjected = false;
