@@ -6,7 +6,7 @@
 'use strict';
 
 // ============================================================
-// Destination Weather
+// Airport Weather
 // ============================================================
 
 // WMO weather interpretation code → representative emoji icon.
@@ -23,55 +23,46 @@ const WMO_WEATHER_ICON = {
   95: '⛈️', 96: '⛈️', 99: '⛈️',
 };
 
-// Fetch the surface weather forecast at the destination airport for the estimated arrival time
-// and populate the #dest-weather element. Uses the Open-Meteo free forecast API.
-let _destWeatherAbortCtrl = null;
+// Fetch the surface weather forecast at an airport for a given time and display it in the
+// specified element. Uses the Open-Meteo free forecast API.
+let _weatherAbortCtrl = null;
 
-async function fetchDestWeather(flight) {
-  const el = document.getElementById('dest-weather');
+async function fetchAirportWeather(airport, timeMs, elId) {
+  const el = document.getElementById(elId);
   if (!el) return;
 
-  const dest = flight.destination;
-  const destCoords = dest ? lookupAirportCoords(dest) : null;
-  if (!destCoords) { el.textContent = ''; return; }
-
-  const { arr } = getFlightTimes(flight);
-  if (!arr) { el.textContent = ''; return; }
-
-  // Cancel any in-flight request for a previous aircraft selection.
-  if (_destWeatherAbortCtrl) _destWeatherAbortCtrl.abort();
-  _destWeatherAbortCtrl = new AbortController();
-  const { signal } = _destWeatherAbortCtrl;
+  const coords = airport ? lookupAirportCoords(airport) : null;
+  if (!coords || !timeMs) { el.textContent = ''; return; }
 
   el.textContent = '…';
 
   try {
-    const arrDate = new Date(arr);
-    const dateStr = arrDate.toISOString().slice(0, 10); // YYYY-MM-DD
+    const date = new Date(timeMs);
+    const dateStr = date.toISOString().slice(0, 10); // YYYY-MM-DD
     const url = 'https://api.open-meteo.com/v1/forecast' +
-      `?latitude=${destCoords.lat.toFixed(4)}&longitude=${destCoords.lon.toFixed(4)}` +
-      `&hourly=temperature_2m,weather_code&timezone=UTC&start_date=${dateStr}&end_date=${dateStr}`;
+      `?latitude=${coords.lat.toFixed(4)}&longitude=${coords.lon.toFixed(4)}` +
+      `&hourly=temperature_2m,weather_code&temperature_unit=fahrenheit&timezone=UTC&start_date=${dateStr}&end_date=${dateStr}`;
 
-    const resp = await fetch(url, { signal });
+    const resp = await fetch(url, { signal: _weatherAbortCtrl.signal });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
     const times = data.hourly.time; // ["YYYY-MM-DDTHH:00", ...]
-    // Find the hourly slot closest to the arrival time (times are sorted, so stop when diff grows).
+    // Find the hourly slot closest to the target time (times are sorted, so stop when diff grows).
     let idx = 0;
-    let minDiff = Math.abs(new Date(times[0] + 'Z').getTime() - arr);
+    let minDiff = Math.abs(new Date(times[0] + 'Z').getTime() - timeMs);
     for (let i = 1; i < times.length; i++) {
-      const diff = Math.abs(new Date(times[i] + 'Z').getTime() - arr);
+      const diff = Math.abs(new Date(times[i] + 'Z').getTime() - timeMs);
       if (diff < minDiff) { minDiff = diff; idx = i; } else { break; }
     }
 
     const temp = data.hourly.temperature_2m[idx];
     const code = data.hourly.weather_code[idx];
     const icon = WMO_WEATHER_ICON[code] ?? '🌡️';
-    el.textContent = temp != null ? `${icon} ${Math.round(temp)}°C` : icon;
+    el.textContent = temp != null ? `${icon} ${Math.round(temp)}°F` : icon;
   } catch (err) {
     if (err.name === 'AbortError') return; // superseded by a newer selection
-    console.warn('[Timeline] Destination weather fetch failed:', err.message);
+    console.warn(`[Timeline] Weather fetch failed (${elId}):`, err.message);
     el.textContent = '';
   }
 }
@@ -189,8 +180,11 @@ function showTimeline(flight) {
   // so the slider can switch maps instantly without network fetches.
   preloadTurbForTimeline(dep, arr);
 
-  // Fetch surface weather forecast at the destination for the estimated arrival time.
-  fetchDestWeather(flight);
+  // Fetch surface weather forecasts at origin (departure time) and destination (arrival time).
+  if (_weatherAbortCtrl) _weatherAbortCtrl.abort();
+  _weatherAbortCtrl = new AbortController();
+  fetchAirportWeather(flight.origin, dep, 'origin-weather');
+  fetchAirportWeather(flight.destination, arr, 'dest-weather');
 }
 
 function hideTimeline() {
@@ -202,9 +196,11 @@ function hideTimeline() {
   resumeWeatherRefresh();
   clearTurbCache();
   _timelineFlight = null;
-  if (_destWeatherAbortCtrl) { _destWeatherAbortCtrl.abort(); _destWeatherAbortCtrl = null; }
-  const destWeatherEl = document.getElementById('dest-weather');
-  if (destWeatherEl) destWeatherEl.textContent = '';
+  if (_weatherAbortCtrl) { _weatherAbortCtrl.abort(); _weatherAbortCtrl = null; }
+  for (const id of ['origin-weather', 'dest-weather']) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  }
 }
 
 function resetTimelineToLive() {
@@ -270,30 +266,32 @@ function updateLiveSliderPosition() {
   const slider = document.getElementById('timeline-slider');
   if (slider) slider.value = String(now);
 
-  // Update label to show "LIVE · HH:MMZ"
   const label = document.getElementById('timeline-time');
   if (label) {
-    const d = new Date(now);
-    const utc = d.toISOString().slice(11, 16) + 'Z';
-    label.textContent = `LIVE \u00b7 ${utc}`;
+    const elapsed = formatDuration(now - dep);
+    const remaining = formatDuration(arr - now);
+    const utc = new Date(now).toISOString().slice(11, 16) + 'Z';
+    label.textContent = `${elapsed} / ${remaining} rem \u00b7 ${utc}`;
   }
+}
+
+function formatDuration(ms) {
+  const min = Math.round(Math.abs(ms) / 60000);
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 function updateTimelineLabel(timeMs, depMs, arrMs) {
   const label = document.getElementById('timeline-time');
   if (!label) return;
-  const elapsed = timeMs - depMs;
   const total = arrMs - depMs;
   if (total <= 0) { label.textContent = '---'; return; }
-  const elapsedMin = Math.round(elapsed / 60000);
-  const h = Math.floor(elapsedMin / 60);
-  const m = elapsedMin % 60;
-  const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
 
-  // Show UTC time
-  const d = new Date(timeMs);
-  const utc = d.toISOString().slice(11, 16) + 'Z';
-  label.textContent = `${timeStr} · ${utc}`;
+  const elapsed = formatDuration(timeMs - depMs);
+  const remaining = formatDuration(arrMs - timeMs);
+  const utc = new Date(timeMs).toISOString().slice(11, 16) + 'Z';
+  label.textContent = `${elapsed} / ${remaining} rem \u00b7 ${utc}`;
 }
 
 // ============================================================
