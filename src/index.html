@@ -38,6 +38,9 @@
   </div>
   <div id="throttle-warning" class="hidden">API rate limited — displaying last known positions</div>
 
+  <!-- Radar loop timestamp overlay -->
+  <div id="radar-loop-time" class="hidden"></div>
+
   <div id="hud-instructions">
     <div>Ctrl + drag to change perspective.</div>
     <div>Scroll to zoom, drag to pan.</div>
@@ -102,6 +105,7 @@
           <input type="checkbox" id="toggle-radar">
           <span>Radar</span>
         </label>
+        <button id="btn-radar-loop" class="scope-btn radar-loop-btn" title="Animate past 2 hours of radar">Loop</button>
         <label class="toggle-label">
           <input type="checkbox" id="toggle-sigmets">
           <span>SIGMETs</span>

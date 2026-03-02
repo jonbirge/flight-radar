@@ -44,7 +44,14 @@
       useful for identifying cloud cover and estimating cloud-top heights.
       Data is provided by NOAA GOES via the Iowa State Mesonet and refreshes every 10 minutes.</li>
     <li><strong>Radar</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
-      Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.</li>
+      Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.
+      When scrubbing the flight plan timeline, radar imagery automatically switches to
+      the nearest available historical or forecast frame from RainViewer, so you can see
+      past and predicted radar returns at the scrubbed time.</li>
+    <li><strong>Loop</strong> — Animate the past two hours of radar returns using RainViewer
+      data. Click once to start the loop animation; click again to stop. A UTC timestamp
+      appears on screen showing the current frame time. The loop automatically enables
+      the Radar toggle if it is off.</li>
     <li><strong>SIGMETs</strong> — Toggle turbulence and convective SIGMET polygon overlays.
       Data refreshes every 5 minutes.</li>
     <li><strong>AIRMETs</strong> — Toggle G-AIRMET turbulence polygon overlays (TURB-HI and TURB-LO).
@@ -195,6 +202,21 @@
   <p>
     The Radar toggle displays composite NEXRAD reflectivity over CONUS via WMS tiles
     from the Iowa State Mesonet. The overlay refreshes automatically every 5 minutes.
+  </p>
+
+  <h3>Radar Loop &amp; Historical/Forecast Radar</h3>
+  <p>
+    The <strong>Loop</strong> button animates the past two hours of radar returns using
+    global composite data from <strong>RainViewer</strong>. Frames advance automatically
+    and a UTC timestamp is displayed on screen. Click the button again to stop the animation
+    and return to live NEXRAD data.
+  </p>
+  <p>
+    When scrubbing the flight plan timeline with Radar enabled, the radar overlay
+    automatically switches from live NEXRAD to the nearest available RainViewer frame
+    for the scrubbed time. This provides both historical radar (past ~2 hours) and
+    short-term forecast radar (nowcast, ~30 minutes ahead). Returning to live mode
+    restores the standard NEXRAD overlay.
   </p>
 
   <h3>Weather Hazard Overlays (SIGMETs / AIRMETs / PIREPs toggles)</h3>
@@ -380,6 +402,8 @@
     <li><strong>FAA Aviation Weather Center (AWC)</strong> — Weather hazard data including
       GTG turbulence forecasts, PIREPs, turbulence and convective SIGMETs, and G-AIRMETs.</li>
     <li><strong>Iowa State Mesonet</strong> — NEXRAD composite radar reflectivity and GOES satellite IR imagery.</li>
+    <li><strong>RainViewer</strong> — Historical and short-term forecast (nowcast) global radar
+      composites used for radar loop animation and timeline scrubbing.</li>
     <li><strong>FAA</strong> — VFR/IFR aeronautical charts, airspace boundaries,
       airport data, and navigation aids.</li>
   </ul>

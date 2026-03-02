@@ -153,10 +153,19 @@ if (radarToggle) {
       enableRadar();
     } else {
       disableRadar();
+      // Also stop radar loop when radar is turned off
+      if (_radarLoopPlaying) disableRadarLoop();
     }
     const settings = await window.flightAPI.getSettings();
     settings.radarEnabled = CONFIG.radarEnabled;
     await window.flightAPI.saveSettings(settings);
+  });
+}
+
+const radarLoopBtn = document.getElementById('btn-radar-loop');
+if (radarLoopBtn) {
+  radarLoopBtn.addEventListener('click', () => {
+    toggleRadarLoop();
   });
 }
 
@@ -580,6 +589,8 @@ function pauseAllTimers() {
   pauseWeatherRefresh();
   stopClock();
   if (typeof stopLiveTimer === 'function') stopLiveTimer();
+  // Pause radar loop animation
+  if (_radarLoopTimer) { clearInterval(_radarLoopTimer); _radarLoopTimer = null; }
   console.log('[Visibility] All timers paused');
 }
 
@@ -592,6 +603,8 @@ function resumeAllTimers() {
       && typeof startLiveTimer === 'function') {
     startLiveTimer();
   }
+  // Resume radar loop if it was playing
+  if (_radarLoopPlaying && !_radarLoopTimer) enableRadarLoop();
   // Trigger immediate data refresh since data is stale
   if (CONFIG.aircraftEnabled) pollStates();
   console.log('[Visibility] All timers resumed');

@@ -194,6 +194,17 @@ function enableRadar() {
 }
 
 function disableRadar() {
+  // Stop radar loop animation without restoring live radar (we're disabling everything)
+  if (_radarLoopPlaying) {
+    _radarLoopPlaying = false;
+    const btn = document.getElementById('btn-radar-loop');
+    if (btn) btn.classList.remove('active');
+    if (_radarLoopTimer) { clearInterval(_radarLoopTimer); _radarLoopTimer = null; }
+    _radarLoopFrames = [];
+    _radarLoopIdx = 0;
+    const tsEl = document.getElementById('radar-loop-time');
+    if (tsEl) tsEl.classList.add('hidden');
+  }
   if (radarLayer) {
     viewer.imageryLayers.remove(radarLayer);
     radarLayer = null;
@@ -208,6 +219,8 @@ function disableRadar() {
 
 function refreshRadar() {
   if (!CONFIG.radarEnabled) return;
+  // Don't refresh live NEXRAD while loop or timeline scrubbing is active
+  if (_radarLoopPlaying || timelineTime !== null) return;
   if (radarLayer) {
     viewer.imageryLayers.remove(radarLayer);
     radarLayer = null;
@@ -216,6 +229,180 @@ function refreshRadar() {
   radarLayer = viewer.imageryLayers.addImageryProvider(provider);
   radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
   console.log('[Radar] NEXRAD overlay refreshed');
+}
+
+// ============================================================
+// RainViewer Historical / Forecast Radar
+// ============================================================
+
+// RainViewer provides past (~2 hours) and short-term forecast (nowcast, ~30 min)
+// radar composites as XYZ tile layers.  We use this for:
+//   1. Radar loop animation (past 2 hours cycling through frames)
+//   2. Timeline scrubbing (show the radar frame nearest the scrubbed time)
+// The live NEXRAD layer is replaced by a RainViewer frame when loop or scrubbing
+// is active, and restored when returning to live mode.
+
+const RAINVIEWER_API = 'https://api.rainviewer.com/public/weather-maps.json';
+const RAINVIEWER_CACHE_MS = 5 * 60 * 1000; // re-fetch maps index every 5 min
+const RADAR_LOOP_INTERVAL = 800; // ms between frames in loop animation
+
+// Fetch the current RainViewer maps index (cached for 5 min).
+async function fetchRainViewerMaps() {
+  const now = Date.now();
+  if (_rainViewerMaps && now - _rainViewerFetchMs < RAINVIEWER_CACHE_MS) {
+    return _rainViewerMaps;
+  }
+  try {
+    const resp = await fetch(RAINVIEWER_API);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    _rainViewerMaps = data;
+    _rainViewerFetchMs = now;
+    console.log(`[Radar] RainViewer maps fetched: ${(data.radar?.past || []).length} past, ${(data.radar?.nowcast || []).length} nowcast`);
+    return data;
+  } catch (err) {
+    console.warn('[Radar] RainViewer fetch failed:', err.message);
+    return _rainViewerMaps; // return stale cache if available
+  }
+}
+
+// Create a Cesium imagery provider for a specific RainViewer radar frame.
+// `host` is the CDN base (e.g. "https://tilecache.rainviewer.com"), `path` is the frame path.
+function makeRainViewerProvider(host, path) {
+  return new FilteredRadarImageryProvider(
+    new Cesium.UrlTemplateImageryProvider({
+      url: `${host}${path}/256/{z}/{x}/{y}/2/1_1.png`,
+      credit: new Cesium.Credit('RainViewer'),
+      maximumLevel: 12,
+    })
+  );
+}
+
+// Replace the current radar layer with a specific RainViewer frame.
+function setRadarFrame(host, path) {
+  const oldLayer = radarLayer;
+  const provider = makeRainViewerProvider(host, path);
+  radarLayer = viewer.imageryLayers.addImageryProvider(provider);
+  radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+  if (oldLayer) {
+    viewer.imageryLayers.remove(oldLayer);
+  }
+}
+
+// Switch radar overlay to the RainViewer frame nearest the given timestamp (ms).
+// If no frame is close enough, the radar layer is hidden.
+async function setRadarForTime(timeMs) {
+  const maps = await fetchRainViewerMaps();
+  if (!maps || !maps.radar) return;
+
+  const timeSecs = Math.round(timeMs / 1000);
+  const allFrames = [...(maps.radar.past || []), ...(maps.radar.nowcast || [])];
+  if (allFrames.length === 0) return;
+
+  // Find the nearest frame
+  let best = allFrames[0];
+  let bestDiff = Math.abs(timeSecs - best.time);
+  for (const f of allFrames) {
+    const diff = Math.abs(timeSecs - f.time);
+    if (diff < bestDiff) { bestDiff = diff; best = f; }
+  }
+
+  setRadarFrame(maps.host, best.path);
+  console.log(`[Radar] RainViewer frame: ${new Date(best.time * 1000).toISOString().slice(11, 16)}Z (delta ${Math.round(bestDiff / 60)}min)`);
+}
+
+// Restore live NEXRAD radar, removing any RainViewer frame.
+function restoreRadarToLive() {
+  if (!CONFIG.radarEnabled) return;
+  if (radarLayer) {
+    viewer.imageryLayers.remove(radarLayer);
+    radarLayer = null;
+  }
+  const provider = makeRadarProvider();
+  radarLayer = viewer.imageryLayers.addImageryProvider(provider);
+  radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+  console.log('[Radar] Restored live NEXRAD overlay');
+}
+
+// ---- Radar Loop Animation ----
+
+async function enableRadarLoop() {
+  _radarLoopPlaying = true;
+  const btn = document.getElementById('btn-radar-loop');
+  if (btn) btn.classList.add('active');
+
+  // Ensure radar overlay is on
+  if (!CONFIG.radarEnabled) {
+    enableRadar();
+    const rToggle = document.getElementById('toggle-radar');
+    if (rToggle) rToggle.checked = true;
+  }
+
+  // Pause live NEXRAD refresh while looping
+  if (radarRefreshTimer) { clearInterval(radarRefreshTimer); radarRefreshTimer = null; }
+
+  const maps = await fetchRainViewerMaps();
+  if (!maps || !maps.radar) { disableRadarLoop(); return; }
+
+  _radarLoopFrames = [...(maps.radar.past || [])];
+  if (_radarLoopFrames.length === 0) { disableRadarLoop(); return; }
+
+  _radarLoopIdx = 0;
+
+  // Start animation
+  _radarLoopTimer = setInterval(() => {
+    if (_radarLoopFrames.length === 0) return;
+    setRadarFrame(maps.host, _radarLoopFrames[_radarLoopIdx].path);
+    updateRadarLoopTimestamp(_radarLoopFrames[_radarLoopIdx].time);
+    _radarLoopIdx = (_radarLoopIdx + 1) % _radarLoopFrames.length;
+  }, RADAR_LOOP_INTERVAL);
+
+  // Show first frame immediately
+  setRadarFrame(maps.host, _radarLoopFrames[0].path);
+  updateRadarLoopTimestamp(_radarLoopFrames[0].time);
+
+  console.log(`[Radar] Loop started: ${_radarLoopFrames.length} frames`);
+}
+
+function disableRadarLoop() {
+  _radarLoopPlaying = false;
+  const btn = document.getElementById('btn-radar-loop');
+  if (btn) btn.classList.remove('active');
+
+  if (_radarLoopTimer) { clearInterval(_radarLoopTimer); _radarLoopTimer = null; }
+  _radarLoopFrames = [];
+  _radarLoopIdx = 0;
+
+  // Hide the loop timestamp
+  const tsEl = document.getElementById('radar-loop-time');
+  if (tsEl) tsEl.classList.add('hidden');
+
+  // Restore live NEXRAD if radar is still enabled
+  if (CONFIG.radarEnabled) {
+    restoreRadarToLive();
+    if (!radarRefreshTimer) {
+      radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+    }
+  }
+
+  console.log('[Radar] Loop stopped');
+}
+
+function toggleRadarLoop() {
+  if (_radarLoopPlaying) {
+    disableRadarLoop();
+  } else {
+    enableRadarLoop();
+  }
+}
+
+// Update the radar loop timestamp overlay.
+function updateRadarLoopTimestamp(timeSecs) {
+  const el = document.getElementById('radar-loop-time');
+  if (!el) return;
+  el.classList.remove('hidden');
+  const d = new Date(timeSecs * 1000);
+  el.textContent = d.toISOString().slice(11, 16) + 'Z';
 }
 
 // ============================================================

@@ -210,6 +210,8 @@ function resetTimelineToLive() {
     timelineTime = null;
     restoreWeatherVisibility();
     resetTurbToLive();
+    // Restore live NEXRAD radar if it was enabled
+    if (CONFIG.radarEnabled && !_radarLoopPlaying) restoreRadarToLive();
   }
   // Remove timeline position marker
   if (timelineEntity) {
@@ -243,6 +245,8 @@ function enterScrubbingMode() {
   if (btn) btn.classList.remove('active');
   stopLiveTimer();
   pauseWeatherRefresh();
+  // Stop radar loop while scrubbing — scrubbing has its own frame selection
+  if (_radarLoopPlaying) disableRadarLoop();
   // Fetch all AIRMET forecast snapshots for scrubbing into separate array
   if (CONFIG.airmetsEnabled) fetchAirmetsForScrubbing();
 }
@@ -325,6 +329,11 @@ function onTimelineInput() {
 
   // Update turbulence forecast for scrubbed time (instant from preloaded cache)
   updateTurbForTimelineTime(sliderTime);
+
+  // Switch radar overlay to the nearest RainViewer frame for the scrubbed time
+  if (CONFIG.radarEnabled && !_radarLoopPlaying) {
+    setRadarForTime(sliderTime);
+  }
 }
 
 // Always interpolate along the filed flight plan route (never uses aircraft history).

@@ -879,6 +879,36 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 0 12px;
 }
 
+/* ---- Radar Loop ---- */
+
+.radar-loop-btn {
+  font-size: 11px;
+  min-height: 24px;
+  padding: 0 8px;
+}
+
+#radar-loop-time {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--md-surface-container);
+  color: var(--md-on-surface);
+  font: var(--md-typescale-label-large);
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: var(--md-shape-md);
+  box-shadow: var(--md-elevation-2);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+#radar-loop-time.hidden {
+  display: none;
+}
+
 /* ============================================================
    Mobile layout (portrait / narrow screens)
    ============================================================ */
