@@ -122,9 +122,11 @@ function interpolateRoutePosition(fraction) {
 }
 
 // Get departure and arrival timestamps from a flight object.
+// Falls back to estimateArrivalTime() when FlightAware doesn't provide arrival data.
 function getFlightTimes(flight) {
   const depStr = flight.actual_out || flight.estimated_out || flight.scheduled_out;
-  const arrStr = flight.estimated_in || flight.scheduled_in;
+  const arrStr = flight.estimated_in || flight.scheduled_in
+    || (typeof estimateArrivalTime === 'function' ? estimateArrivalTime(flight) : null);
   const dep = depStr ? new Date(depStr).getTime() : null;
   const arr = arrStr ? new Date(arrStr).getTime() : null;
   return { dep, arr };

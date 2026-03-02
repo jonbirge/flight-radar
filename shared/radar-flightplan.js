@@ -42,6 +42,60 @@ function formatDuration(ms) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+// Estimate arrival time when FlightAware doesn't provide estimated_in or scheduled_in.
+// Uses (in priority order):
+//   1. Progress % + departure time → extrapolate total flight time
+//   2. Great-circle distance between origin/dest + ground speed → compute flight time
+//   3. Great-circle distance + default cruise speed (450 kts) as last resort
+// Returns an ISO date string or null if estimation is not possible.
+// DEFAULT_CRUISE_KNOTS is a conservative average ground speed for commercial jets.
+const DEFAULT_CRUISE_KNOTS = 450;
+// Minimum progress percentage required for reliable extrapolation.
+const MIN_PROGRESS_FOR_ESTIMATE = 5;
+
+function estimateArrivalTime(flight) {
+  const depStr = flight.actual_out || flight.estimated_out || flight.scheduled_out;
+  if (!depStr) return null;
+  const depMs = new Date(depStr).getTime();
+  if (isNaN(depMs)) return null;
+
+  const now = Date.now();
+
+  // Strategy 1: extrapolate from progress percentage
+  const progress = flight.progress_percent;
+  if (progress != null && progress >= MIN_PROGRESS_FOR_ESTIMATE && progress < 100) {
+    const elapsedMs = now - depMs;
+    if (elapsedMs > 0) {
+      const totalMs = elapsedMs / (progress / 100);
+      const estArr = new Date(depMs + totalMs).toISOString();
+      console.log(`[FlightPlan] Estimated arrival from ${progress}% progress: ${estArr}`);
+      return estArr;
+    }
+  }
+
+  // Strategy 2/3: distance-based estimation
+  const originCoords = lookupAirportCoords(flight.origin);
+  const destCoords = lookupAirportCoords(flight.destination);
+  if (originCoords && destCoords) {
+    // Compute great-circle distance in nautical miles
+    const c1 = Cesium.Cartographic.fromDegrees(originCoords.lon, originCoords.lat);
+    const c2 = Cesium.Cartographic.fromDegrees(destCoords.lon, destCoords.lat);
+    const geodesic = new Cesium.EllipsoidGeodesic(c1, c2);
+    const distNm = geodesic.surfaceDistance / 1852; // meters to nautical miles
+
+    // Use ground speed from last_position if available, otherwise default cruise speed
+    const gs = (flight.last_position && flight.last_position.groundspeed > 0)
+      ? flight.last_position.groundspeed
+      : DEFAULT_CRUISE_KNOTS;
+    const flightTimeMs = (distNm / gs) * 3600000; // hours to ms
+    const estArr = new Date(depMs + flightTimeMs).toISOString();
+    console.log(`[FlightPlan] Estimated arrival from distance (${Math.round(distNm)} nm @ ${gs} kts): ${estArr}`);
+    return estArr;
+  }
+
+  return null;
+}
+
 // Append route timing details to the info panel from the active flight plan.
 function updateInfoPanelRoute(flight) {
   const details = document.getElementById('info-details');
@@ -53,7 +107,8 @@ function updateInfoPanelRoute(flight) {
   const destCode = dest ? (dest.code_iata || dest.code_icao || '??') : '??';
 
   const depStr = flight.actual_out || flight.estimated_out || flight.scheduled_out;
-  const arrStr = flight.estimated_in || flight.scheduled_in;
+  const arrStr = flight.estimated_in || flight.scheduled_in || estimateArrivalTime(flight);
+  const isEstimated = !(flight.estimated_in || flight.scheduled_in) && arrStr;
 
   const now = Date.now();
   const depTime = depStr ? new Date(depStr) : null;
@@ -64,6 +119,7 @@ function updateInfoPanelRoute(flight) {
   const eta = arrTime
     ? arrTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZoneName: 'short' })
     : '---';
+  const etaLabel = isEstimated ? 'ETA (EST)' : 'ETA';
 
   const filedAlt = flight.filed_altitude != null ? `FL${flight.filed_altitude}` : null;
 
@@ -73,7 +129,7 @@ function updateInfoPanelRoute(flight) {
     ${filedAlt ? `<div><span class="label">FILED ALT</span><span>${filedAlt}</span></div>` : ''}
     <div><span class="label">ELAPSED</span><span>${elapsed}</span></div>
     <div><span class="label">REMAINING</span><span>${remaining}</span></div>
-    <div><span class="label">ETA</span><span>${eta}</span></div>
+    <div><span class="label">${etaLabel}</span><span>${eta}</span></div>
   `;
   details.insertAdjacentHTML('afterbegin', routeHTML);
 }
@@ -814,10 +870,12 @@ function showFlightPlanInfo(flight) {
     ? 'FL' + flight.filed_altitude
     : '---';
   const depStr = flight.actual_out || flight.scheduled_out;
-  const arrStr = flight.estimated_in || flight.scheduled_in;
+  const arrStr = flight.estimated_in || flight.scheduled_in || estimateArrivalTime(flight);
+  const isEstimated = !(flight.estimated_in || flight.scheduled_in) && arrStr;
   const fmtOpts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
   const depTime = depStr ? new Date(depStr).toLocaleString('en-US', fmtOpts) : '---';
   const arrTime = arrStr ? new Date(arrStr).toLocaleString('en-US', fmtOpts) : '---';
+  const arrLabel = isEstimated ? 'ARRIVE (EST)' : 'ARRIVE';
 
   document.getElementById('info-details').innerHTML = `
     <div><span class="label">ROUTE</span><span>${originCode} → ${destCode}</span></div>
@@ -828,7 +886,7 @@ function showFlightPlanInfo(flight) {
     <div><span class="label">FILED ALT</span><span>${filedAlt}</span></div>
     <div><span class="label">GND SPD</span><span>${gs}</span></div>
     <div><span class="label">DEPART</span><span>${depTime}</span></div>
-    <div><span class="label">ARRIVE</span><span>${arrTime}</span></div>
+    <div><span class="label">${arrLabel}</span><span>${arrTime}</span></div>
   `;
 }
 
