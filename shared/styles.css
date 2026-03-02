@@ -926,18 +926,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
     display: none;
   }
 
-  /* Timeline: static inside flex column, natural width with side margins */
+  /* Timeline: floats just above the bottom sheet, moves with it during transition */
   #timeline-panel {
-    position: static;
+    position: absolute;
+    bottom: 100%;
+    left: 16px;
+    right: 16px;
     transform: none;
-    left: auto;
-    bottom: auto;
     width: auto;
     max-width: none;
     min-width: unset;
-    border-radius: var(--md-shape-xl) var(--md-shape-xl) 0 0;
-    margin: 0 16px 2px;
-    box-shadow: none;
+    border-radius: var(--md-shape-xl);
+    margin-bottom: 8px;
   }
 
   /* ---- Aircraft info: full-width top sheet ---- */
@@ -956,10 +956,11 @@ input[type="range"]::-webkit-slider-thumb:hover {
     transform: translateY(calc(-100% + 36px));
   }
 
-  /* Match control panel proportions: 12px padding at panel edge, 10px to handle */
+  /* Match control panel proportions: 12px padding at panel edge, 20px to handle
+     Total bottom strip = 12 + 20 + 4px pill = 36px = exact stowed reveal height */
   /* Handle sits at bottom of the aircraft info panel */
   #aircraft-info .sheet-handle {
-    margin-top: 10px;
+    margin-top: 20px;
   }
 
   /* Hide the old desktop bottom-edge tab toggle */
