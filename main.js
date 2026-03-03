@@ -316,8 +316,8 @@ ipcMain.handle('get-flight-track', async (event, faFlightId) => {
   }
 });
 
-// IPC handler: search flights via AIDL query (origin, destination, date/time window)
-ipcMain.handle('search-flights', async (event, aidlQuery) => {
+// IPC handler: search flights via advanced query (origin, destination, date/time window)
+ipcMain.handle('search-flights', async (event, advQuery) => {
   const s = loadSettings();
   const apiKey = s.flightawareApiKey;
   if (!apiKey) {
@@ -325,7 +325,7 @@ ipcMain.handle('search-flights', async (event, aidlQuery) => {
   }
 
   try {
-    const url = `${FA_AEROAPI_BASE}/flights/search?query=${encodeURIComponent(aidlQuery)}`;
+    const url = `${FA_AEROAPI_BASE}/flights/search/advanced?query=${encodeURIComponent(advQuery)}`;
     const data = await httpGetFA(url, apiKey);
     return data;
   } catch (err) {
@@ -343,9 +343,9 @@ function openHelpWindow() {
     return;
   }
   helpWindow = new BrowserWindow({
-    width: 600,
+    width: 840,
     height: 700,
-    minWidth: 400,
+    minWidth: 560,
     minHeight: 300,
     resizable: true,
     parent: mainWindow,
@@ -355,6 +355,7 @@ function openHelpWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, 'src', 'help-preload.js'),
     },
   });
   helpWindow.setMenu(null);
@@ -450,6 +451,9 @@ ipcMain.handle('update-settings', (event, settings) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('settings-changed');
   }
+  if (helpWindow && !helpWindow.isDestroyed()) {
+    helpWindow.webContents.send('settings-changed');
+  }
   return true;
 });
 
@@ -472,6 +476,9 @@ ipcMain.handle('reset-settings', async () => {
     syncNativeTheme();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('settings-changed');
+    }
+    if (helpWindow && !helpWindow.isDestroyed()) {
+      helpWindow.webContents.send('settings-changed');
     }
     return { reset: true };
   }

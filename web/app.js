@@ -213,12 +213,12 @@ async function apiGetFlightTrack(faFlightId) {
   }
 }
 
-// Search flights by AIDL query (origin, destination, date/time window)
-async function apiSearchFlights(aidlQuery) {
+// Search flights by advanced query (origin, destination, date/time window)
+async function apiSearchFlights(advQuery) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const url = `flightaware-proxy.php?endpoint=flights/search&query=${encodeURIComponent(aidlQuery)}`;
+    const url = `flightaware-proxy.php?endpoint=flights/search/advanced&query=${encodeURIComponent(advQuery)}`;
     const resp = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
     if (!resp.ok) {
@@ -240,7 +240,7 @@ window.flightAPI = {
   getFlightPlan: (ident) => apiGetFlightPlan(ident),
   getFlightRoute: (faFlightId) => apiGetFlightRoute(faFlightId),
   getFlightTrack: (faFlightId) => apiGetFlightTrack(faFlightId),
-  searchFlights: (aidlQuery) => apiSearchFlights(aidlQuery),
+  searchFlights: (advQuery) => apiSearchFlights(advQuery),
   getSettings: () => Promise.resolve(loadSettings()),
   saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
   onOpenSettings: () => {},  // no-op
