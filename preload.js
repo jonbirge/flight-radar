@@ -17,8 +17,8 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch actual flown track from FlightAware AeroAPI
   getFlightTrack: (faFlightId) => ipcRenderer.invoke('get-flight-track', faFlightId),
 
-  // Search flights by AIDL query (origin, destination, date/time window)
-  searchFlights: (aidlQuery) => ipcRenderer.invoke('search-flights', aidlQuery),
+  // Search flights by advanced query (origin, destination, date/time window)
+  searchFlights: (advQuery) => ipcRenderer.invoke('search-flights', advQuery),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),

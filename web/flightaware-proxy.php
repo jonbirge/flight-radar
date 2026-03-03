@@ -32,7 +32,7 @@ if (empty($apiKey)) {
 
 $endpoint = $_GET['endpoint'] ?? '';
 // Allowed endpoints (whitelist for security)
-$ALLOWED_ENDPOINTS = ['flights', 'flights/search', 'flights/route', 'flights/track'];
+$ALLOWED_ENDPOINTS = ['flights', 'flights/search/advanced', 'flights/route', 'flights/track'];
 if (!in_array($endpoint, $ALLOWED_ENDPOINTS, true)) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid or missing endpoint parameter']);

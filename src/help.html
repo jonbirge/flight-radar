@@ -107,18 +107,25 @@
     flight-search keywords. Supported patterns include:
   </p>
   <ul>
-    <li><kbd>flights from SFO to LAX</kbd> — Search by origin and destination airports.</li>
+    <li><kbd>BOS to LAX</kbd> — Search by origin and destination airports.</li>
     <li><kbd>flights from SFO to LAX today</kbd> — Limit results to today.</li>
-    <li><kbd>flights departing from JFK tomorrow</kbd> — Departures from an airport on a given day.</li>
+    <li><kbd>united from JFK to LAX</kbd> — Filter by airline (United Airlines).</li>
+    <li><kbd>delta from ATL tomorrow</kbd> — Departures from an airport on a given day.</li>
     <li><kbd>flights from ORD between 8am and 12pm</kbd> — Flights within a time window.</li>
     <li><kbd>flights from BOS this morning</kbd> — Morning departures (06:00&ndash;12:00).</li>
     <li><kbd>flights from LAX this afternoon</kbd> — Afternoon departures (12:00&ndash;18:00).</li>
     <li><kbd>flights from JFK this evening</kbd> — Evening departures (18:00&ndash;00:00).</li>
+    <li><kbd>jetblue from BOS</kbd> — All JetBlue departures from Boston today.</li>
   </ul>
   <p>
     Airport codes can be IATA (3-letter, e.g. <kbd>SFO</kbd>) or ICAO (4-letter, e.g. <kbd>KSFO</kbd>).
-    At least one of origin or destination is required. Date and time are optional — omitting them
+    At least one of origin, destination, or airline is required. Date and time are optional — omitting them
     searches the current day by default.
+  </p>
+  <p>
+    <strong>Recognized airlines:</strong> United, American, Delta, Southwest, JetBlue, Alaska,
+    Spirit, Frontier, Hawaiian, Allegiant, Sun Country, Breeze. You can also use ICAO codes
+    (e.g. <kbd>UAL</kbd>, <kbd>AAL</kbd>, <kbd>DAL</kbd>).
   </p>
   <p>
     <strong>Search history:</strong> Click the clock icon next to the search box to see up to
