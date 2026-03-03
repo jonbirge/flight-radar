@@ -141,6 +141,9 @@ function showAircraftInfo(icao) {
   const ac = aircraft.get(icao);
   if (!ac) return;
 
+  // Clear airport mode if active
+  selectedAirport = null;
+
   const prevSelected = selectedIcao;
   selectedIcao = icao;
 
@@ -405,11 +408,7 @@ function hideAirportInfo() {
 async function queryAirportFlights(icao) {
   if (!window.flightAPI.getAirportFlights) {
     console.warn('[Airport] getAirportFlights not available on this platform');
-    const detailsEl = document.getElementById('info-details');
-    if (detailsEl) {
-      const flightsRow = detailsEl.querySelector('[data-field="flights"]');
-      if (flightsRow) flightsRow.textContent = 'N/A';
-    }
+    updateAirportFlightsCount('N/A');
     return;
   }
 
@@ -499,15 +498,21 @@ function showAirportFlightResults(flights, airportIcao) {
   const enRoute = categorized.filter(c => c.category === 'enroute');
   const upcoming = categorized.filter(c => c.category === 'upcoming')
     .sort((a, b) => {
-      const da = new Date(a.flight.scheduled_out || a.flight.estimated_out || a.flight.scheduled_in || 0);
-      const db = new Date(b.flight.scheduled_out || b.flight.estimated_out || b.flight.scheduled_in || 0);
+      const aIsArr = (a.flight._direction || '').includes('arrival');
+      const bIsArr = (b.flight._direction || '').includes('arrival');
+      const da = new Date(aIsArr
+        ? (a.flight.estimated_in || a.flight.scheduled_in || 0)
+        : (a.flight.scheduled_out || a.flight.estimated_out || 0));
+      const db = new Date(bIsArr
+        ? (b.flight.estimated_in || b.flight.scheduled_in || 0)
+        : (b.flight.scheduled_out || b.flight.estimated_out || 0));
       return da - db;
     });
   const past = categorized.filter(c => c.category === 'past')
     .sort((a, b) => {
-      const da = new Date(b.flight.scheduled_out || b.flight.actual_off || 0);
-      const db = new Date(a.flight.scheduled_out || a.flight.actual_off || 0);
-      return da - db;
+      const da = new Date(a.flight.scheduled_out || a.flight.actual_off || 0);
+      const db = new Date(b.flight.scheduled_out || b.flight.actual_off || 0);
+      return db - da; // newest first
     })
     .slice(0, 5);
 
