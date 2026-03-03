@@ -241,7 +241,7 @@ function makeNightTiles() {
 
 // VFRMap.com chart tiles — date folder changes each FAA chart cycle
 // Uses TMS (y-flipped); CesiumJS handles this via {reverseY}
-const VFRMAP_DATE = '20260219';
+const VFRMAP_DATE = '20251225';
 
 function makeVfrMapTiles(chartType, maxZoom) {
   return new Cesium.UrlTemplateImageryProvider({
