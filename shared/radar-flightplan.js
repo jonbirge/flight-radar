@@ -1108,36 +1108,45 @@ function parseNaturalLanguage(query) {
     }
   }
 
-  // Determine target date
+  // Determine time window
   const now = new Date();
   const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  let targetDate = localMidnight;
-  if (/\btomorrow\b/.test(q)) {
-    targetDate = new Date(localMidnight.getTime() + 86400000);
-  } else if (/\byesterday\b/.test(q)) {
-    targetDate = new Date(localMidnight.getTime() - 86400000);
-  }
+  const hasExplicitTime = /\b(today|tomorrow|yesterday|morning|afternoon|evening)\b/.test(q)
+    || /between\s+\d/.test(q);
 
-  // Parse "between Xam and Ypm" time range
-  const betweenMatch = q.match(/between\s+(\d{1,2}(?::\d{2})?)\s*(am|pm)?\s+and\s+(\d{1,2}(?::\d{2})?)\s*(am|pm)?/);
-  if (betweenMatch) {
-    const startH = parseHourStr(betweenMatch[1], betweenMatch[2]);
-    const endH   = parseHourStr(betweenMatch[3], betweenMatch[4]);
-    result.start = new Date(targetDate.getTime() + startH * 3600000).toISOString();
-    result.end   = new Date(targetDate.getTime() + endH   * 3600000).toISOString();
-  } else if (/\bmorning\b/.test(q)) {
-    result.start = new Date(targetDate.getTime() +  6 * 3600000).toISOString(); // 06:00
-    result.end   = new Date(targetDate.getTime() + 12 * 3600000).toISOString(); // 12:00
-  } else if (/\bafternoon\b/.test(q)) {
-    result.start = new Date(targetDate.getTime() + 12 * 3600000).toISOString(); // 12:00
-    result.end   = new Date(targetDate.getTime() + 18 * 3600000).toISOString(); // 18:00
-  } else if (/\bevening\b/.test(q)) {
-    result.start = new Date(targetDate.getTime() + 18 * 3600000).toISOString(); // 18:00
-    result.end   = new Date(targetDate.getTime() + 24 * 3600000).toISOString(); // 00:00 next day
+  if (hasExplicitTime) {
+    // User specified a day/time — use calendar-day-based window
+    let targetDate = localMidnight;
+    if (/\btomorrow\b/.test(q)) {
+      targetDate = new Date(localMidnight.getTime() + 86400000);
+    } else if (/\byesterday\b/.test(q)) {
+      targetDate = new Date(localMidnight.getTime() - 86400000);
+    }
+
+    const betweenMatch = q.match(/between\s+(\d{1,2}(?::\d{2})?)\s*(am|pm)?\s+and\s+(\d{1,2}(?::\d{2})?)\s*(am|pm)?/);
+    if (betweenMatch) {
+      const startH = parseHourStr(betweenMatch[1], betweenMatch[2]);
+      const endH   = parseHourStr(betweenMatch[3], betweenMatch[4]);
+      result.start = new Date(targetDate.getTime() + startH * 3600000).toISOString();
+      result.end   = new Date(targetDate.getTime() + endH   * 3600000).toISOString();
+    } else if (/\bmorning\b/.test(q)) {
+      result.start = new Date(targetDate.getTime() +  6 * 3600000).toISOString(); // 06:00
+      result.end   = new Date(targetDate.getTime() + 12 * 3600000).toISOString(); // 12:00
+    } else if (/\bafternoon\b/.test(q)) {
+      result.start = new Date(targetDate.getTime() + 12 * 3600000).toISOString(); // 12:00
+      result.end   = new Date(targetDate.getTime() + 18 * 3600000).toISOString(); // 18:00
+    } else if (/\bevening\b/.test(q)) {
+      result.start = new Date(targetDate.getTime() + 18 * 3600000).toISOString(); // 18:00
+      result.end   = new Date(targetDate.getTime() + 24 * 3600000).toISOString(); // 00:00 next day
+    } else {
+      // "today" / "tomorrow" / "yesterday" without time-of-day — full day
+      result.start = targetDate.toISOString();
+      result.end   = new Date(targetDate.getTime() + 86400000).toISOString();
+    }
   } else {
-    // Default: full target day
-    result.start = targetDate.toISOString();
-    result.end   = new Date(targetDate.getTime() + 86400000).toISOString();
+    // No explicit time — rolling window: 6 hours ago to 12 hours from now
+    result.start = new Date(now.getTime() -  6 * 3600000).toISOString();
+    result.end   = new Date(now.getTime() + 12 * 3600000).toISOString();
   }
 
   return result;
@@ -1200,6 +1209,7 @@ async function searchFlightsByNL(query) {
 
   try {
     const advQuery = buildAdvancedQuery(params);
+    console.log(`[FlightPlan] NL search: "${query}" → parsed:`, JSON.stringify(params));
     console.log(`[FlightPlan] NL search: "${query}" → advanced: "${advQuery}"`);
     const data = await window.flightAPI.searchFlights(advQuery);
     if (data.error) {
@@ -1215,6 +1225,24 @@ async function searchFlightsByNL(query) {
     }
 
     console.log(`[FlightPlan] NL search found ${flights.length} flight(s)`);
+    // Debug: log all returned flights with status details
+    flights.forEach((f, i) => {
+      const ident = f.ident_iata || f.ident || '???';
+      const status = f.status || '—';
+      const progress = f.progress_percent != null ? `${f.progress_percent}%` : 'null';
+      const actualOff = f.actual_off || 'null';
+      const actualOn = f.actual_on || 'null';
+      const schedOut = f.scheduled_out || 'null';
+      let cat;
+      if (f.progress_percent != null) {
+        const isEnRoute = f.progress_percent > 0 && f.progress_percent < 100;
+        const isCompleted = f.progress_percent >= 100;
+        cat = isEnRoute ? 'EN ROUTE' : (isCompleted ? 'PAST' : 'UPCOMING');
+      } else {
+        cat = (f.actual_off && !f.actual_on) ? 'EN ROUTE' : (f.actual_on ? 'PAST' : 'UPCOMING');
+      }
+      console.log(`[FlightPlan]   #${i + 1} ${ident} | category=${cat} | status="${status}" | progress=${progress} | sched_out=${schedOut} | actual_off=${actualOff} | actual_on=${actualOn}`);
+    });
     addSearchHistory(query.trim());
 
     if (flights.length === 1) {
