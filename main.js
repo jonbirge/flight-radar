@@ -316,8 +316,8 @@ ipcMain.handle('get-flight-track', async (event, faFlightId) => {
   }
 });
 
-// IPC handler: search flights via AIDL query (origin, destination, date/time window)
-ipcMain.handle('search-flights', async (event, aidlQuery) => {
+// IPC handler: search flights via advanced query (origin, destination, date/time window)
+ipcMain.handle('search-flights', async (event, advQuery) => {
   const s = loadSettings();
   const apiKey = s.flightawareApiKey;
   if (!apiKey) {
@@ -325,7 +325,7 @@ ipcMain.handle('search-flights', async (event, aidlQuery) => {
   }
 
   try {
-    const url = `${FA_AEROAPI_BASE}/flights/search?query=${encodeURIComponent(aidlQuery)}`;
+    const url = `${FA_AEROAPI_BASE}/flights/search/advanced?query=${encodeURIComponent(advQuery)}`;
     const data = await httpGetFA(url, apiKey);
     return data;
   } catch (err) {

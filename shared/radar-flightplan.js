@@ -328,31 +328,48 @@ function pickBestFlight(flights) {
 
   // Debug: log all candidates so we can see what AeroAPI returned
   for (const f of flights) {
-    console.log(`[FlightPlan] Candidate: ${f.ident} | status=${f.status} | progress=${f.progress_percent}% | ` +
-      `dep=${f.scheduled_out || '?'} | arr=${f.scheduled_in || '?'} | fa_id=${f.fa_flight_id}`);
+    console.log(`[FlightPlan] Candidate: ${f.ident} | status=${f.status || '?'} | progress=${f.progress_percent ?? '?'}% | ` +
+      `dep=${f.scheduled_out || f.actual_off || '?'} | arr=${f.scheduled_in || f.actual_on || '?'} | fa_id=${f.fa_flight_id}`);
   }
 
-  // 1. Currently in the air
-  const enRoute = flights.find(f => f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100);
+  // 1. Currently in the air — has departed but not arrived, or has a recent position
+  const enRoute = flights.find(f => {
+    if (f.progress_percent != null) return f.progress_percent > 0 && f.progress_percent < 100;
+    return f.actual_off && !f.actual_on;
+  });
   if (enRoute) {
     console.log(`[FlightPlan] Picked en-route flight: ${enRoute.fa_flight_id}`);
     return enRoute;
   }
 
-  // 2. Not yet arrived — arrival time is in the future (catches scheduled,
+  // 2. Not yet departed — upcoming/filed/scheduled
+  const upcoming = flights
+    .filter(f => {
+      if (f.progress_percent != null) return f.progress_percent === 0;
+      return !f.actual_off && !f.actual_on;
+    })
+    .sort((a, b) => {
+      const da = new Date(a.scheduled_out || a.estimated_out || a.actual_off || 0);
+      const db = new Date(b.scheduled_out || b.estimated_out || b.actual_off || 0);
+      return da - db;
+    });
+  if (upcoming.length > 0) {
+    console.log(`[FlightPlan] Picked upcoming flight: ${upcoming[0].fa_flight_id} (${upcoming.length} candidates)`);
+    return upcoming[0];
+  }
+
+  // 3. Not yet arrived — arrival time is in the future (catches scheduled,
   //    delayed, and taxiing flights even if scheduled_out is already past)
   const notArrived = flights
     .filter(f => {
-      const arr = f.scheduled_in || f.estimated_in;
+      const arr = f.scheduled_in || f.estimated_in || f.actual_on;
       if (!arr) return false;
-      // Already completed (progress 100%) — skip
       if (f.progress_percent != null && f.progress_percent >= 100) return false;
       return new Date(arr) > now;
     })
     .sort((a, b) => {
-      // Earliest departure first
-      const da = new Date(a.scheduled_out || a.estimated_out || a.scheduled_in);
-      const db = new Date(b.scheduled_out || b.estimated_out || b.scheduled_in);
+      const da = new Date(a.scheduled_out || a.estimated_out || a.actual_off || a.scheduled_in);
+      const db = new Date(b.scheduled_out || b.estimated_out || b.actual_off || b.scheduled_in);
       return da - db;
     });
   if (notArrived.length > 0) {
@@ -360,7 +377,7 @@ function pickBestFlight(flights) {
     return notArrived[0];
   }
 
-  // 3. Fallback to most recent (first in the array — AeroAPI returns reverse-chronological)
+  // 4. Fallback to most recent (first in the array — AeroAPI returns reverse-chronological)
   console.log(`[FlightPlan] Fallback to most recent flight: ${flights[0].fa_flight_id}`);
   return flights[0];
 }
@@ -840,13 +857,24 @@ function showFlightResults(flights, flightData) {
 
   const now = new Date();
 
-  // Categorize each flight
+  // Categorize each flight — supports both /flights/{ident} and /flights/search/advanced responses
   const categorized = flights.map(f => {
-    const isEnRoute = f.progress_percent != null && f.progress_percent > 0 && f.progress_percent < 100;
-    const arr = f.scheduled_in || f.estimated_in;
-    const isCompleted = f.progress_percent != null && f.progress_percent >= 100;
-    const isUpcoming = !isEnRoute && !isCompleted && arr && new Date(arr) > now;
-    const category = isEnRoute ? 'enroute' : (isUpcoming ? 'upcoming' : 'past');
+    let category;
+    if (f.progress_percent != null) {
+      // Standard response with progress_percent
+      const isEnRoute = f.progress_percent > 0 && f.progress_percent < 100;
+      const isCompleted = f.progress_percent >= 100;
+      category = isEnRoute ? 'enroute' : (isCompleted ? 'past' : 'upcoming');
+    } else {
+      // Advanced search response — determine status from actual_off/actual_on
+      if (f.actual_off && !f.actual_on) {
+        category = 'enroute';
+      } else if (f.actual_on) {
+        category = 'past';
+      } else {
+        category = 'upcoming';
+      }
+    }
     return { flight: f, category };
   });
 
@@ -854,17 +882,25 @@ function showFlightResults(flights, flightData) {
   const enRoute = categorized.filter(c => c.category === 'enroute');
   const upcoming = categorized
     .filter(c => c.category === 'upcoming')
-    .sort((a, b) => new Date(a.flight.scheduled_out || a.flight.estimated_out) - new Date(b.flight.scheduled_out || b.flight.estimated_out));
+    .sort((a, b) => {
+      const da = new Date(a.flight.scheduled_out || a.flight.estimated_out || a.flight.actual_off || 0);
+      const db = new Date(b.flight.scheduled_out || b.flight.estimated_out || b.flight.actual_off || 0);
+      return da - db;
+    });
   const past = categorized
     .filter(c => c.category === 'past')
-    .sort((a, b) => new Date(b.flight.scheduled_out || b.flight.estimated_out) - new Date(a.flight.scheduled_out || a.flight.estimated_out))
-    .slice(0, 1);
+    .sort((a, b) => {
+      const da = new Date(b.flight.scheduled_out || b.flight.estimated_out || b.flight.actual_off || 0);
+      const db = new Date(a.flight.scheduled_out || a.flight.estimated_out || a.flight.actual_off || 0);
+      return da - db;
+    })
+    .slice(0, 3);
 
   const ordered = [...enRoute, ...upcoming, ...past];
 
   panel.innerHTML = '';
   for (const { flight: f, category } of ordered) {
-    const depStr = f.actual_out || f.scheduled_out;
+    const depStr = f.actual_out || f.scheduled_out || f.actual_off;
     const depDate = depStr ? new Date(depStr) : null;
     const depDateStr = depDate
       ? depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -873,8 +909,9 @@ function showFlightResults(flights, flightData) {
       ? depDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
       : '---';
 
-    const originCode = f.origin ? (f.origin.code_iata || f.origin.code_icao || '??') : '??';
-    const destCode = f.destination ? (f.destination.code_iata || f.destination.code_icao || '??') : '??';
+    const originCode = f.origin ? (f.origin.code_iata || f.origin.code_icao || f.origin.code || '??') : '??';
+    const destCode = f.destination ? (f.destination.code_iata || f.destination.code_icao || f.destination.code || '??') : '??';
+    const identStr = f.ident_iata || f.ident || '';
 
     let badgeLabel, badgeClass;
     if (category === 'enroute') { badgeLabel = 'EN ROUTE'; badgeClass = 'badge-enroute'; }
@@ -885,6 +922,7 @@ function showFlightResults(flights, flightData) {
     item.className = 'flight-result-item';
     item.innerHTML = `
       <span class="flight-result-badge ${badgeClass}">${badgeLabel}</span>
+      <span class="flight-result-ident">${identStr}</span>
       <span class="flight-result-route">${originCode} → ${destCode}</span>
       <span class="flight-result-time">${depDateStr} ${depTimeStr}</span>
     `;
@@ -906,12 +944,14 @@ function hideFlightResults() {
 // Try to find a live aircraft for the given flight plan result.
 // Skips the OpenSky API entirely for scheduled flights (not yet airborne).
 async function searchForLiveAircraft(result) {
-  const isScheduled = result.flight.status === 'Scheduled'
-    || (result.flight.progress_percent != null && result.flight.progress_percent === 0);
+  const f = result.flight;
+  const isScheduled = f.status === 'Scheduled'
+    || (f.progress_percent != null && f.progress_percent === 0)
+    || (!f.actual_off && !f.actual_on && f.progress_percent == null);
 
   if (isScheduled) {
     console.log(`[FlightPlan] Flight is scheduled — skipping OpenSky lookup`);
-    showFlightPlanInfo(result.flight);
+    showFlightPlanInfo(f);
     return;
   }
 
@@ -926,7 +966,28 @@ async function searchForLiveAircraft(result) {
 }
 
 // Called when the user selects a specific flight from the results panel.
+// If the flight came from an advanced search (sparse data), re-fetches full
+// flight details via /flights/{ident} before displaying.
 async function selectFlightFromResults(flight, flightData) {
+  // Advanced search results lack fields like scheduled_out, filed_altitude, route, etc.
+  // Detect this and fetch full data using the flight ident.
+  if (flight.scheduled_out == null && flight.ident && window.flightAPI.getFlightPlan) {
+    console.log(`[FlightPlan] Re-fetching full data for ${flight.ident}`);
+    try {
+      const fullData = await window.flightAPI.getFlightPlan(flight.ident);
+      if (fullData && fullData.flights && fullData.flights.length > 0) {
+        // Find the matching flight by fa_flight_id, or fall back to best match
+        const match = fullData.flights.find(f => f.fa_flight_id === flight.fa_flight_id)
+          || pickBestFlight(fullData.flights);
+        const result = displayFlightPlanRoute(fullData, match);
+        if (result) await searchForLiveAircraft(result);
+        return;
+      }
+    } catch (err) {
+      console.warn('[FlightPlan] Re-fetch failed, using sparse data:', err.message);
+    }
+  }
+
   const result = displayFlightPlanRoute(flightData, flight);
   if (result) {
     await searchForLiveAircraft(result);
@@ -945,11 +1006,27 @@ function isNaturalLanguageQuery(query) {
   return /\b(from|to|departing|arriving|flights?|between|today|tomorrow|yesterday|morning|afternoon|evening)\b/i.test(query);
 }
 
+// Common US airline name/abbreviation → ICAO operator code mapping.
+const AIRLINE_CODES = {
+  'united':     'UAL', 'ual':     'UAL',
+  'american':   'AAL', 'aal':     'AAL',
+  'delta':      'DAL', 'dal':     'DAL',
+  'southwest':  'SWA', 'swa':     'SWA',
+  'jetblue':    'JBU', 'jbu':     'JBU',
+  'alaska':     'ASA', 'asa':     'ASA',
+  'spirit':     'NKS', 'nks':     'NKS',
+  'frontier':   'FFT', 'fft':     'FFT',
+  'hawaiian':   'HAL', 'hal':     'HAL',
+  'allegiant':  'AAY', 'aay':     'AAY',
+  'sun country':'SCX', 'scx':     'SCX',
+  'breeze':     'MXX', 'mxx':     'MXX',
+};
+
 // Parse a natural language flight search query.
-// Returns { origin, destination, start, end } (values may be null).
+// Returns { origin, destination, airline, start, end } (values may be null).
 function parseNaturalLanguage(query) {
   const q = query.toLowerCase().trim();
-  const result = { origin: null, destination: null, start: null, end: null };
+  const result = { origin: null, destination: null, airline: null, start: null, end: null };
 
   // Extract origin airport (3–4 letter IATA/ICAO code)
   const originMatch = q.match(/(?:from\s+|departing\s+(?:from\s+)?|out\s+of\s+)([a-z]{3,4})\b/);
@@ -958,6 +1035,20 @@ function parseNaturalLanguage(query) {
   // Extract destination airport (3–4 letter IATA/ICAO code)
   const destMatch = q.match(/(?:\bto\s+|arriving\s+(?:at\s+|in\s+)?|bound\s+for\s+)([a-z]{3,4})\b/);
   if (destMatch) result.destination = destMatch[1].toUpperCase();
+
+  // Fallback: "BOS to LAX" pattern — origin code directly before "to <dest>"
+  if (!result.origin && result.destination) {
+    const implicitOrigin = q.match(/\b([a-z]{3,4})\s+to\s+[a-z]{3,4}\b/);
+    if (implicitOrigin) result.origin = implicitOrigin[1].toUpperCase();
+  }
+
+  // Extract airline — check for known names/codes in the query
+  for (const [name, icao] of Object.entries(AIRLINE_CODES)) {
+    if (q.includes(name)) {
+      result.airline = icao;
+      break;
+    }
+  }
 
   // Determine target date
   const now = new Date();
@@ -1004,18 +1095,34 @@ function parseHourStr(timeStr, ampm) {
   return hour + min;
 }
 
-// Build a FlightAware AIDL query string from parsed NL parameters.
-function buildAidlQuery(params) {
+// Resolve a user-entered airport code (IATA or ICAO) to its ICAO code
+// using the local airport database. Returns the original code if no match found.
+function resolveToIcao(code) {
+  if (!code || !cachedAirportData) return code;
+  const upper = code.toUpperCase();
+  const ap = cachedAirportData.find(a =>
+    (a.iata && a.iata === upper) || (a.icao && a.icao === upper)
+  );
+  return ap ? ap.icao : upper;
+}
+
+// Build a FlightAware advanced search query from parsed NL parameters.
+// Uses {operator key value} syntax for /flights/search/advanced endpoint.
+// Time filtering uses the ogtd (original time of departure) field with UNIX epoch seconds.
+function buildAdvancedQuery(params) {
   const parts = [];
-  if (params.origin)      parts.push(`-origin ${params.origin}`);
-  if (params.destination) parts.push(`-destination ${params.destination}`);
-  if (params.start)       parts.push(`-startDate ${params.start}`);
-  if (params.end)         parts.push(`-endDate ${params.end}`);
+  if (params.origin)      parts.push(`{= orig ${resolveToIcao(params.origin)}}`);
+  if (params.destination) parts.push(`{= dest ${resolveToIcao(params.destination)}}`);
+  if (params.airline)     parts.push(`{match ident ${params.airline}*}`);
+  if (params.start)       parts.push(`{> ogtd ${Math.floor(new Date(params.start).getTime() / 1000)}}`);
+  if (params.end)         parts.push(`{< ogtd ${Math.floor(new Date(params.end).getTime() / 1000)}}`);
+  // Exclude cancelled flights
+  parts.push('{!= status X}');
   return parts.join(' ');
 }
 
 // Handle a natural language flight search query by calling the FlightAware
-// /flights/search endpoint with an AIDL query built from the parsed params.
+// /flights/search/advanced endpoint with a query built from the parsed params.
 async function searchFlightsByNL(query) {
   if (!window.flightAPI.searchFlights) {
     console.warn('[FlightPlan] searchFlights not available on this platform');
@@ -1023,7 +1130,7 @@ async function searchFlightsByNL(query) {
   }
 
   const params = parseNaturalLanguage(query);
-  if (!params.origin && !params.destination) {
+  if (!params.origin && !params.destination && !params.airline) {
     alert('Could not parse search. Try "flights from SFO to LAX today" or a flight number like UAL123.');
     return;
   }
@@ -1034,9 +1141,9 @@ async function searchFlightsByNL(query) {
   if (searchInput) searchInput.disabled = true;
 
   try {
-    const aidlQuery = buildAidlQuery(params);
-    console.log(`[FlightPlan] NL search: "${query}" → AIDL: "${aidlQuery}"`);
-    const data = await window.flightAPI.searchFlights(aidlQuery);
+    const advQuery = buildAdvancedQuery(params);
+    console.log(`[FlightPlan] NL search: "${query}" → advanced: "${advQuery}"`);
+    const data = await window.flightAPI.searchFlights(advQuery);
     if (data.error) {
       console.warn(`[FlightPlan] NL search error: ${data.error}`);
       alert(`Flight search failed: ${data.error}`);
@@ -1053,8 +1160,7 @@ async function searchFlightsByNL(query) {
     addSearchHistory(query.trim());
 
     if (flights.length === 1) {
-      const result = displayFlightPlanRoute(data);
-      if (result) await searchForLiveAircraft(result);
+      await selectFlightFromResults(flights[0], data);
     } else {
       showFlightResults(flights, data);
     }
