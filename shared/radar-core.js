@@ -143,6 +143,33 @@ function makeLightTiles() {
   });
 }
 
+function makeDarkNoLabelsTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    credit: new Cesium.Credit('CartoDB'),
+    minimumLevel: 0, maximumLevel: 18,
+  });
+}
+
+function makeLightNoLabelsTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    credit: new Cesium.Credit('CartoDB'),
+    minimumLevel: 0, maximumLevel: 18,
+  });
+}
+
+function makeEsriGrayTiles() {
+  const variant = CONFIG.theme === 'dark' ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
+  return new Cesium.UrlTemplateImageryProvider({
+    url: `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${variant}/MapServer/tile/{z}/{y}/{x}`,
+    credit: new Cesium.Credit('Esri'),
+    minimumLevel: 0, maximumLevel: 16,
+  });
+}
+
 function makeSectionalTiles() {
   return Cesium.ArcGisMapServerImageryProvider.fromUrl(
     'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer',
@@ -209,7 +236,7 @@ function makeNightTiles() {
 
 // VFRMap.com chart tiles — date folder changes each FAA chart cycle
 // Uses TMS (y-flipped); CesiumJS handles this via {reverseY}
-const VFRMAP_DATE = '20251225';
+const VFRMAP_DATE = '20260219';
 
 function makeVfrMapTiles(chartType, maxZoom) {
   return new Cesium.UrlTemplateImageryProvider({
@@ -220,15 +247,17 @@ function makeVfrMapTiles(chartType, maxZoom) {
 }
 
 // Layers that have limited zoom and need a CartoDB base underneath
-const OVERLAY_LAYERS = new Set(['sectional', 'terminal', 'ifrLow', 'ifrHigh']);
+const OVERLAY_LAYERS = new Set(['sectional', 'terminal', 'ifrLow', 'ifrHigh', 'vfrHybrid', 'vfrIfrLow', 'vfrIfrHigh']);
 
 // Apply theme-appropriate brightness/saturation to map imagery layers.
-// Dark mode always darkens (except CartoDB which is already dark).
+// Dark mode always darkens (except layers that are already theme-matched).
 // Light mode only mutes when the user has "Mute map colors" enabled.
+const NO_STYLE_LAYERS = new Set(['carto', 'noLabels', 'esriGray']);
+
 function styleMapLayer(layer, layerId) {
   const isDark = CONFIG.theme === 'dark';
   if (isDark) {
-    if (layerId === 'carto') return;
+    if (NO_STYLE_LAYERS.has(layerId)) return;
     if (layerId === 'night') {
       layer.brightness = 0.7;
       return;
@@ -238,7 +267,7 @@ function styleMapLayer(layer, layerId) {
     if (OVERLAY_LAYERS.has(layerId)) layer.alpha = 0.8;
   } else {
     if (!CONFIG.muteMapColors) return;
-    if (layerId === 'carto') return;
+    if (NO_STYLE_LAYERS.has(layerId)) return;
     layer.brightness = 1.5;
     layer.saturation = 0.3;
   }
@@ -246,6 +275,8 @@ function styleMapLayer(layer, layerId) {
 
 async function makeMapTiles(layerId) {
   switch (layerId) {
+    case 'noLabels':   return CONFIG.theme === 'dark' ? makeDarkNoLabelsTiles() : makeLightNoLabelsTiles();
+    case 'esriGray':   return makeEsriGrayTiles();
     case 'sectional':  return await makeSectionalTiles();
     case 'terminal':   return await makeTerminalTiles();
     case 'ifrLow':     return await makeIfrLowTiles();

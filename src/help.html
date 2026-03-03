@@ -108,9 +108,9 @@
   <ul>
     <li><strong>Poll interval</strong> — How often aircraft positions are refreshed (10s&ndash;60s).
       This adjusts automatically based on zoom level.</li>
-    <li><strong>Map</strong> — Base map layer. Choose from Simple (dark/light), Satellite (ESRI),
-      OpenStreetMap, Topographic, Night Lights (NASA VIIRS), VFR/IFR Charts (VFRMap.com),
-      or FAA Sectional, Terminal, IFR Low, and IFR High charts.</li>
+    <li><strong>Map</strong> — Base map layer. Choose from Simple, Simple (No Labels), Gray Canvas,
+      Satellite, OpenStreetMap, Topographic, Night Lights, FAA aviation charts,
+      or VFRMap.com VFR/IFR charts with multi-zoom support.</li>
   </ul>
 
   <h3 id="right-click-menu">Right-click menu</h3>
@@ -362,18 +362,20 @@
   <h2 id="map-layers">Map Layers</h2>
   <table>
     <tr><th>Layer</th><th>Description</th></tr>
-    <tr><td>Simple</td><td>Dark or light basemap (matches current theme)</td></tr>
+    <tr><td>Simple</td><td>CartoDB dark or light basemap without text labels (matches current theme)</td></tr>
+    <tr><td>Simple (Labels)</td><td>Same CartoDB basemap with city and road labels</td></tr>
+    <tr><td>Gray Canvas</td><td>Esri minimal gray basemap (dark/light variants match theme)</td></tr>
     <tr><td>Satellite</td><td>ESRI/ArcGIS global satellite and aerial imagery</td></tr>
     <tr><td>OpenStreetMap</td><td>Standard OpenStreetMap road and street map</td></tr>
     <tr><td>Topographic</td><td>OpenTopoMap with contour lines and hill shading</td></tr>
     <tr><td>Night Lights</td><td>NASA VIIRS Earth at Night city lights imagery</td></tr>
-    <tr><td>VFR Charts</td><td>VFRMap.com hybrid VFR (Wall Planning → Sectional → TAC)</td></tr>
-    <tr><td>IFR Low Charts</td><td>VFRMap.com IFR Low Altitude Enroute</td></tr>
-    <tr><td>IFR High Charts</td><td>VFRMap.com IFR High Altitude Enroute</td></tr>
-    <tr><td>FAA Sectional</td><td>FAA VFR Sectional Aeronautical Charts (limited zoom)</td></tr>
-    <tr><td>FAA Terminal</td><td>FAA VFR Terminal Area Charts (limited zoom)</td></tr>
-    <tr><td>FAA IFR Low</td><td>FAA IFR Low Altitude Enroute Charts (limited zoom)</td></tr>
-    <tr><td>FAA IFR High</td><td>FAA IFR High Altitude Enroute Charts (limited zoom)</td></tr>
+    <tr><td>FAA Sectional</td><td>FAA VFR Sectional Aeronautical Charts (zoom 8&ndash;12 only)</td></tr>
+    <tr><td>FAA Terminal</td><td>FAA VFR Terminal Area Charts (zoom 8&ndash;12 only)</td></tr>
+    <tr><td>FAA IFR Low</td><td>FAA IFR Low Altitude Enroute Charts (zoom 8&ndash;12 only)</td></tr>
+    <tr><td>FAA IFR High</td><td>FAA IFR High Altitude Enroute Charts (zoom 8&ndash;12 only)</td></tr>
+    <tr><td>VFR Charts</td><td>VFRMap.com hybrid VFR &mdash; shows WAC at low zoom, Sectional at mid, TAC at high</td></tr>
+    <tr><td>IFR Low Charts</td><td>VFRMap.com IFR Low Altitude Enroute (zoom 1&ndash;11)</td></tr>
+    <tr><td>IFR High Charts</td><td>VFRMap.com IFR High Altitude Enroute (zoom 1&ndash;10)</td></tr>
   </table>
 
   <h2 id="settings">Settings</h2>

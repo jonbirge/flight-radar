@@ -8,10 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap">
-  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=2.10.1">
-  <link rel="stylesheet" href="../shared/styles.css?v=2.10.1">
-  <link rel="stylesheet" href="styles.css?v=2.10.1">
-  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=2.10.1"></script>
+  <link rel="stylesheet" href="../vendor/cesium/Build/Cesium/Widgets/widgets.css?v=2.11.0">
+  <link rel="stylesheet" href="../shared/styles.css?v=2.11.0">
+  <link rel="stylesheet" href="styles.css?v=2.11.0">
+  <script src="../vendor/cesium/Build/Cesium/Cesium.js?v=2.11.0"></script>
 </head>
 <body>
   <div id="cesiumContainer"></div>
@@ -78,15 +78,22 @@
             <svg class="map-layer-chevron" viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
           </button>
           <div class="map-layer-menu">
-            <div class="map-layer-option selected" data-value="carto">Simple</div>
+            <div class="map-layer-option selected" data-value="noLabels">Simple</div>
+            <div class="map-layer-option" data-value="carto">Simple (Labels)</div>
+            <div class="map-layer-option" data-value="esriGray">Gray Canvas</div>
             <div class="map-layer-option" data-value="satellite">Satellite</div>
             <div class="map-layer-option" data-value="osm">OpenStreetMap</div>
             <div class="map-layer-option" data-value="topo">Topographic</div>
             <div class="map-layer-option" data-value="night">Night Lights</div>
+            <div class="map-layer-divider"></div>
             <div class="map-layer-option" data-value="sectional">FAA Sectional</div>
             <div class="map-layer-option" data-value="terminal">FAA Terminal</div>
             <div class="map-layer-option" data-value="ifrLow">FAA IFR Low</div>
             <div class="map-layer-option" data-value="ifrHigh">FAA IFR High</div>
+            <div class="map-layer-divider"></div>
+            <div class="map-layer-option" data-value="vfrHybrid">VFR Charts</div>
+            <div class="map-layer-option" data-value="vfrIfrLow">IFR Low Charts</div>
+            <div class="map-layer-option" data-value="vfrIfrHigh">IFR High Charts</div>
           </div>
         </div>
       </div>
@@ -177,20 +184,20 @@
   </div>
 
   <!-- Shared modules -->
-  <script src="../shared/defaults.js?v=2.10.1"></script>
-  <script src="../shared/config.js?v=2.10.1"></script>
-  <script src="../shared/data.js?v=2.10.1"></script>
-  <script src="../shared/icons.js?v=2.10.1"></script>
-  <script src="../shared/settings.js?v=2.10.1"></script>
-  <script src="../shared/radar-core.js?v=2.10.1"></script>
-  <script src="../shared/radar-weather.js?v=2.10.1"></script>
-  <script src="../shared/radar-markers.js?v=2.10.1"></script>
-  <script src="../shared/radar-aircraft.js?v=2.10.1"></script>
-  <script src="../shared/radar-ui.js?v=2.10.1"></script>
-  <script src="../shared/radar-flightplan.js?v=2.10.1"></script>
-  <script src="../shared/radar-timeline.js?v=2.10.1"></script>
-  <script src="../shared/radar.js?v=2.10.1"></script>
+  <script src="../shared/defaults.js?v=2.11.0"></script>
+  <script src="../shared/config.js?v=2.11.0"></script>
+  <script src="../shared/data.js?v=2.11.0"></script>
+  <script src="../shared/icons.js?v=2.11.0"></script>
+  <script src="../shared/settings.js?v=2.11.0"></script>
+  <script src="../shared/radar-core.js?v=2.11.0"></script>
+  <script src="../shared/radar-weather.js?v=2.11.0"></script>
+  <script src="../shared/radar-markers.js?v=2.11.0"></script>
+  <script src="../shared/radar-aircraft.js?v=2.11.0"></script>
+  <script src="../shared/radar-ui.js?v=2.11.0"></script>
+  <script src="../shared/radar-flightplan.js?v=2.11.0"></script>
+  <script src="../shared/radar-timeline.js?v=2.11.0"></script>
+  <script src="../shared/radar.js?v=2.11.0"></script>
   <!-- Web-specific (API shim + settings panel + init) -->
-  <script src="app.js?v=2.10.1"></script>
+  <script src="app.js?v=2.11.0"></script>
 </body>
 </html>

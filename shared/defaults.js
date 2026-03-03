@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS = {
   showSmallAirports: false,
   navaidsEnabled: false,
   showFixes: false,
-  mapLayer: 'carto',
+  mapLayer: 'noLabels',
   muteMapColors: true,
   radarEnabled: false,
   sigmetsEnabled: false,
