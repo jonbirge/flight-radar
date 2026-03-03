@@ -373,8 +373,8 @@ function openSettingsWindow() {
     return;
   }
   settingsWindow = new BrowserWindow({
-    width: 700,
-    height: 420,
+    width: 780,
+    height: 500,
     useContentSize: true,
     resizable: false,
     parent: mainWindow,
@@ -395,7 +395,7 @@ function openSettingsWindow() {
       '(() => { document.body.style.height = "auto"; document.body.style.overflow = "hidden"; return JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight }); })()'
     ).then(json => {
       const { width, height } = JSON.parse(json);
-      settingsWindow.setContentSize(Math.max(width, 700), height);
+      settingsWindow.setContentSize(Math.max(width, 780), height);
       // Center on parent window
       if (mainWindow && !mainWindow.isDestroyed()) {
         const [px, py] = mainWindow.getPosition();
@@ -440,7 +440,7 @@ ipcMain.handle('resize-settings', () => {
   ).then(json => {
     if (!settingsWindow || settingsWindow.isDestroyed()) return;
     const { width, height } = JSON.parse(json);
-    settingsWindow.setContentSize(Math.max(width, 700), height);
+    settingsWindow.setContentSize(Math.max(width, 780), height);
   }).catch(() => {});
 });
 
