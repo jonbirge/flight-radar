@@ -343,9 +343,9 @@ function openHelpWindow() {
     return;
   }
   helpWindow = new BrowserWindow({
-    width: 600,
+    width: 840,
     height: 700,
-    minWidth: 400,
+    minWidth: 560,
     minHeight: 300,
     resizable: true,
     parent: mainWindow,
@@ -355,6 +355,7 @@ function openHelpWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, 'src', 'help-preload.js'),
     },
   });
   helpWindow.setMenu(null);
@@ -450,6 +451,9 @@ ipcMain.handle('update-settings', (event, settings) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('settings-changed');
   }
+  if (helpWindow && !helpWindow.isDestroyed()) {
+    helpWindow.webContents.send('settings-changed');
+  }
   return true;
 });
 
@@ -472,6 +476,9 @@ ipcMain.handle('reset-settings', async () => {
     syncNativeTheme();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('settings-changed');
+    }
+    if (helpWindow && !helpWindow.isDestroyed()) {
+      helpWindow.webContents.send('settings-changed');
     }
     return { reset: true };
   }
