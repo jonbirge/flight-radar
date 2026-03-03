@@ -68,6 +68,7 @@ async function loadAndApplySettings() {
       const prevAirspace = CONFIG.airspaceEnabled;
       CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : DEFAULT_SETTINGS.airspaceEnabled;
       CONFIG.radarEnabled = saved.radarEnabled || DEFAULT_SETTINGS.radarEnabled;
+      CONFIG.radarLoopEnabled = saved.radarLoopEnabled !== undefined ? saved.radarLoopEnabled : DEFAULT_SETTINGS.radarLoopEnabled;
       CONFIG.sigmetsEnabled = saved.sigmetsEnabled || DEFAULT_SETTINGS.sigmetsEnabled;
       CONFIG.airmetsEnabled = saved.airmetsEnabled || DEFAULT_SETTINGS.airmetsEnabled;
       CONFIG.pirepsEnabled = saved.pirepsEnabled || DEFAULT_SETTINGS.pirepsEnabled;
@@ -100,11 +101,7 @@ async function loadAndApplySettings() {
       }
       const rToggle = document.getElementById('toggle-radar');
       if (rToggle) rToggle.checked = CONFIG.radarEnabled;
-      // Start auto-refresh timer (applyTheme already adds the visual layer)
-      if (CONFIG.radarEnabled) {
-        if (radarRefreshTimer) clearInterval(radarRefreshTimer);
-        radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
-      }
+      if (typeof syncRadarMode === 'function') syncRadarMode();
       const irToggle = document.getElementById('toggle-satellite-ir');
       if (irToggle) irToggle.checked = CONFIG.satelliteIREnabled;
       if (CONFIG.satelliteIREnabled) {

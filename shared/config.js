@@ -46,6 +46,7 @@ const CONFIG = {
   mapLayer: DEFAULT_SETTINGS.mapLayer,
   muteMapColors: DEFAULT_SETTINGS.muteMapColors,
   radarEnabled: DEFAULT_SETTINGS.radarEnabled,
+  radarLoopEnabled: DEFAULT_SETTINGS.radarLoopEnabled,
   sigmetsEnabled: DEFAULT_SETTINGS.sigmetsEnabled,
   airmetsEnabled: DEFAULT_SETTINGS.airmetsEnabled,
   pirepsEnabled: DEFAULT_SETTINGS.pirepsEnabled,

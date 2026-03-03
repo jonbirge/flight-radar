@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS = {
   mapLayer: 'carto',
   muteMapColors: true,
   radarEnabled: false,
+  radarLoopEnabled: false,
   sigmetsEnabled: false,
   airmetsEnabled: false,
   pirepsEnabled: false,

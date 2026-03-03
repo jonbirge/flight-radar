@@ -381,6 +381,10 @@ function createSettingsFormHTML() {
             <input type="range" id="set-weather-opacity" min="10" max="100" value="25" step="5">
             <span class="settings-fontsize-val" id="set-weather-opacity-val">25%</span>
           </div>
+          <label class="settings-toggle-label" style="margin-top:8px;">
+            <input type="checkbox" id="set-radar-loop">
+            <span>Radar loop (past 2h)</span>
+          </label>
         </div>
       </div>
 
@@ -580,10 +584,12 @@ function populateSettingsForm(container, settings) {
   // Weather overlay opacity
   const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
+  const radarLoop = container.querySelector('#set-radar-loop');
   if (weatherOpacitySlider) {
     weatherOpacitySlider.value = s.weatherOverlayOpacity;
     weatherOpacityVal.textContent = `${s.weatherOverlayOpacity}%`;
   }
+  if (radarLoop) radarLoop.checked = !!s.radarLoopEnabled;
 
   // Credentials
   container.querySelector('#set-client-id').value = s.openskyClientId || '';
@@ -643,6 +649,7 @@ function initSettingsPanel(options) {
   const rotVal = container.querySelector('#set-rotation-speed-val');
   const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
+  const radarLoop = container.querySelector('#set-radar-loop');
   const clientId = container.querySelector('#set-client-id');
   const clientSecret = container.querySelector('#set-client-secret');
   const faApiKey = container.querySelector('#set-fa-api-key');
@@ -673,6 +680,7 @@ function initSettingsPanel(options) {
       showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
+      radarLoopEnabled: radarLoop ? radarLoop.checked : false,
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
       flightawareApiKey: faApiKey ? faApiKey.value.trim() : '',
@@ -818,6 +826,7 @@ function initSettingsPanel(options) {
     weatherOpacityVal.textContent = `${weatherOpacitySlider.value}%`;
     debouncedBroadcast();
   });
+  if (radarLoop) radarLoop.addEventListener('change', broadcast);
 
   // --- Credentials (fire on blur/change, not every keystroke) ---
   clientId.addEventListener('change', broadcast);

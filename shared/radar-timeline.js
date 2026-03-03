@@ -230,6 +230,7 @@ function enterLiveMode() {
   // Exit scrubbing: restore weather to normal live updates
   resetTimelineToLive();
   resumeWeatherRefresh();
+  if (typeof syncRadarMode === 'function') syncRadarMode();
 
   // Update the label and slider to current time
   updateLiveSliderPosition();
@@ -318,6 +319,7 @@ function onTimelineInput() {
   // Enter scrubbing mode — the entire dep→arr range is treated uniformly.
   // Past, present, and future times along the filed flight plan are all equal.
   timelineTime = sliderTime;
+  if (typeof syncRadarMode === 'function') syncRadarMode();
 
   // Update timeline marker position along the flight plan route
   updateTimelinePosition(sliderTime, dep, arr);

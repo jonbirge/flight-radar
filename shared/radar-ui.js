@@ -273,6 +273,7 @@ async function applyMapLayerValue(value) {
   if (CONFIG.radarEnabled) {
     radarLayer = layers.addImageryProvider(makeRadarProvider());
     radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+    if (typeof syncRadarMode === 'function') syncRadarMode();
   }
   // Persist the selection
   const settings = await window.flightAPI.getSettings();
@@ -596,4 +597,3 @@ function resumeAllTimers() {
   if (CONFIG.aircraftEnabled) pollStates();
   console.log('[Visibility] All timers resumed');
 }
-

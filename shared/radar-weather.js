@@ -181,16 +181,119 @@ function makeRadarProvider() {
   return new FilteredRadarImageryProvider(inner);
 }
 
-function enableRadar() {
-  if (radarLayer) return;
-  const provider = makeRadarProvider();
-  radarLayer = viewer.imageryLayers.addImageryProvider(provider);
+let radarLoopTimer = null;
+let _radarArchiveFrameKey = null;
+let _radarArchiveFetch = { at: 0, data: null };
+
+async function fetchRadarArchiveFrames() {
+  const now = Date.now();
+  if (_radarArchiveFetch.data && (now - _radarArchiveFetch.at) < 5 * 60 * 1000) {
+    return _radarArchiveFetch.data;
+  }
+  try {
+    const resp = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    _radarArchiveFetch = { at: now, data };
+    return data;
+  } catch (err) {
+    console.warn('[Radar] Radar archive fetch failed:', err.message);
+    return null;
+  }
+}
+
+function _normalizeRadarFrames(section) {
+  if (!Array.isArray(section)) return [];
+  return section
+    .map((frame) => ({
+      time: Number(frame.time) * 1000,
+      path: frame.path || '',
+    }))
+    .filter((f) => Number.isFinite(f.time) && f.path);
+}
+
+async function applyArchiveRadarFrame(timeMs) {
+  const archive = await fetchRadarArchiveFrames();
+  if (!archive) return false;
+
+  const host = archive.host || 'https://tilecache.rainviewer.com';
+  const past = _normalizeRadarFrames(archive.radar && archive.radar.past);
+  const nowcast = _normalizeRadarFrames(archive.radar && archive.radar.nowcast);
+  const frames = [...past, ...nowcast];
+  if (frames.length === 0) return false;
+
+  let best = frames[0];
+  let minDiff = Math.abs(best.time - timeMs);
+  for (let i = 1; i < frames.length; i++) {
+    const diff = Math.abs(frames[i].time - timeMs);
+    if (diff < minDiff) {
+      minDiff = diff;
+      best = frames[i];
+    }
+  }
+  if (_radarArchiveFrameKey === best.path && radarLayer) return true;
+
+  if (radarLayer) viewer.imageryLayers.remove(radarLayer);
+  radarLayer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
+    url: `${host}${best.path}/256/{z}/{x}/{y}/2/1_1.png`,
+    credit: new Cesium.Credit('RainViewer'),
+  }));
   radarLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
+  _radarArchiveFrameKey = best.path;
+  return true;
+}
+
+async function startRadarLoop() {
+  const archive = await fetchRadarArchiveFrames();
+  const past = _normalizeRadarFrames(archive && archive.radar && archive.radar.past);
+  const cutoff = Date.now() - (2 * 60 * 60 * 1000);
+  const frames = past.filter((f) => f.time >= cutoff);
+  if (frames.length === 0) return false;
+  let idx = 0;
+  if (radarLoopTimer) clearInterval(radarLoopTimer);
+  const firstApplied = await applyArchiveRadarFrame(frames[idx].time);
+  if (!firstApplied) return false;
+  radarLoopTimer = setInterval(() => {
+    idx = (idx + 1) % frames.length;
+    applyArchiveRadarFrame(frames[idx].time);
+  }, 800);
+  return true;
+}
+
+async function syncRadarMode() {
+  if (!CONFIG.radarEnabled) return;
+
+  if (radarRefreshTimer) {
+    clearInterval(radarRefreshTimer);
+    radarRefreshTimer = null;
+  }
+  if (radarLoopTimer) {
+    clearInterval(radarLoopTimer);
+    radarLoopTimer = null;
+  }
+
+  if (timelineTime !== null) {
+    const applied = await applyArchiveRadarFrame(timelineTime);
+    if (!applied) refreshRadarLive();
+    return;
+  }
+
+  if (CONFIG.radarLoopEnabled) {
+    const started = await startRadarLoop();
+    if (started === false) refreshRadarLive();
+    return;
+  }
+
+  _radarArchiveFrameKey = null;
+  refreshRadarLive();
+  radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+}
+
+function enableRadar() {
+  if (CONFIG.radarEnabled) return;
   CONFIG.radarEnabled = true;
   console.log('[Radar] NEXRAD overlay enabled');
-  // Auto-refresh every 5 minutes
-  if (radarRefreshTimer) clearInterval(radarRefreshTimer);
-  radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
+  syncRadarMode();
 }
 
 function disableRadar() {
@@ -203,10 +306,20 @@ function disableRadar() {
     clearInterval(radarRefreshTimer);
     radarRefreshTimer = null;
   }
+  if (radarLoopTimer) {
+    clearInterval(radarLoopTimer);
+    radarLoopTimer = null;
+  }
+  _radarArchiveFrameKey = null;
   console.log('[Radar] NEXRAD overlay disabled');
 }
 
 function refreshRadar() {
+  if (!CONFIG.radarEnabled || timelineTime !== null || CONFIG.radarLoopEnabled) return;
+  refreshRadarLive();
+}
+
+function refreshRadarLive() {
   if (!CONFIG.radarEnabled) return;
   if (radarLayer) {
     viewer.imageryLayers.remove(radarLayer);
@@ -913,6 +1026,7 @@ function pauseWeatherRefresh() {
   if (airmetRefreshTimer) { clearInterval(airmetRefreshTimer); airmetRefreshTimer = null; }
   if (turbRefreshTimer) { clearInterval(turbRefreshTimer); turbRefreshTimer = null; }
   if (radarRefreshTimer) { clearInterval(radarRefreshTimer); radarRefreshTimer = null; }
+  if (radarLoopTimer) { clearInterval(radarLoopTimer); radarLoopTimer = null; }
   if (satelliteIRRefreshTimer) { clearInterval(satelliteIRRefreshTimer); satelliteIRRefreshTimer = null; }
   console.log('[Weather] Refresh timers paused');
 }
@@ -932,9 +1046,7 @@ function resumeWeatherRefresh() {
   if (CONFIG.turbForecastEnabled && !turbRefreshTimer) {
     turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
   }
-  if (CONFIG.radarEnabled && !radarRefreshTimer) {
-    radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
-  }
+  if (CONFIG.radarEnabled) syncRadarMode();
   if (CONFIG.satelliteIREnabled && !satelliteIRRefreshTimer) {
     satelliteIRRefreshTimer = setInterval(refreshSatelliteIR, 10 * 60 * 1000);
   }
