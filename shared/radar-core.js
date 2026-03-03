@@ -332,14 +332,22 @@ async function applyTheme() {
   const root = document.documentElement;
   if (isDark) {
     const [r, g, b] = hexToRgb(CONFIG.darkColor);
+    // M3-compliant surface containers: neutral base tone + subtle primary tint
+    const tint = 0.07;
+    const scR = Math.round(20 + r * tint);
+    const scG = Math.round(20 + g * tint);
+    const scB = Math.round(20 + b * tint);
+    const shR = Math.round(36 + r * tint);
+    const shG = Math.round(36 + g * tint);
+    const shB = Math.round(36 + b * tint);
     root.style.setProperty('--md-primary', CONFIG.phosphor);
     root.style.setProperty('--md-on-primary', '#ffffff');
     root.style.setProperty('--md-primary-container', withAlpha(CONFIG.darkColor, 0.15));
     root.style.setProperty('--md-on-primary-container', CONFIG.phosphor);
     root.style.setProperty('--md-surface', '#121212');
-    root.style.setProperty('--md-surface-container', `rgba(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)}, 0.72)`);
-    root.style.setProperty('--md-surface-container-solid', `rgb(${Math.round(r * 0.05)}, ${Math.round(g * 0.05)}, ${Math.round(b * 0.05)})`);
-    root.style.setProperty('--md-surface-container-highest', withAlpha(CONFIG.darkColor, 0.15));
+    root.style.setProperty('--md-surface-container', `rgba(${scR}, ${scG}, ${scB}, 0.78)`);
+    root.style.setProperty('--md-surface-container-solid', `rgb(${scR}, ${scG}, ${scB})`);
+    root.style.setProperty('--md-surface-container-highest', `rgba(${shR}, ${shG}, ${shB}, 0.28)`);
     root.style.setProperty('--md-on-surface', CONFIG.phosphorBright);
     root.style.setProperty('--md-on-surface-variant', CONFIG.phosphorDim);
     root.style.setProperty('--md-on-surface-disabled', withAlpha(CONFIG.darkColor, 0.2));
