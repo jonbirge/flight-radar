@@ -356,6 +356,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: color-mix(in srgb, var(--md-primary) 12%, transparent);
 }
 
+.map-layer-divider {
+  height: 1px;
+  margin: 4px 12px;
+  background: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
+}
+
 .scope-btn {
   background: #000000;
   border: none;
