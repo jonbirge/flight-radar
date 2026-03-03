@@ -153,7 +153,6 @@ async function pollSelectedAircraft() {
         updateExtrapolationTrail(selectedIcao, ac, currentPos);
         break;
       }
-      lastPollTime = new Date();
       renderAircraft(new Set([selectedIcao]));
       showAircraftInfo(selectedIcao);
       updateLiveAltitudeFilter();
