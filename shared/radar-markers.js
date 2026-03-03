@@ -11,18 +11,18 @@ function getAirportColor() {
   if (CONFIG.theme === 'light') {
     return Cesium.Color.WHITE;
   }
-  return Cesium.Color.fromCssColorString('#999999');
+  return Cesium.Color.fromCssColorString('#010101');
 }
 
 function getAirportOutlineColor() {
   if (CONFIG.theme === 'light') {
-    return Cesium.Color.WHITE;
+    return Cesium.Color.BLACK;
   }
-  return Cesium.Color.fromCssColorString('#cccccc');
+  return Cesium.Color.fromCssColorString('#333333');
 }
 
 function getAirportOutlineWidth() {
-  return CONFIG.theme === 'light' ? 0 : 1;
+  return CONFIG.theme === 'light' ? 1 : 1;
 }
 
 function getAirportLabelColor() {
