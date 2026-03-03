@@ -184,6 +184,7 @@ function makeRadarProvider() {
 let radarLoopTimer = null;
 let _radarArchiveFrameKey = null;
 let _radarArchiveFetch = { at: 0, data: null };
+let _radarLoopGen = 0;
 
 async function fetchRadarArchiveFrames() {
   const now = Date.now();
@@ -243,8 +244,9 @@ async function applyArchiveRadarFrame(timeMs) {
   return true;
 }
 
-async function startRadarLoop() {
+async function startRadarLoop(loopGen) {
   const archive = await fetchRadarArchiveFrames();
+  if (!archive) return false;
   const past = _normalizeRadarFrames(archive && archive.radar && archive.radar.past);
   const cutoff = Date.now() - (2 * 60 * 60 * 1000);
   const frames = past.filter((f) => f.time >= cutoff);
@@ -252,8 +254,15 @@ async function startRadarLoop() {
   let idx = 0;
   if (radarLoopTimer) clearInterval(radarLoopTimer);
   const firstApplied = await applyArchiveRadarFrame(frames[idx].time);
-  if (!firstApplied) return false;
+  if (!firstApplied || loopGen !== _radarLoopGen) return false;
   radarLoopTimer = setInterval(() => {
+    if (loopGen !== _radarLoopGen) {
+      if (radarLoopTimer) {
+        clearInterval(radarLoopTimer);
+        radarLoopTimer = null;
+      }
+      return;
+    }
     idx = (idx + 1) % frames.length;
     applyArchiveRadarFrame(frames[idx].time);
   }, 800);
@@ -267,6 +276,7 @@ async function syncRadarMode() {
     clearInterval(radarRefreshTimer);
     radarRefreshTimer = null;
   }
+  _radarLoopGen++;
   if (radarLoopTimer) {
     clearInterval(radarLoopTimer);
     radarLoopTimer = null;
@@ -274,13 +284,17 @@ async function syncRadarMode() {
 
   if (timelineTime !== null) {
     const applied = await applyArchiveRadarFrame(timelineTime);
-    if (!applied) refreshRadarLive();
+    if (!applied && radarLayer) {
+      viewer.imageryLayers.remove(radarLayer);
+      radarLayer = null;
+      _radarArchiveFrameKey = null;
+    }
     return;
   }
 
   if (CONFIG.radarLoopEnabled) {
-    const started = await startRadarLoop();
-    if (started === false) refreshRadarLive();
+    const started = await startRadarLoop(_radarLoopGen);
+    if (!started) refreshRadarLive();
     return;
   }
 
@@ -290,7 +304,7 @@ async function syncRadarMode() {
 }
 
 function enableRadar() {
-  if (CONFIG.radarEnabled) return;
+  if (radarLayer) return;
   CONFIG.radarEnabled = true;
   console.log('[Radar] NEXRAD overlay enabled');
   syncRadarMode();
