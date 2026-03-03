@@ -34,6 +34,7 @@ body {
 #settings-container {
   --settings-input-bg: rgba(0, 0, 0, 0.2);
   --settings-btn-active-color: #000000;
+  padding: 0 12px;
 }
 
 .theme-light #settings-container {

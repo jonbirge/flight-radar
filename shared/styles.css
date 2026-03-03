@@ -274,6 +274,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
 }
 
+.map-layer-label-text {
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 14px;
+  color: var(--md-on-surface);
+  opacity: 0.7;
+  margin-left: 12px;
+}
+
 /* Custom map layer dropdown */
 .map-layer-select {
   position: relative;
@@ -914,7 +922,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* Settings button always right-justified in the controls row */
 #btn-settings {
-  margin-left: auto;
+  margin-left: 12px;
 }
 
 .timeline-live-btn {
