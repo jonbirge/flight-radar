@@ -8,7 +8,21 @@
 // ============================================================
 
 function getAirportColor() {
-  return Cesium.Color.WHITE;
+  if (CONFIG.theme === 'light') {
+    return Cesium.Color.WHITE;
+  }
+  return Cesium.Color.fromCssColorString('#010101');
+}
+
+function getAirportOutlineColor() {
+  if (CONFIG.theme === 'light') {
+    return Cesium.Color.BLACK;
+  }
+  return Cesium.Color.fromCssColorString('#333333');
+}
+
+function getAirportOutlineWidth() {
+  return CONFIG.theme === 'light' ? 1 : 1;
 }
 
 function getAirportLabelColor() {
@@ -22,6 +36,8 @@ function getAirportLabelColor() {
 function initAirports(airports) {
   cachedAirportData = airports;
   const pointColor = getAirportColor();
+  const pointOutlineColor = getAirportOutlineColor();
+  const pointOutlineWidth = getAirportOutlineWidth();
   const labelColor = getAirportLabelColor();
 
   for (const ap of airports) {
@@ -41,7 +57,8 @@ function initAirports(airports) {
       point: {
         pixelSize: dotSize,
         color: pointColor,
-        outlineWidth: 0,
+        outlineColor: pointOutlineColor,
+        outlineWidth: pointOutlineWidth,
         scaleByDistance: dotScale,
       },
       label: {
@@ -71,6 +88,8 @@ function initAirports(airports) {
 
 function initSmallAirports(airports) {
   const pointColor = getAirportColor();
+  const pointOutlineColor = getAirportOutlineColor();
+  const pointOutlineWidth = getAirportOutlineWidth();
   const labelColor = getAirportLabelColor();
   const smallRange = 200000; // Only visible within 200km
 
@@ -86,7 +105,8 @@ function initSmallAirports(airports) {
       point: {
         pixelSize: dotSize,
         color: pointColor,
-        outlineWidth: 0,
+        outlineColor: pointOutlineColor,
+        outlineWidth: pointOutlineWidth,
         scaleByDistance: dotScale,
         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, smallRange),
       },
@@ -130,10 +150,14 @@ function toggleAirports(show) {
 
 function updateAirportColors() {
   const pointColor = getAirportColor();
+  const pointOutlineColor = getAirportOutlineColor();
+  const pointOutlineWidth = getAirportOutlineWidth();
   const labelColor = getAirportLabelColor();
   const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
   for (const entity of [...airportEntities, ...smallAirportEntities]) {
     entity.point.color = pointColor;
+    entity.point.outlineColor = pointOutlineColor;
+    entity.point.outlineWidth = pointOutlineWidth;
     entity.label.fillColor = labelColor;
     entity.label.outlineColor = outlineColor;
   }
