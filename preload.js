@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Search flights by advanced query (origin, destination, date/time window)
   searchFlights: (advQuery) => ipcRenderer.invoke('search-flights', advQuery),
 
+  // Get flights for a specific airport from FlightAware AeroAPI
+  getAirportFlights: (airportCode) => ipcRenderer.invoke('get-airport-flights', airportCode),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),

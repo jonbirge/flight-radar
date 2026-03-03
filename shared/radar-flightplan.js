@@ -23,6 +23,9 @@ handler.setInputAction((click) => {
     const id = picked.id.id;
     if (id.startsWith('ac-')) {
       showAircraftInfo(id.replace('ac-', ''));
+    } else if (id.startsWith('apt-') && !selectedIcao) {
+      // Airport click — show airport info and query flights
+      showAirportInfo(id.replace('apt-', ''));
     } else if (id.startsWith('turb-') && !selectedIcao) {
       // Only show turbulence info when no aircraft is selected —
       // the close button is the only way to deselect an aircraft.
@@ -341,10 +344,213 @@ function hideAircraftInfo() {
 document.getElementById('info-close').addEventListener('click', () => {
   clearFlightPlanRoute();
   hideAircraftInfo();
+  hideAirportInfo();
   hideFlightResults();
   const searchInput = document.getElementById('flight-search');
   if (searchInput) searchInput.value = '';
 });
+
+// ============================================================
+// Airport Selection (click to inspect)
+// ============================================================
+
+// Show airport info panel and query FlightAware for flights at this airport.
+function showAirportInfo(icao) {
+  if (!cachedAirportData) return;
+  const ap = cachedAirportData.find(a => a.icao === icao);
+  if (!ap) return;
+
+  // Clear any existing aircraft selection
+  if (selectedIcao) {
+    clearFlightPlanRoute();
+    hideAircraftInfo();
+  }
+
+  selectedAirport = icao;
+
+  const panel = document.getElementById('aircraft-info');
+  const wasHidden = panel.classList.contains('hidden');
+  panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  if (wasHidden) {
+    if (isMobile()) panel.classList.add('mob-collapsed');
+    else panel.classList.remove('mob-collapsed');
+  }
+
+  // Hide aircraft-specific buttons (Track, Show Route)
+  const infoButtons = document.getElementById('info-buttons');
+  if (infoButtons) infoButtons.classList.add('hidden');
+
+  document.getElementById('info-callsign').textContent = ap.iata || ap.icao;
+
+  document.getElementById('info-details').innerHTML = `
+    <div><span class="label">AIRPORT</span><span>${ap.name || '---'}</span></div>
+    <div><span class="label">ICAO</span><span>${ap.icao}</span></div>
+    <div><span class="label">IATA</span><span>${ap.iata || '---'}</span></div>
+    <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
+    <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
+    <div><span class="label">FLIGHTS</span><span>Loading...</span></div>
+  `;
+
+  // Query FlightAware for flights at this airport
+  queryAirportFlights(icao);
+}
+
+// Clear airport selection state
+function hideAirportInfo() {
+  selectedAirport = null;
+}
+
+// Query FlightAware for arrivals and departures at an airport and show results.
+async function queryAirportFlights(icao) {
+  if (!window.flightAPI.getAirportFlights) {
+    console.warn('[Airport] getAirportFlights not available on this platform');
+    const detailsEl = document.getElementById('info-details');
+    if (detailsEl) {
+      const flightsRow = detailsEl.querySelector('[data-field="flights"]');
+      if (flightsRow) flightsRow.textContent = 'N/A';
+    }
+    return;
+  }
+
+  try {
+    console.log(`[Airport] Querying flights for ${icao}`);
+    const data = await window.flightAPI.getAirportFlights(icao);
+
+    // Bail if user closed or changed selection while we were fetching
+    if (selectedAirport !== icao) return;
+
+    if (data.error) {
+      console.warn(`[Airport] Flight query error: ${data.error}`);
+      updateAirportFlightsCount('Error');
+      return;
+    }
+
+    // AeroAPI /airports/{id}/flights returns { arrivals, departures, scheduled_arrivals, scheduled_departures }
+    const arrivals = data.arrivals || [];
+    const departures = data.departures || [];
+    const schedArrivals = data.scheduled_arrivals || [];
+    const schedDepartures = data.scheduled_departures || [];
+
+    // Combine all flights into a unified list for the results panel
+    const allFlights = [];
+    for (const f of arrivals)       allFlights.push({ ...f, _direction: 'arrival' });
+    for (const f of departures)     allFlights.push({ ...f, _direction: 'departure' });
+    for (const f of schedArrivals)  allFlights.push({ ...f, _direction: 'sched_arrival' });
+    for (const f of schedDepartures) allFlights.push({ ...f, _direction: 'sched_departure' });
+
+    const total = allFlights.length;
+    console.log(`[Airport] Found ${total} flights (${arrivals.length} arr, ${departures.length} dep, ` +
+      `${schedArrivals.length} sched arr, ${schedDepartures.length} sched dep)`);
+
+    updateAirportFlightsCount(`${arrivals.length + departures.length} active, ${schedArrivals.length + schedDepartures.length} sched`);
+
+    // Show flights in the results panel
+    if (allFlights.length > 0) {
+      showAirportFlightResults(allFlights, icao);
+    }
+  } catch (err) {
+    console.error('[Airport] Flight query error:', err);
+    updateAirportFlightsCount('Error');
+  }
+}
+
+// Update the FLIGHTS count row in the airport info panel
+function updateAirportFlightsCount(text) {
+  const detailsEl = document.getElementById('info-details');
+  if (!detailsEl) return;
+  const rows = detailsEl.querySelectorAll('div');
+  for (const row of rows) {
+    const label = row.querySelector('.label');
+    if (label && label.textContent === 'FLIGHTS') {
+      const val = row.querySelector('span:last-child');
+      if (val) val.textContent = text;
+      break;
+    }
+  }
+}
+
+// Show airport flight results in the flight-results dropdown panel.
+function showAirportFlightResults(flights, airportIcao) {
+  const panel = document.getElementById('flight-results');
+  if (!panel) return;
+
+  panel.innerHTML = '';
+
+  // Sort: en-route first, then scheduled, then completed
+  const categorized = flights.map(f => {
+    let category;
+    if (f.progress_percent != null) {
+      if (f.progress_percent > 0 && f.progress_percent < 100) category = 'enroute';
+      else if (f.progress_percent >= 100) category = 'past';
+      else category = 'upcoming';
+    } else if (f._direction === 'sched_arrival' || f._direction === 'sched_departure') {
+      category = 'upcoming';
+    } else if (f.actual_off && !f.actual_on) {
+      category = 'enroute';
+    } else if (f.actual_on) {
+      category = 'past';
+    } else {
+      category = 'upcoming';
+    }
+    return { flight: f, category };
+  });
+
+  const enRoute = categorized.filter(c => c.category === 'enroute');
+  const upcoming = categorized.filter(c => c.category === 'upcoming')
+    .sort((a, b) => {
+      const da = new Date(a.flight.scheduled_out || a.flight.estimated_out || a.flight.scheduled_in || 0);
+      const db = new Date(b.flight.scheduled_out || b.flight.estimated_out || b.flight.scheduled_in || 0);
+      return da - db;
+    });
+  const past = categorized.filter(c => c.category === 'past')
+    .sort((a, b) => {
+      const da = new Date(b.flight.scheduled_out || b.flight.actual_off || 0);
+      const db = new Date(a.flight.scheduled_out || a.flight.actual_off || 0);
+      return da - db;
+    })
+    .slice(0, 5);
+
+  const ordered = [...enRoute, ...upcoming, ...past];
+
+  for (const { flight: f, category } of ordered) {
+    const dir = f._direction || '';
+    const isArr = dir.includes('arrival');
+    const originCode = f.origin ? (f.origin.code_iata || f.origin.code_icao || f.origin.code || '??') : '??';
+    const destCode = f.destination ? (f.destination.code_iata || f.destination.code_icao || f.destination.code || '??') : '??';
+    const identStr = f.ident_iata || f.ident || '';
+
+    const timeStr = isArr
+      ? (f.estimated_in || f.scheduled_in || f.actual_on || '')
+      : (f.estimated_out || f.scheduled_out || f.actual_off || '');
+    const timeDate = timeStr ? new Date(timeStr) : null;
+    const timeFmt = timeDate
+      ? timeDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : '---';
+
+    let badgeLabel, badgeClass;
+    if (category === 'enroute') { badgeLabel = 'EN ROUTE'; badgeClass = 'badge-enroute'; }
+    else if (category === 'upcoming') { badgeLabel = isArr ? 'ARR' : 'DEP'; badgeClass = 'badge-upcoming'; }
+    else { badgeLabel = 'PAST'; badgeClass = 'badge-past'; }
+
+    const item = document.createElement('div');
+    item.className = 'flight-result-item';
+    item.innerHTML = `
+      <span class="flight-result-badge ${badgeClass}">${badgeLabel}</span>
+      <span class="flight-result-ident">${identStr}</span>
+      <span class="flight-result-route">${originCode} → ${destCode}</span>
+      <span class="flight-result-time">${timeFmt}</span>
+    `;
+    item.addEventListener('click', () => {
+      hideFlightResults();
+      selectedAirport = null; // Exit airport mode when selecting a specific flight
+      selectFlightFromResults(f, { flights: [f] });
+    });
+    panel.appendChild(item);
+  }
+
+  panel.classList.remove('hidden');
+}
 
 // ============================================================
 // Flight Plan Search & Route Display

@@ -52,6 +52,7 @@ function initAirports(airports) {
     const dotScale = new Cesium.NearFarScalar(1e5, 1.0, 6e6, farScale);
 
     const entity = viewer.entities.add({
+      id: `apt-${ap.icao}`,
       // Slight altitude keeps dots above the globe surface at oblique angles
       position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 10),
       point: {
@@ -101,6 +102,7 @@ function initSmallAirports(airports) {
     const dotScale = new Cesium.NearFarScalar(5e4, 1.0, 2e5, farScale);
 
     const entity = viewer.entities.add({
+      id: `apt-${ap.icao}`,
       position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 10),
       point: {
         pixelSize: dotSize,
