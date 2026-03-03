@@ -103,7 +103,12 @@ viewer = new Cesium.Viewer('cesiumContainer', {
   sceneMode: Cesium.SceneMode.SCENE3D,
   mapProjection: new Cesium.WebMercatorProjection(),
   orderIndependentTranslucency: false,
+  msaaSamples: 4,
+  contextOptions: { webgl: { antialias: true } },
 });
+
+// FXAA post-process anti-aliasing (smooths polygon/polyline edges)
+viewer.scene.postProcessStages.fxaa.enabled = true;
 
 // Set dark background color for globe/space
 viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0a0a');
