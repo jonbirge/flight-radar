@@ -335,6 +335,7 @@ ipcMain.handle('search-flights', async (event, advQuery) => {
 });
 
 // IPC handler: get flights for an airport from FlightAware
+// Paginates through ALL pages so the client receives every en-route flight.
 ipcMain.handle('get-airport-flights', async (event, airportCode) => {
   const s = loadSettings();
   const apiKey = s.flightawareApiKey;
@@ -344,9 +345,23 @@ ipcMain.handle('get-airport-flights', async (event, airportCode) => {
 
   try {
     const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
-    const url = `${FA_AEROAPI_BASE}/airports/${safeCode}/flights?type=enroute`;
-    const data = await httpGetFA(url, apiKey);
-    return data;
+    let url = `${FA_AEROAPI_BASE}/airports/${safeCode}/flights?type=enroute`;
+    const allArrivals = [];
+    const allDepartures = [];
+    const MAX_PAGES = 20; // safety limit
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const data = await httpGetFA(url, apiKey);
+      if (data.arrivals) allArrivals.push(...data.arrivals);
+      if (data.departures) allDepartures.push(...data.departures);
+
+      // Follow pagination cursor if present
+      const nextUrl = data.links && data.links.next;
+      if (!nextUrl) break;
+      url = nextUrl.startsWith('http') ? nextUrl : `${FA_AEROAPI_BASE}${nextUrl}`;
+    }
+
+    return { arrivals: allArrivals, departures: allDepartures };
   } catch (err) {
     console.error(`[FlightAware] Airport flights error for ${airportCode}:`, err.message);
     return { error: err.message };

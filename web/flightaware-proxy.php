@@ -93,6 +93,8 @@ if ($endpoint === 'flights') {
     $params['type'] = 'enroute';
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/airports/$airportCode/flights" . ($query ? "?$query" : '');
+    // This endpoint uses server-side pagination (see below)
+    $paginateAirportFlights = true;
 } else if ($endpoint === 'airports/delays') {
     $airportCode = $params['airport_code'] ?? '';
     unset($params['airport_code']);
@@ -115,6 +117,7 @@ if (!is_dir($CACHE_DIR)) {
     @mkdir($CACHE_DIR, 0755, true);
 }
 
+// For paginated endpoints, use the base URL (without cursor) as cache key
 $cacheKey = md5($upstreamUrl);
 $cacheMeta = "$CACHE_DIR/$cacheKey.meta";
 $cacheData = "$CACHE_DIR/$cacheKey.data";
@@ -131,29 +134,66 @@ if (file_exists($cacheMeta) && file_exists($cacheData)) {
 
 // ---------- Fetch from FlightAware ----------
 
-$ch = curl_init($upstreamUrl);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 15,
-    CURLOPT_HTTPHEADER     => [
-        "x-apikey: $apiKey",
-        'Accept: application/json',
-    ],
-    CURLOPT_USERAGENT      => 'FlightRadar-FA-Proxy/1.0',
-]);
-
-$body = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$error = curl_error($ch);
-curl_close($ch);
-
-if ($body === false || $httpCode !== 200) {
-    http_response_code(502);
-    echo json_encode([
-        'error' => 'FlightAware request failed',
-        'detail' => $error ?: "HTTP $httpCode",
+// Helper: single HTTP GET to FlightAware
+function faGet($url, $apiKey) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => [
+            "x-apikey: $apiKey",
+            'Accept: application/json',
+        ],
+        CURLOPT_USERAGENT      => 'FlightRadar-FA-Proxy/1.0',
     ]);
-    exit;
+    $body = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    return ['body' => $body, 'httpCode' => $httpCode, 'error' => $error];
+}
+
+if (!empty($paginateAirportFlights)) {
+    // Paginate through all pages of airport flights
+    $allArrivals = [];
+    $allDepartures = [];
+    $url = $upstreamUrl;
+    $maxPages = 20; // safety limit
+
+    for ($page = 0; $page < $maxPages; $page++) {
+        $result = faGet($url, $apiKey);
+        if ($result['body'] === false || $result['httpCode'] !== 200) {
+            http_response_code(502);
+            echo json_encode([
+                'error' => 'FlightAware request failed',
+                'detail' => $result['error'] ?: "HTTP {$result['httpCode']}",
+            ]);
+            exit;
+        }
+        $data = json_decode($result['body'], true);
+        if (!is_array($data)) break;
+
+        if (!empty($data['arrivals'])) $allArrivals = array_merge($allArrivals, $data['arrivals']);
+        if (!empty($data['departures'])) $allDepartures = array_merge($allDepartures, $data['departures']);
+
+        // Follow pagination cursor
+        $nextUrl = $data['links']['next'] ?? null;
+        if (!$nextUrl) break;
+        $url = (strpos($nextUrl, 'http') === 0) ? $nextUrl : "https://aeroapi.flightaware.com" . $nextUrl;
+    }
+
+    $body = json_encode(['arrivals' => $allArrivals, 'departures' => $allDepartures]);
+} else {
+    $result = faGet($upstreamUrl, $apiKey);
+    $body = $result['body'];
+    if ($body === false || $result['httpCode'] !== 200) {
+        http_response_code(502);
+        echo json_encode([
+            'error' => 'FlightAware request failed',
+            'detail' => $result['error'] ?: "HTTP {$result['httpCode']}",
+        ]);
+        exit;
+    }
 }
 
 // ---------- Write cache ----------

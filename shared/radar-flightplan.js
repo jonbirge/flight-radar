@@ -391,7 +391,6 @@ function showAirportInfo(icao) {
   document.getElementById('info-callsign').textContent = label;
 
   document.getElementById('info-details').innerHTML = `
-    <div><span class="label">NAME</span><span class="airport-name">${ap.name || '---'}</span></div>
     <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
     <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
     <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
@@ -666,7 +665,6 @@ function updateAirportPanelFlights(total, error, arrCount, depCount) {
 
   if (error) {
     details.innerHTML = `
-      <div><span class="label">NAME</span><span class="airport-name">${ap.name || '---'}</span></div>
       <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
       <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
       <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
@@ -674,7 +672,6 @@ function updateAirportPanelFlights(total, error, arrCount, depCount) {
     `;
   } else {
     details.innerHTML = `
-      <div><span class="label">NAME</span><span class="airport-name">${ap.name || '---'}</span></div>
       <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
       <div><span class="label">ARRIVALS</span><span>${arrCount} en route</span></div>
       <div><span class="label">DEPARTURES</span><span>${depCount} en route</span></div>
