@@ -140,6 +140,10 @@ function showAircraftInfo(icao) {
   const ac = aircraft.get(icao);
   if (!ac) return;
 
+  // Clear airport filter when selecting an aircraft
+  // (the filter is only active while the airport info panel is shown)
+  clearAirportFilter();
+
   const prevSelected = selectedIcao;
   selectedIcao = icao;
 
@@ -239,6 +243,7 @@ function showAircraftInfo(icao) {
 function showTurbInfo(entity) {
   const p = entity.properties;
   if (!p) return;
+  clearAirportFilter();
   const type = p.turbType ? p.turbType.getValue() : '?';
   const panel = document.getElementById('aircraft-info');
   const wasHidden = panel.classList.contains('hidden');
@@ -406,6 +411,8 @@ async function fetchAirportFlights(ap) {
   if (!window.flightAPI.getAirportFlights) {
     console.warn('[Airport] getAirportFlights not available on this platform');
     updateAirportPanelFlights(0, 'API not available');
+    airportFilterCallsigns = null;
+    renderAircraft();
     return;
   }
 
@@ -420,6 +427,9 @@ async function fetchAirportFlights(ap) {
     if (data.error) {
       console.warn(`[Airport] FlightAware error: ${data.error}`);
       updateAirportPanelFlights(0, data.error);
+      // Clear the filter so aircraft aren't hidden due to API failure
+      airportFilterCallsigns = null;
+      renderAircraft();
       return;
     }
 
@@ -456,6 +466,8 @@ async function fetchAirportFlights(ap) {
     console.error('[Airport] Fetch error:', err);
     if (selectedAirport && selectedAirport.icao === ap.icao) {
       updateAirportPanelFlights(0, err.message);
+      airportFilterCallsigns = null;
+      renderAircraft();
     }
   }
 }

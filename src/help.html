@@ -33,7 +33,12 @@
         <li><a href="#gtg-forecast" class="nav-h3">GTG Forecast</a></li>
       </ul>
     </li>
-    <li><a href="#aircraft-info-panel" class="nav-h2">Aircraft Info Panel</a></li>
+    <li>
+      <a href="#aircraft-info-panel" class="nav-h2">Aircraft Info Panel</a>
+      <ul>
+        <li><a href="#airport-filter" class="nav-h3">Airport Filter</a></li>
+      </ul>
+    </li>
     <li><a href="#hud" class="nav-h2">HUD</a></li>
     <li><a href="#airspace-colors" class="nav-h2">Airspace Colors</a></li>
     <li><a href="#map-layers" class="nav-h2">Map Layers</a></li>
@@ -70,6 +75,7 @@
     <tr><td>Zoom in / out</td><td>Scroll wheel</td></tr>
     <tr><td>Change perspective (tilt/rotate)</td><td><kbd>Ctrl</kbd> + drag</td></tr>
     <tr><td>Select an aircraft</td><td>Click on an aircraft icon</td></tr>
+    <tr><td>Filter by airport</td><td>Click on an airport marker</td></tr>
     <tr><td>Inspect a turbulence feature</td><td>Click on a PIREP dot, SIGMET, or G-AIRMET polygon</td></tr>
     <tr><td>Deselect</td><td>Click on empty space or the &times; button</td></tr>
   </table>
@@ -331,6 +337,19 @@
     Clicking on a turbulence feature (PIREP, SIGMET, or G-AIRMET) opens the same panel
     with details about that report, including intensity, altitude, validity times, and
     raw observation text when available.
+  </p>
+
+  <h3 id="airport-filter">Airport Filter</h3>
+  <p>
+    Click on any airport marker to open the airport info panel. This shows the airport
+    name, type, and coordinates. If a FlightAware API key is configured, it also fetches
+    the current list of en-route arrivals and departures for that airport.
+  </p>
+  <p>
+    While the airport info panel is open, aircraft are filtered to only show flights that
+    are en route to or from the selected airport. The filter is applied by matching
+    callsigns from FlightAware against the live aircraft data from OpenSky.
+    Close the info panel (click &times;) to remove the filter and restore all aircraft.
   </p>
 
   <h2 id="hud">HUD (Heads-Up Display)</h2>
