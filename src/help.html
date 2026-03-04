@@ -57,7 +57,7 @@
   <h2 id="overview">Overview</h2>
   <p>
     3D Flight Radar displays real-time aircraft positions on an interactive 3D globe
-    using ADS-B data from the <strong>OpenSky Network</strong>. Aircraft within the
+    using ADS-B data from <strong>airplanes.live</strong>. Aircraft within the
     current viewport are polled automatically and displayed with data blocks.
     Weather overlays including NEXRAD radar and turbulence data from the
     <strong>AWC (Aviation Weather Center)</strong> can be layered on the map.
@@ -319,8 +319,7 @@
     <li><strong>Trail points</strong> count and last ADS-B contact time</li>
   </ul>
   <p>
-    When an aircraft is selected, its trail history is extended and a higher-resolution
-    track is fetched from the OpenSky API. Two buttons appear at the bottom of the panel:
+    When an aircraft is selected, its trail history is extended. Two buttons appear at the bottom of the panel:
     <strong>Track</strong> is a toggle button that flies to and continuously follows the
     aircraft&rsquo;s current position; clicking it again (or clicking <strong>Show Route</strong>)
     stops tracking. Zoom and orbit still work while tracking is active.
@@ -420,17 +419,16 @@
     <li><strong>Rotation Speed</strong> — Speed of automatic camera rotation (degrees per second).</li>
     <li><strong>Weather Overlay Opacity</strong> — Controls the transparency of all weather imagery
       layers (NEXRAD radar, GOES satellite IR, and GTG turbulence forecast). Range is 10&ndash;100%.</li>
-    <li><strong>API Credentials</strong> — Click the disclosure triangle to expand. Enter OpenSky Network client ID/secret for authenticated
-      access (higher rate limits), and FlightAware AeroAPI key for flight plan search.
+    <li><strong>API Credentials</strong> — Click the disclosure triangle to expand. Enter a FlightAware AeroAPI key for flight plan search.
       You can also drag and drop a <code>creds.json</code> or <code>credentials.json</code> file
-      to populate all fields at once.</li>
+      to populate the field.</li>
   </ul>
 
   <h2 id="data-sources">Data Sources</h2>
   <ul>
-    <li><strong>OpenSky Network</strong> — Real-time ADS-B aircraft surveillance data.
-      Anonymous access is rate-limited to one request every 10 seconds.
-      Register for free API credentials at opensky-network.org for higher limits.</li>
+    <li><strong>airplanes.live</strong> — Real-time ADS-B aircraft surveillance data.
+      No authentication required. Rate-limited to one request per second.
+      See <a href="https://airplanes.live/api-guide/">airplanes.live/api-guide</a> for details.</li>
     <li><strong>FlightAware AeroAPI</strong> — Flight plan data including filed routes,
       origin/destination airports, aircraft type, and real-time flight status.
       Requires an API key from flightaware.com.</li>

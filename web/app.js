@@ -31,67 +31,30 @@ function saveSettings(settings) {
 }
 
 // ============================================================
-// OpenSky API (browser fetch)
+// airplanes.live API (browser fetch — no auth required)
 // ============================================================
 
-const OPENSKY_BASE = 'https://opensky-network.org/api';
+const AIRPLANES_LIVE_BASE = 'https://api.airplanes.live/v2';
 
 // Rate limiting state
 let lastStatesCall = 0;
 let lastTrackCall = 0;
-const STATES_MIN_INTERVAL = 10000;
-const TRACK_MIN_INTERVAL = 10000;
+const STATES_MIN_INTERVAL = 1000;  // 1s minimum (API rate limit)
+const TRACK_MIN_INTERVAL = 1000;
 
-// OAuth2 token cache
-let cachedToken = null;
-let tokenExpiresAt = 0;
+// Convert a bounding box to center point + radius in nautical miles.
+// airplanes.live uses /v2/point/{lat}/{lon}/{radius} with max radius 250nm.
+function boundsToPointRadius(bounds) {
+  const centerLat = (bounds.south + bounds.north) / 2;
+  const centerLon = (bounds.west + bounds.east) / 2;
 
-async function fetchTokenViaProxy(clientId, clientSecret) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const latSpan = bounds.north - bounds.south;
+  const lonSpan = bounds.east - bounds.west;
+  const latNm = latSpan * 60 / 2;
+  const lonNm = lonSpan * 60 * Math.cos(centerLat * Math.PI / 180) / 2;
+  const radiusNm = Math.min(Math.ceil(Math.sqrt(latNm * latNm + lonNm * lonNm)), 250);
 
-  try {
-    const opts = { signal: controller.signal };
-    if (clientId && clientSecret) {
-      opts.method = 'POST';
-      opts.headers = { 'Content-Type': 'application/json' };
-      opts.body = JSON.stringify({ client_id: clientId, client_secret: clientSecret });
-    }
-    const resp = await fetch('cred.php', opts);
-    clearTimeout(timeout);
-    if (!resp.ok) throw new Error(`Token proxy failed: HTTP ${resp.status}`);
-    return await resp.json();
-  } catch (err) {
-    clearTimeout(timeout);
-    throw err;
-  }
-}
-
-async function getOpenSkyToken() {
-  const now = Date.now();
-  if (cachedToken && tokenExpiresAt > now + 60000) {
-    return cachedToken;
-  }
-
-  // Only use server proxy if credentials are configured in settings
-  const s = loadSettings();
-  if (s.openskyClientId && s.openskyClientSecret) {
-    try {
-      const resp = await fetchTokenViaProxy(s.openskyClientId, s.openskyClientSecret);
-      if (resp.access_token) {
-        cachedToken = resp.access_token;
-        tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-        return cachedToken;
-      }
-    } catch (err) {
-      // Token fetch failed, will fall back to anonymous
-    }
-  }
-
-  // No credentials configured — anonymous access
-  cachedToken = null;
-  tokenExpiresAt = 0;
-  return null;
+  return { lat: centerLat, lon: centerLon, radius: radiusNm };
 }
 
 async function apiGetStates(bounds) {
@@ -102,21 +65,17 @@ async function apiGetStates(bounds) {
   lastStatesCall = now;
 
   try {
-    const { south, west, north, east } = bounds;
-    const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
-
-    const token = await getOpenSkyToken();
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const { lat, lon, radius } = boundsToPointRadius(bounds);
+    const url = `${AIRPLANES_LIVE_BASE}/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${radius}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const resp = await fetch(url, { headers, signal: controller.signal });
+    const resp = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
 
     if (resp.status === 429) {
-      return { error: 'Rate limited by OpenSky API' };
+      return { error: 'Rate limited by airplanes.live API' };
     }
     if (!resp.ok) {
       return { error: `HTTP ${resp.status}` };
@@ -137,16 +96,12 @@ async function apiGetTrack(icao24) {
   lastTrackCall = now;
 
   try {
-    const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}`;
-
-    const token = await getOpenSkyToken();
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const url = `${AIRPLANES_LIVE_BASE}/hex/${encodeURIComponent(icao24)}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const resp = await fetch(url, { headers, signal: controller.signal });
+    const resp = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
 
     if (!resp.ok) {
@@ -302,9 +257,6 @@ window.flightAPI = {
 const settingsOverlay = document.getElementById('settings-overlay');
 const settingsContainer = document.getElementById('settings-container');
 settingsContainer.innerHTML = createSettingsFormHTML();
-// Hide OpenSky credentials in web mode (credentials are handled server-side)
-const credSection = settingsContainer.querySelector('#cred-drop-zone');
-if (credSection) credSection.closest('.settings-section').style.display = 'none';
 
 const settingsPanel = initSettingsPanel({
   container: settingsContainer,

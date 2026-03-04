@@ -1,4 +1,4 @@
-// Shared data: airport database, OpenSky state parsing, formatting utilities
+// Shared data: airport database, airplanes.live state parsing, formatting utilities
 // Loaded by both Electron and web versions
 
 'use strict';
@@ -68,33 +68,50 @@ function lookupAirport(code) {
 }
 
 // ============================================================
-// OpenSky State Parsing
+// airplanes.live State Parsing
 // ============================================================
 
-// OpenSky state vector indices
-const IDX = {
-  ICAO24: 0, CALLSIGN: 1, ORIGIN: 2, TIME_POS: 3, LAST_CONTACT: 4,
-  LON: 5, LAT: 6, BARO_ALT: 7, ON_GROUND: 8, VELOCITY: 9,
-  HEADING: 10, VERT_RATE: 11, SENSORS: 12, GEO_ALT: 13,
-  SQUAWK: 14, SPI: 15, POS_SRC: 16
-};
-
+// Parse an airplanes.live aircraft object into the internal state format.
+// airplanes.live returns objects with named fields (ADSBExchange v2 format):
+//   hex, flight, lat, lon, alt_baro, alt_geom, gs (ground speed in knots),
+//   track (heading), baro_rate (ft/min), squawk, seen, seen_pos, category, etc.
 function parseState(s) {
+  // alt_baro can be a number (feet) or the string "ground"
+  const altBaroFeet = (typeof s.alt_baro === 'number') ? s.alt_baro : null;
+  const altGeoFeet = (typeof s.alt_geom === 'number') ? s.alt_geom : null;
+  const onGround = s.alt_baro === 'ground';
+
+  // Convert altitudes from feet to meters (internal format uses meters)
+  const altBaro = altBaroFeet != null ? altBaroFeet * 0.3048 : null;
+  const altGeo = altGeoFeet != null ? altGeoFeet * 0.3048 : null;
+
+  // Convert ground speed from knots to m/s
+  const velocity = (typeof s.gs === 'number') ? s.gs * 0.514444 : null;
+
+  // Convert baro_rate from ft/min to m/s
+  const verticalRate = (typeof s.baro_rate === 'number') ? s.baro_rate * 0.00508 : null;
+
+  // Compute approximate timestamps from 'seen' and 'seen_pos' (seconds ago)
+  const nowSec = Date.now() / 1000;
+  const lastContact = (typeof s.seen === 'number') ? nowSec - s.seen : null;
+  const timePosition = (typeof s.seen_pos === 'number') ? nowSec - s.seen_pos : null;
+
   return {
-    icao24: s[IDX.ICAO24],
-    callsign: (s[IDX.CALLSIGN] || '').trim(),
-    lon: s[IDX.LON],
-    lat: s[IDX.LAT],
-    altitude: s[IDX.BARO_ALT],
-    geoAltitude: s[IDX.GEO_ALT],
-    onGround: s[IDX.ON_GROUND],
-    velocity: s[IDX.VELOCITY],
-    heading: s[IDX.HEADING],
-    verticalRate: s[IDX.VERT_RATE],
-    squawk: s[IDX.SQUAWK],
-    timePosition: s[IDX.TIME_POS],
-    lastContact: s[IDX.LAST_CONTACT],
-    origin: s[IDX.ORIGIN],
+    icao24: (s.hex || '').toLowerCase(),
+    callsign: (s.flight || '').trim(),
+    lon: s.lon,
+    lat: s.lat,
+    altitude: altBaro,
+    geoAltitude: altGeo,
+    onGround: onGround,
+    velocity: velocity,
+    heading: s.track,
+    verticalRate: verticalRate,
+    squawk: (s.squawk != null) ? String(s.squawk) : null,
+    timePosition: timePosition,
+    lastContact: lastContact,
+    origin: null,
+    category: s.category || null,
   };
 }
 

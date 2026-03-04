@@ -21,7 +21,7 @@ Standalone browser version of Flight Radar. No Electron required — runs entire
 
 ## Server Credentials (`creds.json`)
 
-Both OpenSky and FlightAware API credentials are stored in a single `web/creds.json` file. Copy the example to get started:
+FlightAware API credentials are stored in `web/creds.json`. Copy the example to get started:
 
 ```bash
 cp web/creds.json.example web/creds.json
@@ -31,8 +31,6 @@ Then edit `web/creds.json` with your credentials:
 
 ```json
 {
-  "client_id": "your_opensky_client_id",
-  "client_secret": "your_opensky_client_secret",
   "flightaware_api_key": "your_flightaware_aeroapi_key"
 }
 ```
@@ -41,15 +39,10 @@ All fields are optional — include only the APIs you have credentials for.
 
 **Important:** `creds.json` is git-ignored. If your web server is public, make sure it is not cached by CDNs or indexed by search engines.
 
-### OpenSky Network
+### airplanes.live
 
-The web version supports three ways to authenticate with the OpenSky Network API, checked in this order:
-
-1. **User-entered credentials (via Settings UI)** — Users can enter their own OAuth2 Client ID and Secret in the Settings panel. These are saved to `localStorage` and always take priority.
-2. **Server-side `creds.json`** — If no user credentials are set, `cred.php` falls back to `client_id` and `client_secret` from `creds.json`.
-3. **Anonymous access** — If no credentials are available, the app uses anonymous OpenSky API access with lower rate limits.
-
-To get OAuth2 credentials, create a free account at https://opensky-network.org and generate client credentials from your account settings.
+Real-time ADS-B flight data is provided by airplanes.live. No authentication
+is required — the API is free and open. Rate-limited to 1 request per second.
 
 ### FlightAware AeroAPI
 

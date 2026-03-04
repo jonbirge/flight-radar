@@ -59,8 +59,6 @@ async function loadAndApplySettings() {
       CONFIG.navaidsEnabled = saved.navaidsEnabled || DEFAULT_SETTINGS.navaidsEnabled;
       const prevShowFixes = CONFIG.showFixes;
       CONFIG.showFixes = saved.showFixes || DEFAULT_SETTINGS.showFixes;
-      CONFIG.openskyClientId = saved.openskyClientId || DEFAULT_SETTINGS.openskyClientId;
-      CONFIG.openskyClientSecret = saved.openskyClientSecret || DEFAULT_SETTINGS.openskyClientSecret;
       CONFIG.aircraftEnabled = saved.aircraftEnabled !== undefined ? saved.aircraftEnabled : DEFAULT_SETTINGS.aircraftEnabled;
       CONFIG.labelsEnabled = saved.labelsEnabled !== undefined ? saved.labelsEnabled : DEFAULT_SETTINGS.labelsEnabled;
       const prevAirports = CONFIG.airportsEnabled;

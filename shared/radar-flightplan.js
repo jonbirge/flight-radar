@@ -353,7 +353,7 @@ document.getElementById('info-close').addEventListener('click', () => {
 // Enrich a selected aircraft with FlightAware data: fetch and display the filed
 // route.  Called when any aircraft is newly selected (clicked or searched) so
 // that all selected aircraft receive the same treatment.  Current position and
-// trail history always come from OpenSky — FlightAware only provides the route.
+// trail history always come from airplanes.live — FlightAware only provides the route.
 async function enrichSelectedWithFlightAware(icao, callsign) {
   if (!window.flightAPI.getFlightPlan) return;
 
@@ -588,11 +588,11 @@ function displayFlightPlanRoute(flightData, preSelectedFlight = null) {
   return { flight, originCoords, destCoords };
 }
 
-// Locate the searched aircraft on OpenSky.  First fetches the FlightAware
+// Locate the searched aircraft on airplanes.live.  First fetches the FlightAware
 // actual track to get the aircraft's real current position (more accurate and
 // timely than the flights endpoint's last_position).  Falls back to the
 // origin→destination route corridor if no track is available.
-async function findAndSelectViaOpenSky(flight, originCoords, destCoords) {
+async function findAndSelectAircraft(flight, originCoords, destCoords) {
   // Step 1: Try FlightAware /track endpoint for real-time position
   if (flight.fa_flight_id && window.flightAPI.getFlightTrack) {
     try {
@@ -629,16 +629,16 @@ async function findAndSelectViaOpenSky(flight, originCoords, destCoords) {
     const midLon = (originCoords.lon + destCoords.lon) / 2;
     const latSpan = Math.abs(originCoords.lat - destCoords.lat) / 2 + 5;
     const lonSpan = Math.abs(originCoords.lon - destCoords.lon) / 2 + 5;
-    console.log(`[FlightPlan] No track or last_position, querying OpenSky along route corridor: ` +
+    console.log(`[FlightPlan] No track or last_position, querying API along route corridor: ` +
       `center=${midLat.toFixed(1)},${midLon.toFixed(1)} span=±${latSpan.toFixed(1)}lat,±${lonSpan.toFixed(1)}lon`);
     await fetchSingleAircraftForSearch({ latitude: midLat, longitude: midLon }, latSpan, lonSpan);
     return;
   }
 
-  console.log(`[FlightPlan] No position data available — cannot query OpenSky`);
+  console.log(`[FlightPlan] No position data available — cannot query API`);
 }
 
-// Query OpenSky around a position to find and select the searched aircraft.
+// Query airplanes.live around a position to find and select the searched aircraft.
 // latPad/lonPad default to 10° for last_position searches; callers can pass
 // larger values to cover the full origin→destination corridor.
 async function fetchSingleAircraftForSearch(lastPos, latPad = 10, lonPad = 10) {
@@ -648,7 +648,7 @@ async function fetchSingleAircraftForSearch(lastPos, latPad = 10, lonPad = 10) {
     west: Math.max(lastPos.longitude - lonPad, -180),
     east: Math.min(lastPos.longitude + lonPad, 180),
   };
-  console.log(`[FlightPlan] OpenSky query: bounds=${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
+  console.log(`[FlightPlan] API query: bounds=${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
   // Mark both renderer-side rate limiters so pollStates/pollSelectedAircraft
   // know the main process was just called and don't immediately collide.
   _lastBulkPollMs = Date.now();
@@ -656,21 +656,21 @@ async function fetchSingleAircraftForSearch(lastPos, latPad = 10, lonPad = 10) {
   try {
     const data = await window.flightAPI.getStates(bounds);
     if (data.error) {
-      console.warn(`[FlightPlan] OpenSky query error: ${data.error}`);
-    } else if (!data.states || data.states.length === 0) {
-      console.log(`[FlightPlan] OpenSky returned 0 aircraft in search area`);
+      console.warn(`[FlightPlan] API query error: ${data.error}`);
+    } else if (!data.ac || data.ac.length === 0) {
+      console.log(`[FlightPlan] API returned 0 aircraft in search area`);
     } else {
-      console.log(`[FlightPlan] OpenSky returned ${data.states.length} aircraft in search area`);
+      console.log(`[FlightPlan] API returned ${data.ac.length} aircraft in search area`);
       // Only add the matching aircraft — don't bulk-add everything from the poll
       const target = searchedFlightIdent;
       const now = Date.now() / 1000;
       let found = false;
       // Log all callsigns for debugging
-      const callsigns = data.states
+      const callsigns = data.ac
         .map(raw => { const s = parseState(raw); return (s.callsign || '').trim(); })
         .filter(cs => cs.length > 0);
       console.log(`[FlightPlan] Callsigns in area: ${callsigns.slice(0, 20).join(', ')}${callsigns.length > 20 ? ` ... (${callsigns.length} total)` : ''}`);
-      for (const raw of data.states) {
+      for (const raw of data.ac) {
         const s = parseState(raw);
         if (s.lon == null || s.lat == null) continue;
         const cs = (s.callsign || '').trim().toUpperCase();
@@ -692,11 +692,11 @@ async function fetchSingleAircraftForSearch(lastPos, latPad = 10, lonPad = 10) {
         break;
       }
       if (!found) {
-        console.log(`[FlightPlan] Callsign "${target}" NOT found among ${data.states.length} OpenSky aircraft`);
+        console.log(`[FlightPlan] Callsign "${target}" NOT found among ${data.ac.length} aircraft`);
       }
     }
   } catch (err) {
-    console.warn('[FlightPlan] OpenSky query failed:', err);
+    console.warn('[FlightPlan] API query failed:', err);
   }
   selectSearchedAircraft();
 }
@@ -1000,7 +1000,7 @@ function hideFlightResults() {
 }
 
 // Try to find a live aircraft for the given flight plan result.
-// Skips the OpenSky API entirely for scheduled flights (not yet airborne).
+// Skips the API lookup entirely for scheduled flights (not yet airborne).
 async function searchForLiveAircraft(result) {
   const f = result.flight;
   const isScheduled = f.status === 'Scheduled'
@@ -1008,14 +1008,14 @@ async function searchForLiveAircraft(result) {
     || (!f.actual_off && !f.actual_on && f.progress_percent == null);
 
   if (isScheduled) {
-    console.log(`[FlightPlan] Flight is scheduled — skipping OpenSky lookup`);
+    console.log(`[FlightPlan] Flight is scheduled — skipping API lookup`);
     showFlightPlanInfo(f);
     return;
   }
 
   console.log(`[FlightPlan] Looking for live aircraft with callsign "${searchedFlightIdent}"`);
   if (!selectSearchedAircraft()) {
-    await findAndSelectViaOpenSky(result.flight, result.originCoords, result.destCoords);
+    await findAndSelectAircraft(result.flight, result.originCoords, result.destCoords);
     // No live aircraft found — show flight plan info panel instead
     if (!selectedIcao) {
       showFlightPlanInfo(result.flight);

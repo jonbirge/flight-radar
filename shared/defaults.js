@@ -36,8 +36,6 @@ const DEFAULT_SETTINGS = {
   weatherOverlayOpacity: 25,
   rotationSpeed: 6,
   credentialsExpanded: false,
-  openskyClientId: '',
-  openskyClientSecret: '',
   flightawareApiKey: '',
   savedView: { lon: -98.5, lat: 39.5, height: 4860000, heading: 0, pitch: -1.5708 },
   searchHistory: [],

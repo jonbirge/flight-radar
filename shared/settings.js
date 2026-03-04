@@ -457,20 +457,9 @@ function createSettingsFormHTML() {
           <summary>API credentials</summary>
           <div class="settings-cred-body">
             <div class="settings-hint">
-              Drag &amp; drop a JSON credentials file here in the format provided by OpenSky, or enter manually.
+              Drag &amp; drop a JSON credentials file here, or enter manually.
             </div>
-            <div class="settings-color-label" style="margin-top:4px;">OpenSky Network</div>
-            <div class="settings-row" style="margin-bottom:6px">
-              <span class="settings-field-label">Client ID</span>
-              <input type="text" id="set-client-id" class="settings-cred-input"
-                     placeholder="client_id" spellcheck="false" autocomplete="off">
-            </div>
-            <div class="settings-row" style="margin-bottom:10px">
-              <span class="settings-field-label">Secret</span>
-              <input type="text" id="set-client-secret" class="settings-cred-input"
-                     placeholder="client_secret" autocomplete="off">
-            </div>
-            <div class="settings-color-label">FlightAware AeroAPI</div>
+            <div class="settings-color-label" style="margin-top:4px;">FlightAware AeroAPI</div>
             <div class="settings-row">
               <span class="settings-field-label">API Key</span>
               <input type="text" id="set-fa-api-key" class="settings-cred-input"
@@ -586,8 +575,6 @@ function populateSettingsForm(container, settings) {
   }
 
   // Credentials
-  container.querySelector('#set-client-id').value = s.openskyClientId || '';
-  container.querySelector('#set-client-secret').value = s.openskyClientSecret || '';
   const faKeyEl = container.querySelector('#set-fa-api-key');
   if (faKeyEl) faKeyEl.value = s.flightawareApiKey || '';
 
@@ -673,8 +660,6 @@ function initSettingsPanel(options) {
       showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
-      openskyClientId: clientId.value.trim(),
-      openskyClientSecret: clientSecret.value,
       flightawareApiKey: faApiKey ? faApiKey.value.trim() : '',
       credentialsExpanded: credDetails ? credDetails.open : false,
     };
@@ -820,8 +805,8 @@ function initSettingsPanel(options) {
   });
 
   // --- Credentials (fire on blur/change, not every keystroke) ---
-  clientId.addEventListener('change', broadcast);
-  clientSecret.addEventListener('change', broadcast);
+  if (clientId) clientId.addEventListener('change', broadcast);
+  if (clientSecret) clientSecret.addEventListener('change', broadcast);
   if (faApiKey) faApiKey.addEventListener('change', broadcast);
 
   // --- Credentials collapse/expand ---
@@ -876,13 +861,9 @@ function initSettingsPanel(options) {
       reader.onload = () => {
         try {
           const json = JSON.parse(reader.result);
-          const id = json.client_id || json.clientId || json.openskyClientId || '';
-          const secret = json.client_secret || json.clientSecret || json.openskyClientSecret || '';
           const faKey = json.flightaware_api_key || json.flightawareApiKey || '';
-          if (id) clientId.value = id;
-          if (secret) clientSecret.value = secret;
           if (faKey && faApiKey) faApiKey.value = faKey;
-          if (id || secret || faKey) broadcast();
+          if (faKey) broadcast();
         } catch (_) {
           // Silently ignore non-JSON files
         }

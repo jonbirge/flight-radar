@@ -132,9 +132,9 @@ async function pollSelectedAircraft() {
         console.warn('[Poll] Selected poll error:', data.error);
       }
     }
-    if (!data.error && data.states) {
+    if (!data.error && data.ac) {
       const now = Date.now() / 1000;
-      for (const raw of data.states) {
+      for (const raw of data.ac) {
         const ns = parseState(raw);
         if (ns.icao24 !== selectedIcao) continue;
         if (ns.lon == null || ns.lat == null) continue;
@@ -182,7 +182,7 @@ function tick() {
     _selectedPollInFlight = false;
   }
 
-  // Skip all OpenSky polling while rate-limited
+  // Skip all API polling while rate-limited
   if (now < rateLimitedUntil) {
     return;
   }
@@ -1034,10 +1034,10 @@ async function pollStates() {
     const viewBounds = frozenBounds || getViewBounds();
     // Fetch aircraft from a 50% larger region so small pans don't re-poll
     const bounds = padBounds(viewBounds, 0.5);
-    console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
+    console.log(`[airplanes.live] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
     const t0 = Date.now();
     const data = await window.flightAPI.getStates(bounds);
-    console.log(`[OpenSky] IPC returned in ${Date.now() - t0}ms`);
+    console.log(`[airplanes.live] IPC returned in ${Date.now() - t0}ms`);
     const warningEl = document.getElementById('throttle-warning');
 
     if (data.error) {
@@ -1067,8 +1067,8 @@ async function pollStates() {
       return;
     }
 
-    const stateCount = data.states ? data.states.length : 0;
-    console.log(`[OpenSky] Got ${stateCount} aircraft`);
+    const stateCount = data.ac ? data.ac.length : 0;
+    console.log(`[airplanes.live] Got ${stateCount} aircraft`);
 
     // Update HUD immediately so the user sees fresh data before heavy processing
     lastPollTime = new Date();
@@ -1078,7 +1078,7 @@ async function pollStates() {
       lastPollTime.toLocaleTimeString('en-US', { hour12: false });
 
     if (stateCount > 0) {
-      updateAircraft(data.states);
+      updateAircraft(data.ac);
     }
   } catch (err) {
     console.error('[Poll] pollStates exception:', err);
@@ -1087,20 +1087,12 @@ async function pollStates() {
   }
 }
 
+// airplanes.live does not provide historical track data via its API.
+// Track history is built from poll history instead.
 async function fetchNextTrack() {
-  if (trackFetchQueue.length === 0) return;
-
-  const icao24 = trackFetchQueue.shift();
-  const ac = aircraft.get(icao24);
-  if (!ac) return;
-
-  const data = await window.flightAPI.getTrack(icao24);
-  if (!data.error && data.path) {
-    ac.granularTrack = data;
-    ac.lastTrackFetch = Date.now() / 1000;
-    console.log(`[Track] Got ${data.path.length} waypoints for ${icao24}`);
-    renderAircraft();
-  }
+  // No-op: airplanes.live /v2/hex/ only returns current state, not track history.
+  // Track visualization relies on polled history points instead.
+  trackFetchQueue.length = 0;
 }
 
 function startPolling() {

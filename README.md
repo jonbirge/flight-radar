@@ -26,7 +26,7 @@ src/
 shared/
   defaults.js             # Default settings values
   config.js               # CONFIG object, color/theme utilities
-  data.js                 # Airport DB, OpenSky state vector parsing
+  data.js                 # Airport DB, airplanes.live state parsing
   icons.js                # Canvas-based aircraft icon generation
   settings.js             # Settings panel UI — HTML template, CSS, event wiring
   radar-core.js           # Cesium viewer init, theme engine (load first)
@@ -42,7 +42,7 @@ web/
   index.html              # Web renderer HTML
   app.js                  # Web entry point — flightAPI shim, settings wiring
   styles.css              # Settings modal shell CSS
-  cred.php                # OpenSky OAuth2 token proxy
+  cred.php                # Deprecated (was OpenSky OAuth2 token proxy)
   awc-proxy.php           # FAA AWC API proxy
   flightaware-proxy.php   # FlightAware AeroAPI proxy
   creds.json.example      # Server credentials template
@@ -62,8 +62,8 @@ scripts/
 
 ## Architecture
 
-**Electron main process** (`main.js`) owns all external API calls — OpenSky
-Network (OAuth2), FlightAware AeroAPI, FAA AWC — avoiding CORS restrictions
+**Electron main process** (`main.js`) owns all external API calls — airplanes.live
+(ADS-B), FlightAware AeroAPI, FAA AWC — avoiding CORS restrictions
 and managing rate limiting centrally. It exposes results to the renderer via
 a context-isolated IPC bridge (`preload.js`) as `window.flightAPI`.
 
@@ -90,9 +90,9 @@ version is served as static files from a PHP-capable web host.
 ## Data Flow
 
 ```
-Camera viewport → bounding box → OpenSky /states/all?lamin=&lomin=&lamax=&lomax=
+Camera viewport → bounding box → airplanes.live /v2/point/{lat}/{lon}/{radius}
                                          ↓
-                           Parse state vectors (shared/data.js)
+                           Parse aircraft objects (shared/data.js)
                                          ↓
                     Update Cesium entity positions + labels + trail polylines
 
@@ -150,16 +150,11 @@ npm run pull-data    # re-download airports, airspace, waypoints
 
 ## APIs & Credentials
 
-### OpenSky Network
+### airplanes.live
 
-Anonymous access works out of the box with lower rate limits. For higher
-limits, create a free account at https://opensky-network.org and generate
-OAuth2 client credentials. Enter them in Settings (Electron) or `creds.json`
-(web).
-
-Rate limits enforced by the app:
-- `/states/all`: 10-second minimum interval (default poll: 15s)
-- `/tracks/all`: 10-second minimum interval
+Real-time ADS-B aircraft data. No authentication required. The API is
+rate-limited to 1 request per second. See https://airplanes.live/api-guide/
+for details.
 
 ### FlightAware AeroAPI
 
@@ -173,8 +168,6 @@ Copy `web/creds.json.example` to `web/creds.json` and fill in values:
 
 ```json
 {
-  "client_id": "opensky_client_id",
-  "client_secret": "opensky_client_secret",
   "flightaware_api_key": "flightaware_aeroapi_key"
 }
 ```
@@ -191,7 +184,7 @@ npx serve .          # or: python -m http.server 8080
 ```
 
 Open `http://localhost:8080/web/`. The PHP proxies won't work locally without
-a PHP server; for local dev you can set OpenSky and FlightAware keys directly
+a PHP server; for local dev you can set FlightAware keys directly
 in `localStorage` via the Settings panel.
 
 See [web/README.md](web/README.md) for production deployment details.

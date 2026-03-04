@@ -1,5 +1,5 @@
 // main.js - Electron main process
-// Handles OpenSky Network API calls via IPC to avoid CORS issues
+// Handles airplanes.live API calls via IPC to avoid CORS issues
 
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
@@ -56,19 +56,14 @@ nativeTheme.on('updated', () => {
   }
 });
 
-// --- OpenSky Network API ---
-const OPENSKY_BASE = 'https://opensky-network.org/api';
-const OPENSKY_TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
+// --- airplanes.live API ---
+const AIRPLANES_LIVE_BASE = 'https://api.airplanes.live/v2';
 
 // Rate limiting state
 let lastStatesCall = 0;
-const STATES_MIN_INTERVAL = 10000;  // 10s minimum between state requests
+const STATES_MIN_INTERVAL = 1000;  // 1s minimum between requests (API rate limit)
 
-// OAuth2 token cache
-let cachedToken = null;
-let tokenExpiresAt = 0;
-
-function httpGet(url, bearerToken) {
+function httpGet(url) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const opts = {
@@ -77,9 +72,6 @@ function httpGet(url, bearerToken) {
       timeout: 15000,
       headers: {},
     };
-    if (bearerToken) {
-      opts.headers['Authorization'] = `Bearer ${bearerToken}`;
-    }
     let settled = false;
     const settle = (fn, val) => { if (!settled) { settled = true; fn(val); } };
     // Hard deadline: destroy the request and reject if it hasn't completed in 20s.
@@ -102,7 +94,7 @@ function httpGet(url, bearerToken) {
             settle(reject, new Error(`JSON parse error: ${e.message}`));
           }
         } else if (res.statusCode === 429) {
-          settle(reject, new Error('Rate limited by OpenSky API'));
+          settle(reject, new Error('Rate limited by airplanes.live API'));
         } else {
           settle(reject, new Error(`HTTP ${res.statusCode}: ${data.substring(0, 200)}`));
         }
@@ -113,75 +105,20 @@ function httpGet(url, bearerToken) {
   });
 }
 
-// OAuth2 client credentials token fetch
-function fetchToken(clientId, clientSecret) {
-  return new Promise((resolve, reject) => {
-    const body = new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret,
-    }).toString();
+// Convert a bounding box to center point + radius in nautical miles.
+// airplanes.live uses /v2/point/{lat}/{lon}/{radius} with max radius 250nm.
+function boundsToPointRadius(bounds) {
+  const centerLat = (bounds.south + bounds.north) / 2;
+  const centerLon = (bounds.west + bounds.east) / 2;
 
-    const opts = {
-      hostname: 'auth.opensky-network.org',
-      path: '/auth/realms/opensky-network/protocol/openid-connect/token',
-      method: 'POST',
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    };
+  // Approximate distance from center to corner in nautical miles
+  const latSpan = bounds.north - bounds.south;
+  const lonSpan = bounds.east - bounds.west;
+  const latNm = latSpan * 60 / 2;  // 1 degree latitude ≈ 60 nm
+  const lonNm = lonSpan * 60 * Math.cos(centerLat * Math.PI / 180) / 2;
+  const radiusNm = Math.min(Math.ceil(Math.sqrt(latNm * latNm + lonNm * lonNm)), 250);
 
-    const req = https.request(opts, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          try {
-            const json = JSON.parse(data);
-            resolve(json);
-          } catch (e) {
-            reject(new Error(`Token JSON parse error: ${e.message}`));
-          }
-        } else {
-          reject(new Error(`Token request failed: HTTP ${res.statusCode}`));
-        }
-      });
-    });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Token request timeout')); });
-    req.write(body);
-    req.end();
-  });
-}
-
-// Get a valid bearer token, refreshing if expired. Returns null for anonymous.
-async function getOpenSkyToken() {
-  const s = loadSettings();
-  if (!s.openskyClientId || !s.openskyClientSecret) {
-    return null;
-  }
-
-  const now = Date.now();
-  // Refresh if token expires within 60 seconds
-  if (cachedToken && tokenExpiresAt > now + 60000) {
-    return cachedToken;
-  }
-
-  try {
-    const resp = await fetchToken(s.openskyClientId, s.openskyClientSecret);
-    cachedToken = resp.access_token;
-    // expires_in is in seconds; default to 25 min if missing
-    tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-    return cachedToken;
-  } catch (err) {
-    console.error('[OpenSky] Token refresh failed:', err.message);
-    // Fall back to anonymous
-    cachedToken = null;
-    tokenExpiresAt = 0;
-    return null;
-  }
+  return { lat: centerLat, lon: centerLon, radius: radiusNm };
 }
 
 // IPC handler: get flight states within a bounding box
@@ -189,36 +126,35 @@ ipcMain.handle('get-states', async (event, bounds) => {
   const now = Date.now();
   if (now - lastStatesCall < STATES_MIN_INTERVAL) {
     const retryIn = STATES_MIN_INTERVAL - (now - lastStatesCall);
-    console.log(`[OpenSky] IPC rate limited, retryIn=${retryIn}ms`);
+    console.log(`[airplanes.live] IPC rate limited, retryIn=${retryIn}ms`);
     return { error: 'Rate limited', retryIn };
   }
   lastStatesCall = now;
 
   try {
-    const { south, west, north, east } = bounds;
-    const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
-    console.log('[OpenSky] Fetching states...');
+    const { lat, lon, radius } = boundsToPointRadius(bounds);
+    const url = `${AIRPLANES_LIVE_BASE}/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${radius}`;
+    console.log('[airplanes.live] Fetching states...');
     const t0 = Date.now();
-    const token = await getOpenSkyToken();
-    const data = await httpGet(url, token);
-    const stateCount = data && data.states ? data.states.length : 0;
-    console.log(`[OpenSky] Got ${stateCount} states in ${Date.now() - t0}ms`);
+    const data = await httpGet(url);
+    const stateCount = data && data.ac ? data.ac.length : 0;
+    console.log(`[airplanes.live] Got ${stateCount} states in ${Date.now() - t0}ms`);
+    // Normalize response: shared code expects { ac: [...] }
     return data;
   } catch (err) {
-    console.error('[OpenSky] States error:', err.message);
+    console.error('[airplanes.live] States error:', err.message);
     return { error: err.message };
   }
 });
 
-// IPC handler: get track/trajectory for a specific aircraft
+// IPC handler: get current state for a specific aircraft by ICAO hex
 ipcMain.handle('get-track', async (event, icao24) => {
   try {
-    const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}`;
-    const token = await getOpenSkyToken();
-    const data = await httpGet(url, token);
+    const url = `${AIRPLANES_LIVE_BASE}/hex/${encodeURIComponent(icao24)}`;
+    const data = await httpGet(url);
     return data;
   } catch (err) {
-    console.error(`[OpenSky] Track error for ${icao24}:`, err.message);
+    console.error(`[airplanes.live] Hex lookup error for ${icao24}:`, err.message);
     return { error: err.message };
   }
 });
@@ -471,8 +407,6 @@ ipcMain.handle('reset-settings', async () => {
   });
   if (response === 0) {
     try { fs.unlinkSync(SETTINGS_FILE); } catch (_) {}
-    cachedToken = null;
-    tokenExpiresAt = 0;
     syncNativeTheme();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('settings-changed');
@@ -573,7 +507,7 @@ function buildMenu() {
                 `Version ${require(path.join(__dirname, 'package.json')).version}`,
                 '',
                 'Real-time flight tracking with data from',
-                'OpenSky Network (ADS-B)',
+                'airplanes.live (ADS-B)',
                 '',
                 'Weather data from',
                 'FAA Aviation Weather Center (AWC)',
