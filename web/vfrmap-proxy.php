@@ -6,7 +6,7 @@
 ini_set('display_errors', '0');
 
 $VFRMAP_BASE = 'https://vfrmap.com';
-$CACHE_DIR = __DIR__ . '/../data/vfrmap';
+$CACHE_DIR = '/tmp/vfrmap-cache';
 $CACHE_TTL = 86400; // 24 hours — chart tiles rarely change within an FAA cycle
 
 // Allowed chart types (whitelist for security)
