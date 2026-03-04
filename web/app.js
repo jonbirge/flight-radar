@@ -230,6 +230,23 @@ async function apiSearchFlights(advQuery) {
   }
 }
 
+// Fetch flights for an airport from FlightAware AeroAPI
+async function apiGetAirportFlights(airportCode) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=airports/flights&airport_code=${encodeURIComponent(airportCode)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
 // ============================================================
 // window.flightAPI shim (browser equivalent of Electron IPC)
 // ============================================================
@@ -241,6 +258,7 @@ window.flightAPI = {
   getFlightRoute: (faFlightId) => apiGetFlightRoute(faFlightId),
   getFlightTrack: (faFlightId) => apiGetFlightTrack(faFlightId),
   searchFlights: (advQuery) => apiSearchFlights(advQuery),
+  getAirportFlights: (airportCode) => apiGetAirportFlights(airportCode),
   getSettings: () => Promise.resolve(loadSettings()),
   saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
   onOpenSettings: () => {},  // no-op

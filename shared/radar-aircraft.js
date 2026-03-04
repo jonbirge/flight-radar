@@ -568,9 +568,28 @@ function computeHorizonDist(camHeight) {
 // Render a single aircraft entity (billboard + trail). Called per-aircraft by renderAircraft.
 function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
+    const isSelected = icao === selectedIcao;
+
+    // Airport filter: hide aircraft whose callsign is not in the filter set.
+    // Selected/searched aircraft are always visible regardless of filter.
+    if (airportFilterCallsigns && !isSelected && icao !== searchedIcao) {
+      const cs = (s.callsign || '').trim().toUpperCase();
+      if (!airportFilterCallsigns.has(cs)) {
+        // Hide this aircraft's entity and trails
+        if (ac.entity) { ac.entity.show = false; }
+        for (const e of ac.trailEntities) e.show = false;
+        if (ac.extrapolationTrail) ac.extrapolationTrail.show = false;
+        return;
+      }
+    }
+
+    // Ensure entity is visible (may have been hidden by airport filter)
+    if (ac.entity) ac.entity.show = true;
+    for (const e of ac.trailEntities) e.show = true;
+    if (ac.extrapolationTrail) ac.extrapolationTrail.show = true;
+
     // Use extrapolated position if available, otherwise compute from state
     const pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
-    const isSelected = icao === selectedIcao;
 
     // Altitude-based color computation
     let altColor = null;

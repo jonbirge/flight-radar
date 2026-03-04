@@ -56,6 +56,8 @@ let activeFlightPlan = null;     // current flight plan data
 let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
 let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
 let selectedRouteFlight = null;  // picked flight from activeFlightPlan for info panel
+let selectedAirport = null;      // airport data object when an airport is selected (filter mode)
+let airportFilterCallsigns = null; // Set of callsigns to filter by when airport is selected
 let timelineTime = null;         // ms timestamp for timeline scrubbing (null = live/now mode)
 let timelineEntity = null;       // Cesium entity showing aircraft position on timeline
 const timelineRoutePoints = [];  // geographic route points [{lon, lat, alt}] for interpolation

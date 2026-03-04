@@ -23,6 +23,8 @@ handler.setInputAction((click) => {
     const id = picked.id.id;
     if (id.startsWith('ac-')) {
       showAircraftInfo(id.replace('ac-', ''));
+    } else if (id.startsWith('ap-')) {
+      showAirportInfo(id.replace('ap-', ''));
     } else if (id.startsWith('turb-') && !selectedIcao) {
       // Only show turbulence info when no aircraft is selected —
       // the close button is the only way to deselect an aircraft.
@@ -338,7 +340,158 @@ function hideAircraftInfo() {
   updateLiveAltitudeFilter();
 }
 
+// ============================================================
+// Airport Selection & Flight Filtering
+// ============================================================
+
+// Clear the airport filter and restore normal aircraft display
+function clearAirportFilter() {
+  if (!selectedAirport) return;
+  console.log(`[Airport] Clearing filter for ${selectedAirport.icao}`);
+  selectedAirport = null;
+  airportFilterCallsigns = null;
+  // Re-render all aircraft to restore visibility
+  renderAircraft();
+}
+
+// Show the airport info panel and filter aircraft by flights to/from this airport.
+function showAirportInfo(icao) {
+  if (!cachedAirportData) return;
+  const ap = cachedAirportData.find(a => a.icao === icao);
+  if (!ap) return;
+
+  // If an aircraft was selected, deselect it first
+  if (selectedIcao) {
+    clearFlightPlanRoute();
+    hideAircraftInfo();
+  }
+
+  selectedAirport = ap;
+  airportFilterCallsigns = null; // will be populated by async fetch
+
+  const panel = document.getElementById('aircraft-info');
+  const wasHidden = panel.classList.contains('hidden');
+  panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  if (wasHidden) {
+    if (isMobile()) panel.classList.add('mob-collapsed');
+    else panel.classList.remove('mob-collapsed');
+  }
+
+  // Hide aircraft-specific buttons
+  const infoButtons = document.getElementById('info-buttons');
+  if (infoButtons) infoButtons.classList.add('hidden');
+
+  const label = ap.iata ? `${ap.iata} / ${ap.icao}` : ap.icao;
+  document.getElementById('info-callsign').textContent = label;
+
+  document.getElementById('info-details').innerHTML = `
+    <div><span class="label">NAME</span><span>${ap.name || '---'}</span></div>
+    <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
+    <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
+    <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
+    <div><span class="label">FLIGHTS</span><span class="airport-loading">Loading…</span></div>
+  `;
+
+  // Apply filter immediately (empty set hides all non-selected aircraft during load)
+  airportFilterCallsigns = new Set();
+  renderAircraft();
+
+  // Fetch flights for this airport from FlightAware
+  fetchAirportFlights(ap);
+}
+
+// Fetch flights from FlightAware for the given airport and apply the filter.
+async function fetchAirportFlights(ap) {
+  if (!window.flightAPI.getAirportFlights) {
+    console.warn('[Airport] getAirportFlights not available on this platform');
+    updateAirportPanelFlights(0, 'API not available');
+    return;
+  }
+
+  try {
+    const code = ap.icao;
+    console.log(`[Airport] Fetching flights for ${code}`);
+    const data = await window.flightAPI.getAirportFlights(code);
+
+    // Bail if user closed the airport panel while we were fetching
+    if (!selectedAirport || selectedAirport.icao !== ap.icao) return;
+
+    if (data.error) {
+      console.warn(`[Airport] FlightAware error: ${data.error}`);
+      updateAirportPanelFlights(0, data.error);
+      return;
+    }
+
+    // AeroAPI /airports/{id}/flights returns: { arrivals, departures, scheduled_arrivals, scheduled_departures }
+    const arrivals = data.arrivals || [];
+    const departures = data.departures || [];
+
+    // Collect callsigns of all en-route flights (arrivals + departures)
+    const callsigns = new Set();
+    let arrCount = 0;
+    let depCount = 0;
+    for (const f of arrivals) {
+      const cs = (f.ident || '').trim().toUpperCase();
+      if (cs) { callsigns.add(cs); arrCount++; }
+    }
+    for (const f of departures) {
+      const cs = (f.ident || '').trim().toUpperCase();
+      if (cs) { callsigns.add(cs); depCount++; }
+    }
+
+    console.log(`[Airport] ${code}: ${arrCount} arrivals, ${depCount} departures, ${callsigns.size} unique callsigns`);
+
+    // Only update if this airport is still selected
+    if (!selectedAirport || selectedAirport.icao !== ap.icao) return;
+
+    airportFilterCallsigns = callsigns;
+
+    // Update the info panel with flight counts
+    updateAirportPanelFlights(callsigns.size, null, arrCount, depCount);
+
+    // Re-render aircraft to apply the filter
+    renderAircraft();
+  } catch (err) {
+    console.error('[Airport] Fetch error:', err);
+    if (selectedAirport && selectedAirport.icao === ap.icao) {
+      updateAirportPanelFlights(0, err.message);
+    }
+  }
+}
+
+// Update the airport info panel with flight count information.
+function updateAirportPanelFlights(total, error, arrCount, depCount) {
+  const details = document.getElementById('info-details');
+  if (!details || !selectedAirport) return;
+
+  const ap = selectedAirport;
+  const label = ap.iata ? `${ap.iata} / ${ap.icao}` : ap.icao;
+  document.getElementById('info-callsign').textContent = label;
+
+  if (error) {
+    details.innerHTML = `
+      <div><span class="label">NAME</span><span>${ap.name || '---'}</span></div>
+      <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
+      <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
+      <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
+      <div><span class="label">FLIGHTS</span><span>${error}</span></div>
+    `;
+  } else {
+    details.innerHTML = `
+      <div><span class="label">NAME</span><span>${ap.name || '---'}</span></div>
+      <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
+      <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
+      <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
+      <div><span class="label">ARRIVALS</span><span>${arrCount}</span></div>
+      <div><span class="label">DEPARTURES</span><span>${depCount}</span></div>
+      <div><span class="label">FILTERED</span><span>${total} callsigns</span></div>
+    `;
+  }
+}
+
 document.getElementById('info-close').addEventListener('click', () => {
+  clearAirportFilter();
   clearFlightPlanRoute();
   hideAircraftInfo();
   hideFlightResults();
