@@ -437,6 +437,7 @@ async function queryAirportInfo(icao) {
     }
 
     // AeroAPI /airports/{id} returns airport_delays_available, delays, timezone, etc.
+    // Delay values are human-readable strings from the FAA (e.g., "1 hour 15 minutes").
     let delayText = 'None';
     if (data.airport_delays_available && data.delays) {
       const parts = [];
@@ -527,7 +528,8 @@ function updateAirportInfoRow(label, text) {
 }
 
 // Hide aircraft that don't match the airport filter callsigns,
-// and show those that do match.
+// and show those that do match. Does nothing if the filter set is empty
+// (e.g., still loading) to avoid hiding all aircraft prematurely.
 function applyAirportFilter() {
   if (!selectedAirport || airportFilterCallsigns.size === 0) return;
 
