@@ -630,8 +630,6 @@ function initSettingsPanel(options) {
   const rotVal = container.querySelector('#set-rotation-speed-val');
   const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
-  const clientId = container.querySelector('#set-client-id');
-  const clientSecret = container.querySelector('#set-client-secret');
   const faApiKey = container.querySelector('#set-fa-api-key');
   const credDetails = container.querySelector('#cred-details');
 
@@ -805,8 +803,6 @@ function initSettingsPanel(options) {
   });
 
   // --- Credentials (fire on blur/change, not every keystroke) ---
-  if (clientId) clientId.addEventListener('change', broadcast);
-  if (clientSecret) clientSecret.addEventListener('change', broadcast);
   if (faApiKey) faApiKey.addEventListener('change', broadcast);
 
   // --- Credentials collapse/expand ---

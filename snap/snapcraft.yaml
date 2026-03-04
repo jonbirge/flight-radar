@@ -4,7 +4,7 @@ adopt-info: app
 title: Flight Radar
 summary: Real-time US flight tracker with FAA radar center aesthetic
 description: |
-  Flight Radar is an Electron app that renders OpenSky Network aircraft data in
+  Flight Radar is an Electron app that renders airplanes.live ADS-B aircraft data in
   a Cesium-powered radar display.
 license: MIT
 contact: https://github.com/birge/flight-radar/issues
