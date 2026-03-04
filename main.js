@@ -353,6 +353,25 @@ ipcMain.handle('get-airport-flights', async (event, airportCode) => {
   }
 });
 
+// IPC handler: get airport information (delays, etc.) from FlightAware
+ipcMain.handle('get-airport-info', async (event, airportCode) => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) {
+    return { error: 'FlightAware API key not configured' };
+  }
+
+  try {
+    const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
+    const url = `${FA_AEROAPI_BASE}/airports/${safeCode}`;
+    const data = await httpGetFA(url, apiKey);
+    return data;
+  } catch (err) {
+    console.error(`[FlightAware] Airport info error for ${airportCode}:`, err.message);
+    return { error: err.message };
+  }
+});
+
 // --- Help Window ---
 let helpWindow = null;
 

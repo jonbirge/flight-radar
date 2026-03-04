@@ -545,6 +545,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   margin-bottom: 8px;
 }
 
+#info-callsign.airport-title {
+  font-stretch: 75%;
+}
+
 #info-details {
   color: var(--md-on-surface);
 }

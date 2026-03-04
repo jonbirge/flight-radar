@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Get flights for a specific airport from FlightAware AeroAPI
   getAirportFlights: (airportCode) => ipcRenderer.invoke('get-airport-flights', airportCode),
 
+  // Get airport information (delays, etc.) from FlightAware AeroAPI
+  getAirportInfo: (airportCode) => ipcRenderer.invoke('get-airport-info', airportCode),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),

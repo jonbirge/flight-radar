@@ -370,6 +370,11 @@ function updateAircraft(states) {
   // Update visual entities
   renderAircraft();
 
+  // Re-apply airport filter if in airport mode (newly polled aircraft need filtering)
+  if (selectedAirport && airportFilterCallsigns.size > 0) {
+    applyAirportFilter();
+  }
+
   // If we have a searched flight ident but haven't matched it to a live aircraft yet,
   // try to find it now (it may have just appeared in the state data)
   if (searchedFlightIdent && !searchedIcao) {
