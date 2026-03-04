@@ -26,7 +26,7 @@ let isTracking = false;
 let rotateHandler = null;
 let frozenBounds = null;          // locked viewport bounds during rotation
 let lastPollTime = null;
-let rateLimitedUntil = 0;           // timestamp: suppress all polling until this time
+
 let lastIconSize = -1;
 let lastPollBounds = null;
 let lastPollHeight = null;          // camera height at last poll interval adjustment
@@ -34,7 +34,7 @@ let lastPositionUpdateHeight = null; // camera height at last position update in
 let viewChangePollDebounce = null;
 let lastUseDot = null;              // track LOD tier to detect dot↔arrow transitions
 let _zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom resizes
-const RATE_LIMIT_MS = 1000;      // must match main process STATES_MIN_INTERVAL
+const RATE_LIMIT_MS = 2000;      // guard timer between API calls
 const RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
 let _renderGeneration = 0;       // incremented to cancel stale chunked renders
 let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft/PIREPs

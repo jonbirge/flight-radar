@@ -182,11 +182,6 @@ function tick() {
     _selectedPollInFlight = false;
   }
 
-  // Skip all API polling while rate-limited
-  if (now < rateLimitedUntil) {
-    return;
-  }
-
   // 2. Bulk poll when aircraft display is on and poll interval has elapsed
   if (CONFIG.aircraftEnabled) {
     const elapsed = lastPollTime ? now - lastPollTime.getTime() : Infinity;
@@ -1038,7 +1033,6 @@ async function pollStates() {
     const t0 = Date.now();
     const data = await window.flightAPI.getStates(bounds);
     console.log(`[airplanes.live] IPC returned in ${Date.now() - t0}ms`);
-    const warningEl = document.getElementById('throttle-warning');
 
     if (data.error) {
       if (data.retryIn) {
@@ -1048,17 +1042,9 @@ async function pollStates() {
         _lastBulkPollMs = now - RATE_LIMIT_MS + data.retryIn;
       } else {
         console.warn('[Poll] Error:', data.error);
-        if (/429/.test(data.error) || /rate.?limit/i.test(data.error)) {
-          rateLimitedUntil = Date.now() + 60000;
-          console.warn('[Poll] Rate limited — pausing all polling for 60s');
-          warningEl.classList.remove('hidden');
-          setTimeout(() => warningEl.classList.add('hidden'), 60000);
-        }
       }
       return;
     }
-
-    warningEl.classList.add('hidden');
 
     // If aircraft display was disabled while the poll was in-flight, discard
     // the results to avoid creating orphaned entities in Cesium.

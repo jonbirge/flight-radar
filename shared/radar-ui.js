@@ -45,7 +45,7 @@ function boundsContain(outer, inner) {
 }
 
 function scheduleViewportPoll() {
-  if (!CONFIG.aircraftEnabled || Date.now() < rateLimitedUntil) return;
+  if (!CONFIG.aircraftEnabled) return;
   if (viewChangePollDebounce) clearTimeout(viewChangePollDebounce);
   // Wait at least until the rate limit window has passed
   const elapsed = lastPollTime ? Date.now() - lastPollTime.getTime() : Infinity;

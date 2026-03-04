@@ -133,22 +133,6 @@ body {
   z-index: 10;
 }
 
-#throttle-warning {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: #93000a;
-  color: #ffdad6;
-  text-align: center;
-  padding: 6px 16px;
-  font: var(--md-typescale-label-medium);
-  font-weight: 500;
-}
-
-#throttle-warning.hidden { display: none; }
-
 
 /* Controls Panel */
 #controls {
