@@ -349,6 +349,8 @@ document.getElementById('btn-settings').addEventListener('click', () => openSett
 async function init() {
   // Route AWC API calls through local caching proxy to avoid CORS
   CONFIG.awcProxyUrl = 'awc-proxy.php';
+  // Route VFRMap.com tile requests through local caching proxy to avoid CORS
+  CONFIG.vfrMapProxyUrl = 'vfrmap-proxy.php';
   await loadAndApplySettings();
   applySavedView();
   startPolling();

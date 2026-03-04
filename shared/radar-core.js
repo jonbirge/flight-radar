@@ -175,34 +175,6 @@ function makeEsriGrayTiles() {
   });
 }
 
-function makeSectionalTiles() {
-  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
-    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer',
-    { credit: new Cesium.Credit('FAA') }
-  );
-}
-
-function makeTerminalTiles() {
-  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
-    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Terminal/MapServer',
-    { credit: new Cesium.Credit('FAA') }
-  );
-}
-
-function makeIfrLowTiles() {
-  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
-    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer',
-    { credit: new Cesium.Credit('FAA') }
-  );
-}
-
-function makeIfrHighTiles() {
-  return Cesium.ArcGisMapServerImageryProvider.fromUrl(
-    'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer',
-    { credit: new Cesium.Credit('FAA') }
-  );
-}
-
 function makeSatelliteTiles() {
   return new Cesium.UrlTemplateImageryProvider({
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -244,15 +216,19 @@ function makeNightTiles() {
 const VFRMAP_DATE = '20251225';
 
 function makeVfrMapTiles(chartType, maxZoom) {
+  // Web version routes through PHP caching proxy to avoid CORS
+  const url = CONFIG.vfrMapProxyUrl
+    ? `${CONFIG.vfrMapProxyUrl}?date=${VFRMAP_DATE}&chart=${chartType}&z={z}&y={reverseY}&x={x}`
+    : `https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`;
   return new Cesium.UrlTemplateImageryProvider({
-    url: `https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`,
+    url,
     credit: new Cesium.Credit('VFRMap.com'),
     minimumLevel: 1, maximumLevel: maxZoom,
   });
 }
 
 // Layers that have limited zoom and need a CartoDB base underneath
-const OVERLAY_LAYERS = new Set(['sectional', 'terminal', 'ifrLow', 'ifrHigh', 'vfrHybrid', 'vfrIfrLow', 'vfrIfrHigh']);
+const OVERLAY_LAYERS = new Set(['vfrHybrid', 'vfrIfrLow', 'vfrIfrHigh']);
 
 // Apply theme-appropriate brightness/saturation to map imagery layers.
 // Dark mode always darkens (except layers that are already theme-matched).
@@ -282,10 +258,6 @@ async function makeMapTiles(layerId) {
   switch (layerId) {
     case 'noLabels':   return CONFIG.theme === 'dark' ? makeDarkNoLabelsTiles() : makeLightNoLabelsTiles();
     case 'esriGray':   return makeEsriGrayTiles();
-    case 'sectional':  return await makeSectionalTiles();
-    case 'terminal':   return await makeTerminalTiles();
-    case 'ifrLow':     return await makeIfrLowTiles();
-    case 'ifrHigh':    return await makeIfrHighTiles();
     case 'satellite':  return makeSatelliteTiles();
     case 'osm':        return makeOsmTiles();
     case 'topo':       return makeTopoTiles();
