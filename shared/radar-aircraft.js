@@ -352,9 +352,14 @@ function updateAircraft(states) {
 
     }
 
-    // Remove stale aircraft (but never remove the selected or searched flight)
+    // Remove stale aircraft (but never remove the selected, searched, or airport-filtered flights)
     for (const [icao, ac] of aircraft) {
       if (!seen.has(icao) && icao !== searchedIcao && icao !== selectedIcao) {
+        // Protect airport-filtered aircraft from removal
+        if (airportFilterCallsigns) {
+          const cs = (ac.state.callsign || '').trim().toUpperCase();
+          if (airportFilterCallsigns.has(cs)) continue;
+        }
         const age = now - (ac.state.lastContact || 0);
         if (age > CONFIG.staleThreshold) {
           if (ac.entity) viewer.entities.remove(ac.entity);

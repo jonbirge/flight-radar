@@ -578,6 +578,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: var(--md-on-surface-variant);
 }
 
+#info-details .airport-name {
+  font-stretch: 75%;
+}
+
 #info-buttons {
   display: flex;
   gap: 8px;

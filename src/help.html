@@ -342,13 +342,15 @@
   <h3 id="airport-filter">Airport Filter</h3>
   <p>
     Click on any airport marker to open the airport info panel. This shows the airport
-    name, type, and coordinates. If a FlightAware API key is configured, it also fetches
-    the current list of en-route arrivals and departures for that airport.
+    name, type, and current delay information. If a FlightAware API key is configured,
+    it also fetches the current list of en-route arrivals and departures for that airport.
   </p>
   <p>
     While the airport info panel is open, aircraft are filtered to only show flights that
-    are en route to or from the selected airport. The filter is applied by matching
-    callsigns from FlightAware against the live aircraft data from OpenSky.
+    are en route to or from the selected airport. All matching flights are shown globally,
+    regardless of the current map view &mdash; you can zoom out to see the full picture
+    without waiting for a new poll. The filter is applied by matching callsigns from
+    FlightAware against live aircraft data from OpenSky.
     Close the info panel (click &times;) to remove the filter and restore all aircraft.
   </p>
 

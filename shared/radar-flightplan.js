@@ -391,19 +391,20 @@ function showAirportInfo(icao) {
   document.getElementById('info-callsign').textContent = label;
 
   document.getElementById('info-details').innerHTML = `
-    <div><span class="label">NAME</span><span>${ap.name || '---'}</span></div>
+    <div><span class="label">NAME</span><span class="airport-name">${ap.name || '---'}</span></div>
     <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
     <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
     <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
     <div><span class="label">FLIGHTS</span><span>Loading…</span></div>
   `;
 
-  // Fetch flights for this airport from FlightAware
-  // (filter will be applied when data arrives)
+  // Fetch flights and delays for this airport from FlightAware
   fetchAirportFlights(ap);
+  fetchAirportDelay(ap);
 }
 
-// Fetch flights from FlightAware for the given airport and apply the filter.
+// Fetch flights from FlightAware for the given airport, apply the filter,
+// and populate the aircraft map with ALL matching flights globally.
 async function fetchAirportFlights(ap) {
   if (!window.flightAPI.getAirportFlights) {
     console.warn('[Airport] getAirportFlights not available on this platform');
@@ -434,20 +435,33 @@ async function fetchAirportFlights(ap) {
     const arrivals = data.arrivals || [];
     const departures = data.departures || [];
 
-    // Collect callsigns of all en-route flights (arrivals + departures)
+    // Collect callsigns and positions of all en-route flights
     const callsigns = new Set();
+    const flightPositions = [];
     let arrCount = 0;
     let depCount = 0;
     for (const f of arrivals) {
       const cs = (f.ident || '').trim().toUpperCase();
-      if (cs) { callsigns.add(cs); arrCount++; }
+      if (cs) {
+        callsigns.add(cs);
+        arrCount++;
+        if (f.last_position && f.last_position.latitude != null && f.last_position.longitude != null) {
+          flightPositions.push({ lat: f.last_position.latitude, lon: f.last_position.longitude });
+        }
+      }
     }
     for (const f of departures) {
       const cs = (f.ident || '').trim().toUpperCase();
-      if (cs) { callsigns.add(cs); depCount++; }
+      if (cs) {
+        callsigns.add(cs);
+        depCount++;
+        if (f.last_position && f.last_position.latitude != null && f.last_position.longitude != null) {
+          flightPositions.push({ lat: f.last_position.latitude, lon: f.last_position.longitude });
+        }
+      }
     }
 
-    console.log(`[Airport] ${code}: ${arrCount} arrivals, ${depCount} departures, ${callsigns.size} unique callsigns`);
+    console.log(`[Airport] ${code}: ${arrCount} arrivals, ${depCount} departures, ${callsigns.size} unique callsigns, ${flightPositions.length} with positions`);
 
     // Only update if this airport is still selected
     if (!selectedAirport || selectedAirport.icao !== ap.icao) return;
@@ -457,8 +471,15 @@ async function fetchAirportFlights(ap) {
     // Update the info panel with flight counts
     updateAirportPanelFlights(callsigns.size, null, arrCount, depCount);
 
-    // Re-render aircraft to apply the filter
+    // Re-render to apply the filter to already-loaded aircraft
     renderAircraft();
+
+    // Fetch ALL matching aircraft globally by querying OpenSky with a bounding
+    // box that covers all known flight positions (from FlightAware last_position).
+    // This ensures aircraft outside the current viewport are still shown.
+    if (flightPositions.length > 0) {
+      await fetchAirportAircraftGlobally(ap, callsigns, flightPositions);
+    }
   } catch (err) {
     console.error('[Airport] Fetch error:', err);
     if (selectedAirport && selectedAirport.icao === ap.icao) {
@@ -466,6 +487,171 @@ async function fetchAirportFlights(ap) {
       airportFilterCallsigns = null;
       renderAircraft();
     }
+  }
+}
+
+// Query OpenSky to fetch live state vectors for airport flights that may be
+// outside the current viewport.  Uses a bounding box covering all known
+// positions from FlightAware, padded generously for movement since last report.
+async function fetchAirportAircraftGlobally(ap, callsigns, positions) {
+  // Compute bounding box from all known flight positions
+  let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+  for (const p of positions) {
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+    if (p.lon < minLon) minLon = p.lon;
+    if (p.lon > maxLon) maxLon = p.lon;
+  }
+  // Also include the airport itself
+  minLat = Math.min(minLat, ap.lat);
+  maxLat = Math.max(maxLat, ap.lat);
+  minLon = Math.min(minLon, ap.lon);
+  maxLon = Math.max(maxLon, ap.lon);
+
+  // Pad by 5° to account for aircraft movement since last FlightAware report
+  const PAD = 5;
+  const bounds = {
+    south: Math.max(minLat - PAD, -90),
+    north: Math.min(maxLat + PAD, 90),
+    west:  Math.max(minLon - PAD, -180),
+    east:  Math.min(maxLon + PAD, 180),
+  };
+
+  console.log(`[Airport] Global query: bounds=${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
+
+  // Mark rate limiters to avoid collision with normal polling
+  _lastBulkPollMs = Date.now();
+  _lastSelectedPollApiMs = Date.now();
+
+  try {
+    const data = await window.flightAPI.getStates(bounds);
+    // Bail if airport was deselected while we were fetching
+    if (!selectedAirport || selectedAirport.icao !== ap.icao) return;
+
+    if (data.error) {
+      console.warn(`[Airport] Global OpenSky query error: ${data.error}`);
+      return;
+    }
+    if (!data.states || data.states.length === 0) {
+      console.log(`[Airport] Global OpenSky returned 0 aircraft`);
+      return;
+    }
+
+    console.log(`[Airport] Global OpenSky returned ${data.states.length} aircraft`);
+
+    // Add matching aircraft to the local aircraft map
+    const now = Date.now() / 1000;
+    let added = 0;
+    viewer.entities.suspendEvents();
+    try {
+      for (const raw of data.states) {
+        const s = parseState(raw);
+        if (s.lon == null || s.lat == null) continue;
+        if (s.onGround) continue;
+        const cs = (s.callsign || '').trim().toUpperCase();
+        if (!callsigns.has(cs)) continue;
+
+        // Skip if we already have this aircraft
+        if (aircraft.has(s.icao24)) {
+          // Update existing entry with fresh state
+          const ac = aircraft.get(s.icao24);
+          ac.state = s;
+          ac.lastServerUpdate = now;
+          ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || now, now);
+          const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
+          if (s.altitude != null) ac.lastKnownAlt = s.altitude;
+          const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+          const moved = !last
+            || Math.abs(s.lon - last.lon) > 0.0005
+            || Math.abs(s.lat - last.lat) > 0.0005
+            || Math.abs(alt - last.alt) > 30;
+          if (moved) ac.history.push({ lon: s.lon, lat: s.lat, alt, time: now });
+          continue;
+        }
+
+        // New aircraft — add to map
+        const ac = {
+          state: s, entity: null, trailEntities: [],
+          extrapolationTrail: null, history: [], granularTrack: null,
+          lastTrackFetch: 0, lastKnownAlt: s.altitude || 0,
+          lastServerUpdate: now, extrapolatedPos: null,
+          _trailHash: '', _iconKey: '', _labelText: '',
+        };
+        ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || now, now);
+        ac.history.push({ lon: s.lon, lat: s.lat, alt: s.altitude || 0, time: now });
+        aircraft.set(s.icao24, ac);
+        added++;
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+
+    console.log(`[Airport] Added ${added} new aircraft from global query`);
+
+    // Update HUD and re-render
+    lastPollTime = new Date();
+    renderAircraft();
+  } catch (err) {
+    console.warn('[Airport] Global OpenSky query failed:', err);
+  }
+}
+
+// Fetch delay information for an airport from FlightAware.
+async function fetchAirportDelay(ap) {
+  if (!window.flightAPI.getAirportDelay) return;
+
+  try {
+    const code = ap.icao;
+    const data = await window.flightAPI.getAirportDelay(code);
+
+    // Bail if airport was deselected while we were fetching
+    if (!selectedAirport || selectedAirport.icao !== ap.icao) return;
+    if (data.error) {
+      console.log(`[Airport] No delay info for ${code}: ${data.error}`);
+      return;
+    }
+
+    // AeroAPI /airports/{id}/delays returns delay info
+    const delays = data.delays || [];
+    if (delays.length === 0) {
+      updateAirportPanelDelay(null);
+      return;
+    }
+
+    // Summarize the delay reasons
+    const reasons = [];
+    for (const d of delays) {
+      const category = d.category || 'Unknown';
+      const avg = d.average != null ? `avg ${d.average} min` : '';
+      const max = d.max != null ? `max ${d.max} min` : '';
+      const detail = [avg, max].filter(Boolean).join(', ');
+      reasons.push(detail ? `${category} (${detail})` : category);
+    }
+    updateAirportPanelDelay(reasons.join('; '));
+  } catch (err) {
+    console.log(`[Airport] Delay fetch error: ${err.message}`);
+  }
+}
+
+// Append delay info to the airport info panel (if available).
+function updateAirportPanelDelay(delayText) {
+  const details = document.getElementById('info-details');
+  if (!details || !selectedAirport) return;
+
+  // Remove any existing delay row
+  const existingDelay = details.querySelector('[data-field="delay"]');
+  if (existingDelay) existingDelay.remove();
+
+  if (delayText) {
+    const row = document.createElement('div');
+    row.setAttribute('data-field', 'delay');
+    row.innerHTML = `<span class="label">DELAYS</span><span>${delayText}</span>`;
+    details.appendChild(row);
+  } else {
+    const row = document.createElement('div');
+    row.setAttribute('data-field', 'delay');
+    row.innerHTML = `<span class="label">DELAYS</span><span>None reported</span>`;
+    details.appendChild(row);
   }
 }
 
@@ -480,7 +666,7 @@ function updateAirportPanelFlights(total, error, arrCount, depCount) {
 
   if (error) {
     details.innerHTML = `
-      <div><span class="label">NAME</span><span>${ap.name || '---'}</span></div>
+      <div><span class="label">NAME</span><span class="airport-name">${ap.name || '---'}</span></div>
       <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
       <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
       <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
@@ -488,13 +674,11 @@ function updateAirportPanelFlights(total, error, arrCount, depCount) {
     `;
   } else {
     details.innerHTML = `
-      <div><span class="label">NAME</span><span>${ap.name || '---'}</span></div>
+      <div><span class="label">NAME</span><span class="airport-name">${ap.name || '---'}</span></div>
       <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
-      <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
-      <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
-      <div><span class="label">ARRIVALS</span><span>${arrCount}</span></div>
-      <div><span class="label">DEPARTURES</span><span>${depCount}</span></div>
-      <div><span class="label">FILTERED</span><span>${total} callsigns</span></div>
+      <div><span class="label">ARRIVALS</span><span>${arrCount} en route</span></div>
+      <div><span class="label">DEPARTURES</span><span>${depCount} en route</span></div>
+      <div><span class="label">SHOWING</span><span>${total} flights</span></div>
     `;
   }
 }
