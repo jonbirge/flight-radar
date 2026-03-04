@@ -94,6 +94,9 @@ if ($endpoint === 'flights') {
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/airports/$airportCode/flights" . ($query ? "?$query" : '');
 } else {
+    $query = http_build_query($params);
+    $upstreamUrl = "$AEROAPI_BASE/$endpoint" . ($query ? "?$query" : '');
+}
 
 // ---------- Cache lookup ----------
 

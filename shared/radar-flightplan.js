@@ -395,14 +395,11 @@ function showAirportInfo(icao) {
     <div><span class="label">TYPE</span><span>${ap.type === 'L' ? 'Large' : ap.type === 'M' ? 'Medium' : 'Small'}</span></div>
     <div><span class="label">LAT</span><span>${ap.lat.toFixed(4)}</span></div>
     <div><span class="label">LON</span><span>${ap.lon.toFixed(4)}</span></div>
-    <div><span class="label">FLIGHTS</span><span class="airport-loading">Loading…</span></div>
+    <div><span class="label">FLIGHTS</span><span>Loading…</span></div>
   `;
 
-  // Apply filter immediately (empty set hides all non-selected aircraft during load)
-  airportFilterCallsigns = new Set();
-  renderAircraft();
-
   // Fetch flights for this airport from FlightAware
+  // (filter will be applied when data arrives)
   fetchAirportFlights(ap);
 }
 
