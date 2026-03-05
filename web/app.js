@@ -52,9 +52,28 @@ function boundsToPointRadius(bounds) {
   const lonSpan = bounds.east - bounds.west;
   const latNm = latSpan * 60 / 2;
   const lonNm = lonSpan * 60 * Math.cos(centerLat * Math.PI / 180) / 2;
-  const radiusNm = Math.min(Math.ceil(Math.sqrt(latNm * latNm + lonNm * lonNm)), 250);
+  const radiusNm = Math.ceil(Math.sqrt(latNm * latNm + lonNm * lonNm));
 
   return { lat: centerLat, lon: centerLon, radius: radiusNm };
+}
+
+const MAX_API_RADIUS = 250;
+
+function tileBounds(bounds) {
+  const single = boundsToPointRadius(bounds);
+  if (single.radius <= MAX_API_RADIUS) {
+    return [{ lat: single.lat, lon: single.lon, radius: Math.min(single.radius, MAX_API_RADIUS) }];
+  }
+  const stepDeg = 350 / 60; // ~5.83°
+  const tiles = [];
+  for (let lat = bounds.south; lat < bounds.north + stepDeg; lat += stepDeg) {
+    const tileLat = Math.min(lat + stepDeg / 2, bounds.north);
+    for (let lon = bounds.west; lon < bounds.east + stepDeg; lon += stepDeg) {
+      const tileLon = Math.min(lon + stepDeg / 2, bounds.east);
+      tiles.push({ lat: tileLat, lon: tileLon, radius: MAX_API_RADIUS });
+    }
+  }
+  return tiles;
 }
 
 async function apiGetStates(bounds) {
@@ -65,24 +84,38 @@ async function apiGetStates(bounds) {
   lastStatesCall = now;
 
   try {
-    const { lat, lon, radius } = boundsToPointRadius(bounds);
-    const url = `${AIRPLANES_LIVE_BASE}/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${radius}`;
+    const tiles = tileBounds(bounds);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const results = await Promise.all(tiles.map(async ({ lat, lon, radius }) => {
+      const url = `${AIRPLANES_LIVE_BASE}/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${radius}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      try {
+        const resp = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!resp.ok) return { ac: [] };
+        return await resp.json();
+      } catch (_) {
+        clearTimeout(timeout);
+        return { ac: [] };
+      }
+    }));
 
-    const resp = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (resp.status === 429) {
-      return { error: 'Rate limited by airplanes.live API' };
+    const seen = new Set();
+    const merged = [];
+    for (const data of results) {
+      if (data && data.ac) {
+        for (const ac of data.ac) {
+          const hex = ac.hex || ac.icao24;
+          if (hex && !seen.has(hex)) {
+            seen.add(hex);
+            merged.push(ac);
+          }
+        }
+      }
     }
-    if (!resp.ok) {
-      return { error: `HTTP ${resp.status}` };
-    }
 
-    const data = await resp.json();
-    return data;
+    return { ac: merged };
   } catch (err) {
     return { error: err.message };
   }

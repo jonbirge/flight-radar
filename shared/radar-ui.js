@@ -47,9 +47,11 @@ function boundsContain(outer, inner) {
 function scheduleViewportPoll() {
   if (!CONFIG.aircraftEnabled) return;
   if (viewChangePollDebounce) clearTimeout(viewChangePollDebounce);
-  // Wait at least until the rate limit window has passed
-  const elapsed = lastPollTime ? Date.now() - lastPollTime.getTime() : Infinity;
-  const delay = Math.max(1500, RATE_LIMIT_MS - elapsed + 500);
+  // Short debounce to let zoom settle, then poll as soon as rate limit allows
+  const now = Date.now();
+  const timeSinceLastPoll = lastPollTime ? now - lastPollTime.getTime() : Infinity;
+  const rateLimitRemaining = Math.max(0, RATE_LIMIT_MS - timeSinceLastPoll);
+  const delay = Math.max(300, rateLimitRemaining);
   viewChangePollDebounce = setTimeout(() => {
     viewChangePollDebounce = null;
     pollStates();
@@ -127,6 +129,28 @@ viewer.camera.changed.addEventListener(() => {
   }
 });
 viewer.camera.percentageChanged = 0.01;
+
+// When the camera stops moving (zoom/pan complete), immediately poll if the
+// current view isn't covered by the last poll — subject only to the 2s rate limit.
+viewer.camera.moveEnd.addEventListener(() => {
+  if (!CONFIG.aircraftEnabled) return;
+  const currentBounds = getViewBounds();
+  if (!boundsContain(lastPollBounds, currentBounds)) {
+    // Cancel any pending debounced poll — we'll fire immediately (or as soon as rate limit allows)
+    if (viewChangePollDebounce) { clearTimeout(viewChangePollDebounce); viewChangePollDebounce = null; }
+    const now = Date.now();
+    const timeSinceLastPoll = lastPollTime ? now - lastPollTime.getTime() : Infinity;
+    const rateLimitRemaining = Math.max(0, RATE_LIMIT_MS - timeSinceLastPoll);
+    if (rateLimitRemaining <= 0) {
+      pollStates();
+    } else {
+      viewChangePollDebounce = setTimeout(() => {
+        viewChangePollDebounce = null;
+        pollStates();
+      }, rateLimitRemaining);
+    }
+  }
+});
 
 // ============================================================
 // UI Controls

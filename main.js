@@ -116,9 +116,34 @@ function boundsToPointRadius(bounds) {
   const lonSpan = bounds.east - bounds.west;
   const latNm = latSpan * 60 / 2;  // 1 degree latitude ≈ 60 nm
   const lonNm = lonSpan * 60 * Math.cos(centerLat * Math.PI / 180) / 2;
-  const radiusNm = Math.min(Math.ceil(Math.sqrt(latNm * latNm + lonNm * lonNm)), 250);
+  const radiusNm = Math.ceil(Math.sqrt(latNm * latNm + lonNm * lonNm));
 
   return { lat: centerLat, lon: centerLon, radius: radiusNm };
+}
+
+// Max radius per API call (nm).  Tile large viewports into multiple circles.
+const MAX_API_RADIUS = 250;
+
+// Split a bounding box into sub-regions that each fit within MAX_API_RADIUS.
+// Returns an array of { lat, lon, radius } objects.
+function tileBounds(bounds) {
+  const single = boundsToPointRadius(bounds);
+  if (single.radius <= MAX_API_RADIUS) {
+    return [{ lat: single.lat, lon: single.lon, radius: Math.min(single.radius, MAX_API_RADIUS) }];
+  }
+
+  // Tile with overlapping circles.  Use a grid step of ~350nm (just under
+  // 250nm * √2) so circles of radius 250nm overlap and cover the rectangle.
+  const stepDeg = 350 / 60; // ~5.83°
+  const tiles = [];
+  for (let lat = bounds.south; lat < bounds.north + stepDeg; lat += stepDeg) {
+    const tileLat = Math.min(lat + stepDeg / 2, bounds.north);
+    for (let lon = bounds.west; lon < bounds.east + stepDeg; lon += stepDeg) {
+      const tileLon = Math.min(lon + stepDeg / 2, bounds.east);
+      tiles.push({ lat: tileLat, lon: tileLon, radius: MAX_API_RADIUS });
+    }
+  }
+  return tiles;
 }
 
 // IPC handler: get flight states within a bounding box
@@ -132,15 +157,36 @@ ipcMain.handle('get-states', async (event, bounds) => {
   lastStatesCall = now;
 
   try {
-    const { lat, lon, radius } = boundsToPointRadius(bounds);
-    const url = `${AIRPLANES_LIVE_BASE}/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${radius}`;
-    console.log('[airplanes.live] Fetching states...');
+    const tiles = tileBounds(bounds);
+    console.log(`[airplanes.live] Fetching states (${tiles.length} tile${tiles.length > 1 ? 's' : ''})...`);
     const t0 = Date.now();
-    const data = await httpGet(url);
-    const stateCount = data && data.ac ? data.ac.length : 0;
-    console.log(`[airplanes.live] Got ${stateCount} states in ${Date.now() - t0}ms`);
-    // Normalize response: shared code expects { ac: [...] }
-    return data;
+
+    // Fetch all tiles in parallel
+    const results = await Promise.all(tiles.map(({ lat, lon, radius }) => {
+      const url = `${AIRPLANES_LIVE_BASE}/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${radius}`;
+      return httpGet(url).catch(err => {
+        console.warn(`[airplanes.live] Tile ${lat.toFixed(1)},${lon.toFixed(1)} error:`, err.message);
+        return { ac: [] };
+      });
+    }));
+
+    // Merge and deduplicate by hex (ICAO)
+    const seen = new Set();
+    const merged = [];
+    for (const data of results) {
+      if (data && data.ac) {
+        for (const ac of data.ac) {
+          const hex = ac.hex || ac.icao24;
+          if (hex && !seen.has(hex)) {
+            seen.add(hex);
+            merged.push(ac);
+          }
+        }
+      }
+    }
+
+    console.log(`[airplanes.live] Got ${merged.length} aircraft in ${Date.now() - t0}ms`);
+    return { ac: merged };
   } catch (err) {
     console.error('[airplanes.live] States error:', err.message);
     return { error: err.message };
