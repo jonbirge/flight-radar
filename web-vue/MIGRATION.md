@@ -14,7 +14,7 @@ web-vue/
 │   ├── core/        # Framework-independent domain logic (testable without Vue/Cesium)
 │   ├── services/    # API clients (OpenSky, FlightAware, AWC, settings persistence)
 │   ├── stores/      # Pinia stores (reactive state management)
-│   ├── composables/ # Vue composables (bridge stores ↔ Cesium) — TODO Phase 3+
+│   ├── composables/ # Vue composables (bridge stores ↔ Cesium)
 │   ├── components/  # Vue SFC components — TODO Phase 5
 │   └── styles/      # CSS — TODO Phase 5
 └── tests/           # Vitest unit tests
@@ -38,49 +38,52 @@ web-vue/
    of routing through a shared abstraction layer. Capacitor detection is built
    into the service layer (direct API access in native, PHP proxy in browser).
 
-5. **`shallowRef` for Cesium viewer** (Phase 3+): The Cesium viewer object is
-   massive and deeply mutable. It must NOT be made deeply reactive.
+5. **`shallowRef` for Cesium viewer**: The Cesium viewer object is massive and
+   deeply mutable. It must NOT be made deeply reactive. `useCesiumViewer` wraps it
+   in `shallowRef<Viewer>`.
+
+6. **Aircraft store owns entity lifecycle**: The aircraft store (`useAircraftStore`)
+   holds the `aircraft` Map, manages Cesium entity creation/destruction, and handles
+   chunked rendering. The viewer is injected via `setViewer()`. The store reads
+   settings reactively from `useSettingsStore()` — all `CONFIG.*` reads became
+   store reads.
+
+7. **Polling separated from rendering**: Polling logic lives in `usePolling`
+   composable, which coordinates with the aircraft store for data updates. This
+   separation allows the polling timer to be paused/resumed independently.
+
+8. **Selected aircraft always visible**: Per CLAUDE.md rules, the selected aircraft
+   is always rendered regardless of display toggles, trail mode settings, or
+   viewport position. The selected-aircraft poll runs independently of bulk polls.
 
 ## Migration Status
 
-### Completed (Phases 0-2)
+### Completed (Phases 0-3)
 - [x] Vite + Vue 3 + TypeScript project scaffolding
 - [x] Core domain logic extraction (8 modules in `src/core/`)
 - [x] 126 unit tests covering all core modules
 - [x] API service layer (OpenSky, FlightAware, AWC Weather)
 - [x] Settings Pinia store with theme resolution and derived colors
 - [x] Type-safe TypeScript interfaces for all data structures
+- [x] **Phase 3: Cesium core + Aircraft** — all sub-tasks complete:
+  - [x] 3a: `src/composables/useCesiumViewer.ts` — Viewer init, tile providers,
+        theme application (tile layers, globe styling, CSS variables), watch-driven
+        reactivity. Uses `shallowRef<Viewer>`.
+  - [x] 3b: `src/stores/aircraft.ts` — Aircraft store with entity CRUD, trail
+        management (history, velocity vector, altitude-colored segments), chunked
+        rendering with `_renderGeneration` cancellation, position extrapolation,
+        billboard/label dirty-tracking.
+  - [x] 3c: `src/composables/usePolling.ts` — Bulk viewport poll, selected-aircraft
+        poll (10s), track fetch queue (12s), extrapolation tick, unified timer with
+        safety valves, view bounds computation, rate limiting.
+  - [x] 3d: `src/composables/useCamera.ts` — Camera change handler (LOD transitions,
+        zoom resize via rAF debounce), poll interval adjustment (±10% hysteresis),
+        2D/3D morphing, orbit rotation, entity tracking, view save/restore.
+  - [x] 3e: `src/stores/flightplan.ts` — Click selection, info panel state,
+        FlightAware enrichment, route polyline display, natural language search,
+        flight picking (en-route → upcoming → not-arrived), search history.
 
-### Remaining (Phases 3-6)
-
-- [ ] **Phase 3: Cesium core + Aircraft** — Viewer initialization, theme application
-      to Cesium, aircraft store (state, polling, entity management), camera/LOD
-      handling, flight plan selection & route display.
-  - [ ] 3a: Viewer composable — `useCesiumViewer()` in `src/composables/`. Owns
-        `shallowRef<Viewer>`, container mount/unmount, scene config (projection,
-        anti-aliasing, background). Theme application to Cesium (tile layers,
-        globe styling, CSS variables) driven by `watch()` on settings store.
-        Source: `shared/radar-core.js` (viewer init, `makeMapTiles`, `applyTheme`,
-        `styleMapLayer`).
-  - [ ] 3b: Aircraft store — `useAircraftStore` in `src/stores/aircraft.ts`. Owns
-        `aircraft` Map, `selectedIcao`, `searchedIcao`, render generation counter.
-        Actions: `updateAircraft(states)`, `renderAircraft()`, `toggleAircraft()`,
-        `resizeAircraftIcons()`, `removeTrailEntities()`. Chunked rendering with
-        `_renderGeneration` cancellation. Source: `shared/radar-aircraft.js`
-        (entity CRUD, trail management, icon/label updates).
-  - [ ] 3c: Polling composable — `usePolling()` in `src/composables/`. Bulk viewport
-        poll, selected-aircraft poll (10s), track fetch queue (12s), extrapolation
-        tick, interval management based on camera height (±10% hysteresis).
-        Source: `shared/radar-aircraft.js` (`pollStates`, `pollSelectedAircraft`,
-        `fetchNextTrack`, `extrapolatePositions`, `startPolling`).
-  - [ ] 3d: Camera composable — `useCamera()` in `src/composables/`. Camera change
-        handler (LOD transitions, zoom resize, poll triggers), 2D/3D morphing,
-        rotation orbit, view save/restore, mobile detection.
-        Source: `shared/radar-ui.js`.
-  - [ ] 3e: Flight plan store — `useFlightPlanStore` in `src/stores/flightplan.ts`.
-        Aircraft click selection, info panel state, FlightAware enrichment, route
-        polyline display, altitude-based weather filter.
-        Source: `shared/radar-flightplan.js`.
+### Remaining (Phases 4-6)
 - [ ] **Phase 4: Weather overlays + map markers composables**
   - [ ] 4a: Weather composable — NEXRAD radar, turbulence forecast (GTG heatmap),
         PIREPs, SIGMETs, G-AIRMETs. Source: `shared/radar-weather.js`.
