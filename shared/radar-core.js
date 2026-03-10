@@ -234,7 +234,7 @@ const OVERLAY_LAYERS = new Set(['vfrHybrid', 'vfrIfrLow', 'vfrIfrHigh']);
 // Dark mode always darkens (except layers that are already theme-matched).
 // Light mode only mutes when the user has "Mute map colors" enabled.
 const NO_STYLE_LAYERS = new Set(['carto', 'noLabels', 'esriGray']);
-const NO_MUTE_LAYERS = new Set(['vfrIfrLow', 'vfrIfrHigh', 'topo']);
+const NO_MUTE_LAYERS = new Set(['vfrIfrLow', 'vfrIfrHigh']);
 
 function styleMapLayer(layer, layerId) {
   const isDark = CONFIG.theme === 'dark';
@@ -254,8 +254,8 @@ function styleMapLayer(layer, layerId) {
   } else {
     if (!CONFIG.muteMapColors) return;
     if (NO_STYLE_LAYERS.has(layerId) || NO_MUTE_LAYERS.has(layerId)) return;
-    layer.brightness = 1.5;
-    layer.saturation = 0.3;
+    layer.brightness = 1.2;
+    layer.saturation = 0.35;
   }
 }
 
