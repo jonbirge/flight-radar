@@ -774,7 +774,10 @@ export const useFlightPlanStore = defineStore('flightplan', () => {
 
     // Try last_position
     if (flight.last_position?.latitude != null && flight.last_position?.longitude != null) {
-      await fetchSingleAircraftForSearch(flight.last_position);
+      await fetchSingleAircraftForSearch({
+        latitude: flight.last_position.latitude,
+        longitude: flight.last_position.longitude,
+      });
       return;
     }
 
