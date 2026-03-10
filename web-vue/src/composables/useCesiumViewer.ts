@@ -38,6 +38,8 @@ type ImageryProvider =
 export interface CesiumViewerReturn {
   /** The Cesium Viewer instance (shallowRef — never deeply reactive) */
   viewer: Ref<Viewer | null>;
+  /** Initialize the viewer — must be called after the container element is in the DOM (onMounted) */
+  init: () => void;
   /** Apply theme (tile layers, globe styling, CSS vars) — call on theme or setting change */
   applyTheme: () => Promise<void>;
   /** Swap the map tile layer */
@@ -412,8 +414,8 @@ export function useCesiumViewer(containerId: string): CesiumViewerReturn {
   }
 
   // ---- Lifecycle ----
-
-  init();
+  // NOTE: init() is NOT auto-called — the consumer must call init() after the
+  // container element is in the DOM (typically in onMounted).
 
   // Watch for theme changes and re-apply
   const stopThemeWatch = watch(
@@ -449,6 +451,7 @@ export function useCesiumViewer(containerId: string): CesiumViewerReturn {
 
   return {
     viewer: viewerRef,
+    init,
     applyTheme,
     applyMapLayer,
     destroy,
