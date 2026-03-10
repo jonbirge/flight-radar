@@ -45,6 +45,7 @@ import { useFlightPlanStore } from '@/stores/flightplan';
 import { useCesiumViewer } from '@/composables/useCesiumViewer';
 import { useCamera, type CameraReturn } from '@/composables/useCamera';
 import { usePolling, type PollingReturn } from '@/composables/usePolling';
+import { clearIconCaches } from '@/core/icons';
 
 import HudClock from '@/components/HudClock.vue';
 import ControlsPanel from '@/components/ControlsPanel.vue';
@@ -106,6 +107,19 @@ watch(polling.rateLimitedUntil, (val) => {
   }
 });
 
+// Start/stop polling when aircraft toggle changes
+watch(() => settingsStore.settings.aircraftEnabled, (enabled) => {
+  if (enabled) {
+    polling.startPolling();
+  }
+});
+
+// Clear icon caches and refresh entities on theme change
+watch(() => settingsStore.resolvedTheme, () => {
+  clearIconCaches();
+  aircraftStore.refreshAllEntities();
+});
+
 // ============================================================
 // Lifecycle
 // ============================================================
@@ -123,9 +137,16 @@ onMounted(async () => {
     aircraftStore.setViewer(v);
     flightPlanStore.setViewer(v);
 
+    // Load airport and waypoint data for flight plan lookups
+    loadDataFiles();
+
     // Start camera handler and polling
     camera.startCameraHandler();
-    polling.startPolling();
+    if (settingsStore.settings.aircraftEnabled) {
+      polling.startPolling();
+    }
+    // Always start tick for extrapolation of existing aircraft
+    polling.ensureTick();
 
     // Set up context menu on Cesium canvas
     v.canvas.addEventListener('contextmenu', (e: Event) => e.preventDefault());
@@ -284,6 +305,41 @@ function onShowRoute(): void {
       flightPlanStore.activeFlightPlan,
       flightPlanStore.selectedRouteFlight,
     );
+  } else if (aircraftStore.selectedIcao) {
+    // Search by callsign if no route loaded yet
+    const ac = aircraftStore.aircraft.get(aircraftStore.selectedIcao);
+    const cs = (ac?.state.callsign || '').trim();
+    if (cs) flightPlanStore.searchFlightPlan(cs);
+  }
+}
+
+// ============================================================
+// Data loading
+// ============================================================
+
+async function loadDataFiles(): Promise<void> {
+  try {
+    const [airportsResp, waypointsResp] = await Promise.all([
+      fetch('/data/airports.json').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/data/waypoints.json').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+
+    if (airportsResp) {
+      const airportArray: Array<{ icao: string; iata?: string; lat: number; lon: number }> = [];
+      for (const [icao, ap] of Object.entries(airportsResp)) {
+        const airport = ap as { name: string; lat: number; lon: number; iata?: string };
+        if (airport.lat != null && airport.lon != null) {
+          airportArray.push({ icao, iata: airport.iata, lat: airport.lat, lon: airport.lon });
+        }
+      }
+      flightPlanStore.setAirportData(airportArray);
+    }
+
+    if (waypointsResp && Array.isArray(waypointsResp)) {
+      flightPlanStore.setWaypointData(waypointsResp);
+    }
+  } catch (err) {
+    console.warn('[FlightRadar] Failed to load data files:', err);
   }
 }
 </script>

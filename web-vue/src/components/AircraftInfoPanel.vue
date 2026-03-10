@@ -16,7 +16,7 @@
           <span>{{ value }}</span>
         </div>
       </div>
-      <div v-if="data?.isFlightPlan" class="info-buttons">
+      <div v-if="aircraftStore.selectedIcao" class="info-buttons">
         <button class="scope-btn" @click="$emit('track')">Track</button>
         <button class="scope-btn" @click="$emit('showRoute')">Show Route</button>
       </div>
@@ -28,8 +28,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useFlightPlanStore } from '@/stores/flightplan';
+import { useAircraftStore } from '@/stores/aircraft';
 
 const flightPlanStore = useFlightPlanStore();
+const aircraftStore = useAircraftStore();
 
 defineEmits<{
   track: [];
