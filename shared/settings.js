@@ -375,20 +375,11 @@ function createSettingsFormHTML() {
           </div>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section" style="border-bottom:none;">
           <div class="settings-label">Weather overlay opacity</div>
           <div class="settings-row">
             <input type="range" id="set-weather-opacity" min="10" max="100" value="25" step="5">
             <span class="settings-fontsize-val" id="set-weather-opacity-val">25%</span>
-          </div>
-        </div>
-
-        <div class="settings-section" style="border-bottom:none;">
-          <div class="settings-row">
-            <label class="settings-toggle-label">
-              <input type="checkbox" id="set-turb-3d">
-              <span>3D turbulence map</span>
-            </label>
           </div>
         </div>
       </div>
@@ -424,7 +415,7 @@ function createSettingsFormHTML() {
           </label>
         </div>
 
-        <div class="settings-section" style="border-bottom:none;">
+        <div class="settings-section">
           <div class="settings-label">Aviation data</div>
           <div class="settings-row settings-grid-2col">
             <label class="settings-toggle-label">
@@ -454,6 +445,20 @@ function createSettingsFormHTML() {
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-show-fixes">
               <span>Nav fixes</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-label">Aviation weather</div>
+          <div class="settings-row settings-grid-2col">
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-turb-3d">
+              <span>3D turbulence</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-exaggerate-alt">
+              <span>Height gain (10×)</span>
             </label>
           </div>
         </div>
@@ -598,6 +603,10 @@ function populateSettingsForm(container, settings) {
   const turb3dEl = container.querySelector('#set-turb-3d');
   if (turb3dEl) turb3dEl.checked = s.turb3D;
 
+  // Exaggerate altitudes
+  const exAltEl = container.querySelector('#set-exaggerate-alt');
+  if (exAltEl) exAltEl.checked = s.exaggerateAltitudes;
+
   // Credentials
   container.querySelector('#set-client-id').value = s.openskyClientId || '';
   container.querySelector('#set-client-secret').value = s.openskyClientSecret || '';
@@ -657,6 +666,7 @@ function initSettingsPanel(options) {
   const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
   const turb3d = container.querySelector('#set-turb-3d');
+  const exaggerateAlt = container.querySelector('#set-exaggerate-alt');
   const clientId = container.querySelector('#set-client-id');
   const clientSecret = container.querySelector('#set-client-secret');
   const faApiKey = container.querySelector('#set-fa-api-key');
@@ -688,6 +698,7 @@ function initSettingsPanel(options) {
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
       turb3D: turb3d ? turb3d.checked : false,
+      exaggerateAltitudes: exaggerateAlt ? exaggerateAlt.checked : false,
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
       flightawareApiKey: faApiKey ? faApiKey.value.trim() : '',
@@ -836,6 +847,9 @@ function initSettingsPanel(options) {
 
   // --- 3D turbulence toggle ---
   if (turb3d) turb3d.addEventListener('change', broadcast);
+
+  // --- Exaggerate altitudes toggle ---
+  if (exaggerateAlt) exaggerateAlt.addEventListener('change', broadcast);
 
   // --- Credentials (fire on blur/change, not every keystroke) ---
   clientId.addEventListener('change', broadcast);

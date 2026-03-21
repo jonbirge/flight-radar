@@ -74,6 +74,8 @@ async function loadAndApplySettings() {
       CONFIG.satelliteIREnabled = saved.satelliteIREnabled || DEFAULT_SETTINGS.satelliteIREnabled;
       const prevTurb3D = CONFIG.turb3D;
       CONFIG.turb3D = saved.turb3D || DEFAULT_SETTINGS.turb3D;
+      const prevExAlt = CONFIG.exaggerateAltitudes;
+      CONFIG.exaggerateAltitudes = saved.exaggerateAltitudes || DEFAULT_SETTINGS.exaggerateAltitudes;
       // Migrate old turbulenceLevel setting to new checkbox model
       if (saved.turbForecastEnabled !== undefined) {
         CONFIG.turbForecastEnabled = saved.turbForecastEnabled;
@@ -168,8 +170,20 @@ async function loadAndApplySettings() {
           if (label) label.textContent = opt.textContent;
         }
       }
-      if ((prevEdges !== CONFIG.airspaceEdges || prev3D !== CONFIG.airspace3D) && airspaceEntities.length > 0) {
+      if ((prevEdges !== CONFIG.airspaceEdges || prev3D !== CONFIG.airspace3D || prevExAlt !== CONFIG.exaggerateAltitudes) && airspaceEntities.length > 0) {
         rebuildAirspace();
+      }
+      // Altitude exaggeration changed — rebuild 3D turb layers, PIREPs, and re-render aircraft
+      if (prevExAlt !== CONFIG.exaggerateAltitudes) {
+        renderAircraft();
+        if (CONFIG.turbForecastEnabled && CONFIG.turb3D) {
+          disableTurbForecast();
+          enableTurbForecast();
+        }
+        if (CONFIG.pirepsEnabled) {
+          removePirepEntities();
+          fetchPireps();
+        }
       }
       if (prevSmallAirports !== CONFIG.showSmallAirports && cachedAirportData) {
         if (CONFIG.showSmallAirports) {

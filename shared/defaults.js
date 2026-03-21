@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
   satelliteIREnabled: false,
   turbForecastEnabled: false,
   turb3D: false,
+  exaggerateAltitudes: false,
   turbulenceLevel: 'none',
   weatherOverlayOpacity: 25,
   rotationSpeed: 6,

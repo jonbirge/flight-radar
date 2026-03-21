@@ -149,7 +149,7 @@ async function pollSelectedAircraft() {
           || Math.abs(ns.lat - last.lat) > 0.0005
           || Math.abs(alt - last.alt) > 30;
         if (moved) ac.history.push({ lon: ns.lon, lat: ns.lat, alt, time: now });
-        const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(ns.lon, ns.lat, alt);
+        const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(ns.lon, ns.lat, exAlt(alt));
         updateExtrapolationTrail(selectedIcao, ac, currentPos);
         break;
       }
@@ -335,7 +335,7 @@ function updateAircraft(states) {
       }
 
       // Connect last history point to current position (extrapolated or raw server)
-      const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, alt);
+      const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, exAlt(alt));
       updateExtrapolationTrail(s.icao24, ac, currentPos);
 
       // Trim old history (keep all history for selected aircraft)
@@ -396,7 +396,7 @@ function updateExtrapolationTrail(icao, ac, currentPos) {
   if (!lastHistory) return;
 
   const lastHistoryPos = Cesium.Cartesian3.fromDegrees(
-    lastHistory.lon, lastHistory.lat, lastHistory.alt
+    lastHistory.lon, lastHistory.lat, exAlt(lastHistory.alt)
   );
   const positions = [lastHistoryPos, currentPos];
 
@@ -467,7 +467,7 @@ function computeExtrapolatedPosition(s, baseTime, now) {
 
   const alt = (s.altitude || 0) + (s.verticalRate || 0) * elapsed;
   return Cesium.Cartesian3.fromDegrees(
-    Cesium.Math.toDegrees(newLon), Cesium.Math.toDegrees(newLat), alt
+    Cesium.Math.toDegrees(newLon), Cesium.Math.toDegrees(newLat), exAlt(alt)
   );
 }
 
@@ -478,7 +478,8 @@ function updateInfoPanelInterim(newPos) {
   const carto = Cesium.Cartographic.fromCartesian(newPos);
   const lat = Cesium.Math.toDegrees(carto.latitude);
   const lon = Cesium.Math.toDegrees(carto.longitude);
-  const altFeet = Math.round(carto.height * 3.28084);
+  const realHeight = CONFIG.exaggerateAltitudes ? carto.height / 10 : carto.height;
+  const altFeet = Math.round(realHeight * 3.28084);
   const altEl = details.querySelector('[data-field="alt"]');
   const latEl = details.querySelector('[data-field="lat"]');
   const lonEl = details.querySelector('[data-field="lon"]');
@@ -579,7 +580,7 @@ function computeHorizonDist(camHeight) {
 function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
     // Use extrapolated position if available, otherwise compute from state
-    const pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, (s.altitude || 0));
+    const pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, exAlt(s.altitude || 0));
     const isSelected = icao === selectedIcao;
 
     // Altitude-based color computation
@@ -743,16 +744,17 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           // extrapolation) so the trail front matches the icon exactly.  Using raw
           // s.altitude would create a vertical ECEF offset for climbing/descending aircraft.
           const alt = acCarto.height;
-          const endAlt = alt - (s.verticalRate || 0) * 60;
+          const endAlt = alt - exAlt((s.verticalRate || 0) * 60);
           const positions = [
             Cesium.Cartesian3.fromDegrees(acLon, acLat, alt),
             Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(endLon), Cesium.Math.toDegrees(endLat), endAlt),
           ];
 
-          // Color logic matching existing trail colors
+          // Color logic matching existing trail colors (use real altitude, not exaggerated)
+          const realAlt = CONFIG.exaggerateAltitudes ? alt / 10 : alt;
           let rgb;
           if (CONFIG.colorByAltitude) {
-            rgb = isSelected ? altitudeToSelectedRgb(alt) : altitudeToRgb(alt);
+            rgb = isSelected ? altitudeToSelectedRgb(realAlt) : altitudeToRgb(realAlt);
           } else {
             rgb = isSelected ? hexToRgb(CONFIG.phosphorBright) : CONFIG.trailColor;
           }
@@ -798,7 +800,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
                   const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
                   const material = Cesium.Color.fromBytes(
                     Math.round(rgb[0] * mute), Math.round(rgb[1] * mute), Math.round(rgb[2] * mute), 255);
-                  const positions = runPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+                  const positions = runPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, exAlt(p.alt)));
                   ac.trailEntities.push(viewer.entities.add({
                     polyline: {
                       positions: positions,
@@ -820,7 +822,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
             const mute = (!isSelected && CONFIG.theme === 'dark') ? 0.6 : 1;
             const trailMaterial = Cesium.Color.fromBytes(
               Math.round(trailRgb[0] * mute), Math.round(trailRgb[1] * mute), Math.round(trailRgb[2] * mute), 255);
-            const positions = trailPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+            const positions = trailPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, exAlt(p.alt)));
             ac.trailEntities.push(viewer.entities.add({
               polyline: {
                 positions: positions,

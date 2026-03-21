@@ -338,7 +338,7 @@ function updateTimelinePosition(sliderTime, depMs, arrMs) {
   const pos = interpolateRoutePosition(fraction);
   if (!pos) return;
 
-  updateOrCreateTimelineMarker(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
+  updateOrCreateTimelineMarker(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, exAlt(pos.alt)));
 }
 
 function updateOrCreateTimelineMarker(position) {

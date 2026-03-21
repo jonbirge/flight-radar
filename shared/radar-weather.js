@@ -450,7 +450,7 @@ async function addTurb3DLayers(dateSecs) {
           color: Cesium.Color.WHITE.withAlpha(0.10),
           transparent: true,
         }),
-        height: altMeters,
+        height: exAlt(altMeters),
         heightReference: Cesium.HeightReference.NONE,
         outline: false,
         shadows: Cesium.ShadowMode.DISABLED,
@@ -542,7 +542,7 @@ async function fetchPireps() {
           const pirepDisplayCond = acDisplayCond || new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camH));
           const entity = viewer.entities.add({
             id: `turb-pirep-${pirepCount}`,
-            position: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
+            position: Cesium.Cartesian3.fromDegrees(lon, lat, exAlt(alt)),
             billboard: {
               image: icon,
               width: 36,
