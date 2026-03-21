@@ -481,63 +481,53 @@ document.getElementById('toggle-rotate').addEventListener('change', (e) => {
 // Helper: are we in mobile layout?
 function isMobile() { return window.matchMedia('(max-width: 767px)').matches; }
 
-// Controls panel — slide off-screen to the left (desktop) or
-// collapse the entire bottom sheet downward (mobile).
-const controlsToggle = document.getElementById('controls-toggle');
-if (controlsToggle) {
-  controlsToggle.addEventListener('click', () => {
-    document.getElementById('controls').classList.toggle('collapsed');
-  });
-}
-
-// Bottom sheet: handle tap or swipe collapses/expands on mobile.
+// Controls panel — sheet-handle toggles collapse on both desktop and mobile.
+// Desktop: slides the controls panel left.  Mobile: slides the bottom sheet down.
 (function () {
+  const controls = document.getElementById('controls');
   const sheet = document.getElementById('bottom-sheet');
-  if (!sheet) return;
-
-  // Tapping the sheet-handle inside #controls toggles the sheet
-  const handle = sheet.querySelector('#controls .sheet-handle');
+  const handle = controls && controls.querySelector('.sheet-handle');
   if (handle) {
-    handle.addEventListener('click', () => sheet.classList.toggle('collapsed'));
+    handle.addEventListener('click', () => {
+      if (isMobile() && sheet) sheet.classList.toggle('collapsed');
+      else if (controls) controls.classList.toggle('collapsed');
+    });
   }
 
-  // Swipe down → collapse; swipe up → expand
-  let _sy = 0, _sx = 0;
-  sheet.addEventListener('touchstart', (e) => {
-    _sy = e.touches[0].clientY;
-    _sx = e.touches[0].clientX;
-  }, { passive: true });
-  sheet.addEventListener('touchend', (e) => {
-    if (!isMobile()) return;
-    const dy = e.changedTouches[0].clientY - _sy;
-    const dx = e.changedTouches[0].clientX - _sx;
-    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
-      if (dy > 0) sheet.classList.add('collapsed');
-      else sheet.classList.remove('collapsed');
-    }
-  }, { passive: true });
+  // Swipe down → collapse; swipe up → expand (mobile bottom sheet)
+  if (sheet) {
+    let _sy = 0, _sx = 0;
+    sheet.addEventListener('touchstart', (e) => {
+      _sy = e.touches[0].clientY;
+      _sx = e.touches[0].clientX;
+    }, { passive: true });
+    sheet.addEventListener('touchend', (e) => {
+      if (!isMobile()) return;
+      const dy = e.changedTouches[0].clientY - _sy;
+      const dx = e.changedTouches[0].clientX - _sx;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+        if (dy > 0) sheet.classList.add('collapsed');
+        else sheet.classList.remove('collapsed');
+      }
+    }, { passive: true });
+  }
 }());
 
-// Aircraft info panel — collapse to show only callsign (desktop)
-// or slide the panel up leaving the handle visible (mobile).
-const infoToggleBtn = document.getElementById('info-toggle');
-if (infoToggleBtn) {
-  infoToggleBtn.addEventListener('click', () => {
-    document.getElementById('aircraft-info').classList.toggle('collapsed');
-  });
-}
-
-// Aircraft info: sheet-handle tap and swipe up/down on mobile.
+// Aircraft info panel — sheet-handle toggles collapse on both desktop and mobile.
+// Desktop: collapses content via max-height.  Mobile: slides the panel up.
 (function () {
   const infoEl = document.getElementById('aircraft-info');
   if (!infoEl) return;
 
-  // Tapping the handle at the bottom of the panel
   const handle = infoEl.querySelector('.sheet-handle');
   if (handle) {
-    handle.addEventListener('click', () => infoEl.classList.toggle('mob-collapsed'));
+    handle.addEventListener('click', () => {
+      if (isMobile()) infoEl.classList.toggle('mob-collapsed');
+      else infoEl.classList.toggle('collapsed');
+    });
   }
 
+  // Swipe up → collapse; swipe down → expand (mobile)
   let _sy = 0, _sx = 0;
   infoEl.addEventListener('touchstart', (e) => {
     _sy = e.touches[0].clientY;
