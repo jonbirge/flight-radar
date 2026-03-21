@@ -5,91 +5,90 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm install              # Install dependencies + copy CesiumJS runtime to vendor/
-npm start                # Launch the app
-npm run dev              # Launch with DevTools open
-npm run pack             # Portable folder → out/flight-radar-win32-x64/FlightRadar.exe
-npm run dist             # Squirrel installer → out/make/squirrel.windows/x64/Flight Radar Setup.exe
+npm install              # Install dependencies + download fonts
+npm run dev              # Vite dev server at localhost:3000
+npm run build            # Production build → dist/
+npm run preview          # Preview production build
+npm run pull-data        # Update airports, airspace, waypoints JSON
 ```
 
-Build system: **electron-forge** (official Electron tooling). Config in `forge.config.js`.
+Build system: **Vite** with **Capacitor** for cross-platform support. Config in `vite.config.js` and `capacitor.config.ts`.
 
 There are no tests or linting configured.
 
 ## Architecture
 
-Electron desktop app and web app sharing a common core via `shared/` modules.
+Capacitor-based web app (PWA) built with Vite. Plain JavaScript with ES modules — no UI framework. CesiumJS for 3D mapping. All code lives in `src/` as ES modules with `import`/`export`.
 
-### Shared modules (`shared/`)
+### Source modules (`src/`)
 
-All renderer logic common to both platforms lives here as plain JS loaded via `<script>` tags:
+- **`src/main.js`**: Entry point — imports all modules, sets up `window.flightAPI`, initializes settings modal, help panel, and starts the app.
+- **`src/state.js`**: Central mutable state object shared across all radar modules. All shared state (viewer, aircraft map, timers, entity arrays, etc.) is a property of the default-exported `state` object. Constants like `RATE_LIMIT_MS` are named exports.
+- **`src/defaults.js`**: `DEFAULT_SETTINGS` object — canonical default settings.
+- **`src/config.js`**: `CONFIG` object, color utilities (`hexToRgb`, `brighten`, `withAlpha`, `setDarkColors`, `setLightColors`), altitude color functions, and zoom-based scaling.
+- **`src/data.js`**: Airport database (`AIRPORTS`), OpenSky state vector parsing (`IDX`, `parseState`), and data block formatting.
+- **`src/icons.js`**: Canvas-based aircraft icon generation with caching.
+- **`src/settings.js`**: Settings panel UI — generates the complete form HTML (including footer with Defaults/Done buttons), injects its own CSS, populates form state, and wires all events. Does not depend on Cesium.
+- **`src/api.js`**: `window.flightAPI` implementation — localStorage settings, OpenSky API via `fetch()`, FlightAware API via PHP proxies, system theme detection, and context menu.
 
-- **`shared/config.js`**: `CONFIG` object, color utilities, altitude color functions, and zoom-based scaling.
-- **`shared/data.js`**: Airport database, OpenSky state vector parsing (`IDX`, `parseState`), and data block formatting.
-- **`shared/icons.js`**: Canvas-based aircraft icon generation.
-- **`shared/settings.js`**: Settings panel UI — generates the complete form HTML (including footer with Defaults/Done buttons), injects its own CSS, populates form state, and wires all events. Platform JS passes `onClose` and `onDefaults` callbacks. Does not depend on Cesium. Used by both Electron settings window and web inline modal.
-- **`shared/radar-core.js`**: State declarations, Cesium viewer initialization, theme engine (tile providers, map styling), and theme application (`resolveTheme`, `applyTheme`). Loaded first — all other `radar-*.js` files depend on this.
-- **`shared/radar-weather.js`**: Weather overlays — NEXRAD radar (filtered tiles), AWC turbulence forecast (GTG heatmap with Mercator reprojection), PIREPs, SIGMETs, and G-AIRMETs.
-- **`shared/radar-markers.js`**: Airport markers (large/medium/small), airspace boundaries (Class B/C/D with optional 3D extrusion), waypoints (fixes), and navaids (VOR/NDB/DME).
-- **`shared/radar-aircraft.js`**: Aircraft entity management — rendering pipeline, trail polylines, position extrapolation, poll interval management, view bounds computation, and the polling loop (`pollStates`, `startPolling`).
-- **`shared/radar-ui.js`**: HUD clock, camera change handler (LOD transitions, zoom-based resizing, interval adjustments), all UI control event listeners, 2D/3D morphing, and camera rotation.
-- **`shared/radar-flightplan.js`**: Aircraft selection (click handler, info panel), flight plan search (FlightAware integration), and route display (decoded waypoints, dashed polylines).
-- **`shared/radar.js`**: Shared init helpers — `loadAndApplySettings`, `applySavedView`, `loadDataJSON`. Loaded last as the entry point.
-- **`shared/styles.css`**: All common CSS — FAA phosphor-green aesthetic, CRT scanline overlay, HUD, controls, aircraft info panel, and light mode overrides.
+### Radar modules (`src/radar/`)
 
-### Electron layer
+- **`src/radar/core.js`**: Cesium viewer initialization, theme engine (tile providers, map styling), and theme application (`resolveTheme`, `applyTheme`).
+- **`src/radar/weather.js`**: Weather overlays — NEXRAD radar, GOES IR satellite, AWC turbulence forecast (GTG heatmap with Mercator reprojection), PIREPs, SIGMETs, and G-AIRMETs.
+- **`src/radar/markers.js`**: Airport markers (large/medium/small), airspace boundaries (Class B/C/D with optional 3D extrusion), waypoints (fixes), and navaids (VOR/NDB/DME).
+- **`src/radar/aircraft.js`**: Aircraft entity management — rendering pipeline, trail polylines, position extrapolation, poll interval management, view bounds computation, and the polling loop.
+- **`src/radar/ui.js`**: HUD clock, camera change handler (LOD transitions, zoom-based resizing, interval adjustments), all UI control event listeners, 2D/3D morphing, and camera rotation.
+- **`src/radar/flightplan.js`**: Aircraft selection (click handler, info panel), flight plan search (FlightAware integration), and route display (decoded waypoints, dashed polylines).
+- **`src/radar/timeline.js`**: Flight plan timeline scrubber, position interpolation along routes, weather filtering by time.
+- **`src/radar/init.js`**: Init helpers — `loadAndApplySettings`, `applySavedView`, `loadDataJSON`.
 
-- **Main process** (`main.js`): OpenSky Network API calls (OAuth2 client credentials), rate limiting, settings persistence (`settings.json` in userData dir), and window/menu management.
-- **Preload bridge** (`preload.js`): Context-isolated IPC bridge exposing `window.flightAPI` with five methods: `getStates`, `getTrack`, `getSettings`, `saveSettings`, `onSettingsChanged`.
-- **Renderer** (`src/renderer.js`): Thin Electron-specific entry point — wires up settings button to IPC, listens for `onSettingsChanged`, and calls shared `init()` helpers.
-- **Settings window** (`src/settings.html`, `src/settings.css`, `src/settings.js`, `settings-preload.js`): Separate Electron window. `src/settings.css` provides only font-face and color variables; all form HTML, styling, and behavior comes from `shared/settings.js`.
-- **HTML** (`src/index.html`): Loads shared modules then `renderer.js`. Does not load `shared/settings.js` (settings are in a separate window).
+### Styles (`src/styles/`)
 
-### Web layer (`web/`)
+- **`src/styles/main.css`**: All common CSS — FAA phosphor-green aesthetic, CRT scanline overlay, HUD, controls, aircraft info panel, and light mode overrides.
+- **`src/styles/settings.css`**: Context menu, settings modal shell, and help panel overlay CSS with M3 tokens.
 
-- **`web/app.js`**: Web-specific entry point — `window.flightAPI` shim (localStorage settings, OpenSky API via `fetch()`), settings panel wiring via `shared/settings.js`, and init.
-- **`web/styles.css`**: Settings modal shell CSS (overlay, panel, header, close button) and `--settings-*` variable mapping from M3 tokens. Form content is fully generated by `shared/settings.js`.
-- **`web/index.html`**: Loads shared modules including `shared/settings.js`, then `app.js`. Includes inline settings modal HTML.
-- **`web/cred.php`**: Server-side OAuth2 token proxy.
+### Static assets (`public/`)
+
+- **`public/data/`**: Static JSON loaded at startup — `airports.json`, `airspace.json`, `waypoints.json`.
+- **`public/fonts/`**: Roboto Flex woff2 (downloaded at install time, gitignored).
+- **`public/icons/`**: App icons for PWA manifest.
+- **`public/help/`**: Help content HTML loaded into the in-app help panel.
+- **`public/manifest.json`**: PWA manifest for installable desktop/mobile app.
+
+### Server (`server/`)
+
+PHP proxies for production web deployment (CORS workaround):
+- `cred.php` — OpenSky OAuth2 token proxy
+- `flightaware-proxy.php` — FlightAware AeroAPI proxy
+- `awc-proxy.php` — FAA Aviation Weather Center proxy with caching
+- `vfrmap-proxy.php` — VFR map tile proxy
 
 ### Data files (`data/`)
 
-Static JSON loaded at startup by `shared/radar.js`: `airports.json`, `airspace.json`, `waypoints.json`.
+Source data JSON files (also copied to `public/data/` for serving): `airports.json`, `airspace.json`, `waypoints.json`.
 
 ### Key patterns
 
-- **No build step**: Plain JS loaded directly via `<script>` tags. CesiumJS is an npm devDependency; a postinstall script copies `Build/Cesium/` to `vendor/cesium/`. A second postinstall script (`scripts/download-fonts.js`) downloads Roboto Flex to `shared/fonts/` for Electron use.
-- **Font loading differs by platform**: Electron loads Roboto Flex from `shared/fonts/roboto-flex.woff2` (downloaded at install time, gitignored). `src/index.html` and `src/settings.css` each declare a local `@font-face` for this. The web version (`web/index.html`) loads Roboto Flex from Google Fonts CDN instead. Do NOT put a `@font-face` in `shared/styles.css` — it would cause a 404 on web.
-- **Shared modules via globals**: Script load order: `defaults.js` → `config.js` → `data.js` → `icons.js` → [`settings.js` web only] → `radar-core.js` → `radar-weather.js` → `radar-markers.js` → `radar-aircraft.js` → `radar-ui.js` → `radar-flightplan.js` → `radar.js` → platform entry point. Top-level `let`/`const` variables declared in `radar-core.js` are shared across all subsequent scripts via the global lexical environment.
-- **Platform abstraction via `window.flightAPI`**: Both platforms expose the same API surface. Electron uses preload IPC; web uses a shim with `fetch()` and `localStorage`.
+- **ES modules with Vite**: All source files use `import`/`export`. Vite handles bundling, dev server with HMR, and production builds.
+- **Shared state via `state.js`**: Mutable state is centralized in a single exported object (`import S from '../state.js'`). Modules access state as `S.viewer`, `S.aircraft`, etc. This replaces the old global scope sharing pattern.
+- **CesiumJS via Vite**: Cesium is an npm dependency. `vite-plugin-static-copy` copies Cesium's Workers, Assets, and Widgets to the build output. `CESIUM_BASE_URL` is defined in `vite.config.js`. Cesium's CSS is imported in `main.js`.
+- **Platform abstraction via `window.flightAPI`**: All external API calls go through `window.flightAPI`, set up by `src/api.js`. Uses `fetch()` with PHP proxies for CORS-restricted APIs in production. In development, Vite's dev server proxy handles CORS.
 - **Cesium without Ion**: Uses CartoDB dark_matter/light tiles, no Cesium Ion token needed.
 - **Theme system**: Single hex color (dark mode) → derives all CSS variables and Cesium entity colors. Light mode uses a separate fixed palette.
-- **Weather overlays**: NEXRAD radar via Iowa State Mesonet WMS; turbulence data (PIREPs, SIGMETs, G-AIRMETs) and GTG forecast heatmap from FAA AWC API (`aviationweather.gov/api/data/`). GTG images are Mercator-projected and reprojected to geographic via canvas pixel manipulation.
-
-## Platform parity
-
-The Electron and web versions must maintain feature and UI parity. Every feature implemented for one platform must also work on the other. The shared `shared/` modules are the mechanism for achieving this — new features belong there, not in platform-specific files.
-
-**Accepted exceptions** (intentional, do not "fix" these):
-
-- **Font loading**: Electron loads Roboto Flex from a local file (`shared/fonts/roboto-flex.woff2`); web loads it from Google Fonts CDN. Do not put a `@font-face` in `shared/styles.css`.
-- **Settings container**: Electron opens settings in a separate native window (`src/settings.html`); web shows settings as an inline modal overlay. Both use the same `shared/settings.js` for the form content.
-- **API proxies**: Browsers enforce CORS, so the web version routes all external API calls through PHP proxies (`cred.php`, `flightaware-proxy.php`, `awc-proxy.php`). Electron makes direct HTTPS calls from the main process. The `window.flightAPI` abstraction hides this difference from shared code.
-- **Native UI**: Native context menu (`Menu`), native application menu bar, and the Help window are Electron-only. The web version uses a custom HTML context menu overlay; there is no help window or menu bar on web.
-- **OpenSky credentials in settings**: The web settings form hides the OpenSky credentials section because credentials are handled server-side via `creds.json`. Electron shows the credentials fields so the user can enter their own.
-- **Cache busting**: Asset URLs in `web/index.html` include `?v=VERSION` query strings. Electron does not need them (packaged binary, not browser-cached).
+- **Weather overlays**: NEXRAD radar via Iowa State Mesonet WMS; turbulence data (PIREPs, SIGMETs, G-AIRMETs) and GTG forecast heatmap from FAA AWC API. GTG images are Mercator-projected and reprojected to geographic via canvas pixel manipulation.
+- **PWA**: The app includes a manifest and can be installed as a standalone desktop or mobile app via the browser.
+- **Capacitor**: Configured for future native mobile targets (iOS/Android). Desktop delivery is via PWA.
 
 ## Making changes
 
-- For shared functionality, edit the appropriate `shared/` module — changes apply to both platforms. For platform-specific behavior, edit `src/renderer.js` (Electron) or `web/app.js` (web).
-- `src/index.html` and `web/index.html` share the same controls panel HTML and must be kept in sync.
-- When adding a new user-facing feature, always update `src/help.html` to document it.
-- When adding a new persisted setting, update all three locations:
-  1. `DEFAULT_SETTINGS` in `main.js`
-  2. `CONFIG` defaults in `shared/config.js`
-  3. `loadAndApplySettings()` in `shared/radar.js` — load the value, sync the UI element, and save on change in the event handler.
-- **Settings panel parity**: The settings panel must look and behave identically on Electron and web. All settings UI (HTML template, CSS, event wiring, footer buttons) lives in `shared/settings.js`. Platform layers (`src/settings.js`, `web/app.js`) are thin wrappers that only provide `onClose`, `onDefaults`, and `onChanged` callbacks. Do not add settings UI markup or styling in platform-specific files.
-- Optional UI elements (not present in all HTML files) must use null checks (e.g., `if (el) el.checked = ...`).
-- **Versioning**: Increment the version in `package.json` every time a change is made **on the `main` branch only**. Do not bump the version on feature branches — this avoids merge conflicts. Uses semantic versioning (MAJOR.MINOR.PATCH): bump the first digit for major features or breaking changes, the second digit for minor features, and the third digit for bug fixes.
-- **Cache busting**: When updating the version in `package.json`, also update the `?v=` query strings on all asset URLs in `web/index.html` to match the new version. (Only applies on `main`, since version bumps only happen there.)
-- **Selected aircraft is ALWAYS visible**: The selected aircraft must always be shown regardless of any display settings (including the Aircraft toggle being off). Its full track history must always be rendered regardless of trail mode settings. When aircraft display is off, a periodic single-aircraft poll must keep the selected aircraft live with up-to-date position and track data. Never let display toggles, trail mode, or any other setting prevent the selected aircraft from being fully visible with its complete history trail.
+- All application code lives in `src/`. Edit the appropriate module — there are no platform-specific files to keep in sync.
+- The single `index.html` at the project root is the Vite entry point. It contains all UI markup (controls, search, info panel, settings modal, help modal).
+- When adding a new user-facing feature, update `public/help/help-content.html` to document it.
+- When adding a new persisted setting, update three locations:
+  1. `DEFAULT_SETTINGS` in `src/defaults.js`
+  2. `CONFIG` defaults in `src/config.js`
+  3. `loadAndApplySettings()` in `src/radar/init.js` — load the value, sync the UI element, and save on change in the event handler.
+- **Settings panel**: All settings UI (HTML template, CSS, event wiring, footer buttons) lives in `src/settings.js`. The main entry point (`src/main.js`) provides `onClose`, `onDefaults`, and `onChanged` callbacks. Do not add settings UI markup or styling elsewhere.
+- Optional UI elements (not present in all contexts) must use null checks (e.g., `if (el) el.checked = ...`).
+- **Versioning**: Increment the version in `package.json` every time a change is made **on the `main` branch only**. Do not bump the version on feature branches — this avoids merge conflicts. Uses semantic versioning (MAJOR.MINOR.PATCH).
+- **Selected aircraft is ALWAYS visible**: The selected aircraft must always be shown regardless of any display settings (including the Aircraft toggle being off). Its full track history must always be rendered regardless of trail mode settings. When aircraft display is off, a periodic single-aircraft poll must keep the selected aircraft live with up-to-date position and track data.

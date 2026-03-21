@@ -1,0 +1,437 @@
+<nav class="help-nav" id="helpNav" aria-label="Help sections">
+  <div class="help-nav-title">Contents</div>
+  <ul>
+    <li><a href="#overview" class="nav-h2">Overview</a></li>
+    <li><a href="#navigation" class="nav-h2">Navigation</a></li>
+    <li>
+      <a href="#controls-panel" class="nav-h2">Controls Panel</a>
+      <ul>
+        <li><a href="#toggles" class="nav-h3">Toggles</a></li>
+        <li><a href="#dropdowns" class="nav-h3">Dropdowns</a></li>
+        <li><a href="#right-click-menu" class="nav-h3">Right-click Menu</a></li>
+        <li><a href="#buttons" class="nav-h3">Buttons</a></li>
+        <li><a href="#flight-search" class="nav-h3">Flight Search</a></li>
+        <li><a href="#flight-plan-timeline" class="nav-h3">Flight Plan Timeline</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#weather-turbulence" class="nav-h2">Weather &amp; Turbulence</a>
+      <ul>
+        <li><a href="#goes-ir" class="nav-h3">GOES IR</a></li>
+        <li><a href="#nexrad-radar" class="nav-h3">NEXRAD Radar</a></li>
+        <li><a href="#weather-hazard" class="nav-h3">Hazard Overlays</a></li>
+        <li><a href="#pirep-legend" class="nav-h3">PIREP Legend</a></li>
+        <li><a href="#gtg-forecast" class="nav-h3">GTG Forecast</a></li>
+      </ul>
+    </li>
+    <li><a href="#aircraft-info-panel" class="nav-h2">Aircraft Info Panel</a></li>
+    <li><a href="#hud" class="nav-h2">HUD</a></li>
+    <li><a href="#airspace-colors" class="nav-h2">Airspace Colors</a></li>
+    <li><a href="#map-layers" class="nav-h2">Map Layers</a></li>
+    <li>
+      <a href="#settings" class="nav-h2">Settings</a>
+      <ul>
+        <li><a href="#display-mode" class="nav-h3">Display Mode</a></li>
+        <li><a href="#ui-color" class="nav-h3">UI Color</a></li>
+        <li><a href="#aircraft-display" class="nav-h3">Aircraft Display</a></li>
+        <li><a href="#level-of-detail" class="nav-h3">Level of Detail</a></li>
+        <li><a href="#other" class="nav-h3">Other</a></li>
+      </ul>
+    </li>
+    <li><a href="#data-sources" class="nav-h2">Data Sources</a></li>
+  </ul>
+</nav>
+
+<main class="help-content" id="helpContent">
+  <h1>3D Flight Radar</h1>
+
+  <h2 id="overview">Overview</h2>
+  <p>
+    3D Flight Radar displays real-time aircraft positions on an interactive 3D globe
+    using ADS-B data from the <strong>OpenSky Network</strong>. Aircraft within the
+    current viewport are polled automatically and displayed with data blocks.
+    Weather overlays including NEXRAD radar and turbulence data from the
+    <strong>AWC (Aviation Weather Center)</strong> can be layered on the map.
+  </p>
+
+  <h2 id="navigation">Navigation</h2>
+  <table>
+    <tr><th>Action</th><th>Input</th></tr>
+    <tr><td>Pan the map</td><td>Click and drag</td></tr>
+    <tr><td>Zoom in / out</td><td>Scroll wheel</td></tr>
+    <tr><td>Change perspective (tilt/rotate)</td><td><kbd>Ctrl</kbd> + drag</td></tr>
+    <tr><td>Select an aircraft</td><td>Click on an aircraft icon</td></tr>
+    <tr><td>Inspect a turbulence feature</td><td>Click on a PIREP dot, SIGMET, or G-AIRMET polygon</td></tr>
+    <tr><td>Deselect</td><td>Click on empty space or the &times; button</td></tr>
+  </table>
+
+  <h2 id="controls-panel">Controls Panel</h2>
+  <p>The controls panel is located at the bottom-left of the screen. Click the arrow tab on its
+    right edge to collapse the panel off-screen; click again to expand it.</p>
+
+  <h3 id="toggles">Toggles</h3>
+  <ul>
+    <li><strong>Aircraft</strong> — Show/hide all aircraft icons, trails, and data blocks.</li>
+    <li><strong>Data blocks</strong> — Show/hide callsign and flight data labels on aircraft.</li>
+    <li><strong>Airports</strong> — Show/hide airport marker dots and IATA/ICAO labels.</li>
+    <li><strong>Airspace</strong> — Show/hide Class B, C, and D airspace boundaries.</li>
+    <li><strong>Navaids</strong> — Show/hide VOR, NDB, and other navigation aids.</li>
+    <li><strong>IR</strong> — Toggle the GOES satellite infrared (IR) imagery overlay.
+      Shows cloud-top temperatures from the GOES Clean Longwave Infrared Window (Band 13),
+      useful for identifying cloud cover and estimating cloud-top heights.
+      Data is provided by NOAA GOES via the Iowa State Mesonet and refreshes every 10 minutes.</li>
+    <li><strong>Radar</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
+      Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.</li>
+    <li><strong>SIGMETs</strong> — Toggle turbulence and convective SIGMET polygon overlays.
+      Data refreshes every 5 minutes.</li>
+    <li><strong>AIRMETs</strong> — Toggle G-AIRMET turbulence polygon overlays (TURB-HI and TURB-LO).
+      Data refreshes every 5 minutes.</li>
+    <li><strong>PIREPs</strong> — Toggle Pilot Report (PIREP) turbulence dot overlays.
+      Data refreshes every 5 minutes.</li>
+    <li><strong>Turbulence</strong> — Toggle the GTG (Graphical Turbulence Guidance) forecast
+      heatmap. When a selected flight has a filed altitude, the forecast is shown at that
+      cruise level. Otherwise the MAX (HI) forecast is displayed. The layer refreshes
+      every 15 minutes.</li>
+  </ul>
+  <p>All toggle states are saved and persist between sessions.</p>
+
+  <h3 id="dropdowns">Dropdowns</h3>
+  <ul>
+    <li><strong>Poll interval</strong> — How often aircraft positions are refreshed (10s&ndash;60s).
+      This adjusts automatically based on zoom level.</li>
+    <li><strong>Map</strong> — Base map layer. Choose from Simple, Simple (No Labels), Gray Canvas,
+      Satellite, OpenStreetMap, Topographic, Night Lights,
+      or VFRMap.com VFR/IFR charts with multi-zoom support.</li>
+  </ul>
+
+  <h3 id="right-click-menu">Right-click menu</h3>
+  <p>Right-click anywhere on the map to open the context menu.</p>
+  <ul>
+    <li><strong>Go home</strong> — Return to your saved view, or the default starting location.</li>
+    <li><strong>Save view</strong> — Save the current camera position as your home view.</li>
+  </ul>
+
+  <h3 id="buttons">Buttons</h3>
+  <ul>
+    <li><strong>North up</strong> — Rotate the view so that north is up.</li>
+    <li><strong>CONUS</strong> — Zoom out to show the continental United States.</li>
+    <li><strong>2D / 3D</strong> — Switch between 2D map and 3D globe view.</li>
+    <li><strong>Rotate</strong> — Toggle automatic camera rotation around the current viewpoint (3D only).</li>
+    <li><strong>Settings</strong> — Open the settings window.</li>
+  </ul>
+
+  <h3 id="flight-search">Flight Search</h3>
+  <p>
+    Enter a flight number (e.g. <kbd>UAL123</kbd>, <kbd>DAL456</kbd>, <kbd>AAL789</kbd>) <strong>or a
+    natural language query</strong> (e.g. <kbd>flights from SFO to LAX today</kbd>) in the
+    search panel at the top-left and press <kbd>Enter</kbd>. The app queries FlightAware&rsquo;s
+    AeroAPI for matching flights and presents a results panel showing recent and
+    upcoming flights. Each result is labelled with its status:
+  </p>
+  <ul>
+    <li><strong>EN ROUTE</strong> — Flight currently in the air.</li>
+    <li><strong>UPCOMING</strong> — Future scheduled or delayed flight.</li>
+    <li><strong>PAST</strong> — The most recently completed flight (one shown).</li>
+  </ul>
+  <p>
+    Click a result to select that specific flight and display its planned route on the map.
+    If only one flight is returned it is selected automatically.
+  </p>
+
+  <h4>Natural Language Search</h4>
+  <p>
+    Natural language queries are detected automatically when the input contains spaces or
+    flight-search keywords. Supported patterns include:
+  </p>
+  <ul>
+    <li><kbd>BOS to LAX</kbd> — Search by origin and destination airports.</li>
+    <li><kbd>flights from SFO to LAX today</kbd> — Limit results to today.</li>
+    <li><kbd>united from JFK to LAX</kbd> — Filter by airline (United Airlines).</li>
+    <li><kbd>delta from ATL tomorrow</kbd> — Departures from an airport on a given day.</li>
+    <li><kbd>flights from ORD between 8am and 12pm</kbd> — Flights within a time window.</li>
+    <li><kbd>flights from BOS this morning</kbd> — Morning departures (06:00&ndash;12:00).</li>
+    <li><kbd>flights from LAX this afternoon</kbd> — Afternoon departures (12:00&ndash;18:00).</li>
+    <li><kbd>flights from JFK this evening</kbd> — Evening departures (18:00&ndash;00:00).</li>
+    <li><kbd>jetblue from BOS</kbd> — All JetBlue departures from Boston today.</li>
+  </ul>
+  <p>
+    Airport codes can be IATA (3-letter, e.g. <kbd>SFO</kbd>) or ICAO (4-letter, e.g. <kbd>KSFO</kbd>).
+    At least one of origin, destination, or airline is required. Date and time are optional — omitting them
+    searches the current day by default.
+  </p>
+  <p>
+    <strong>Recognized airlines:</strong> United, American, Delta, Southwest, JetBlue, Alaska,
+    Spirit, Frontier, Hawaiian, Allegiant, Sun Country, Breeze. You can also use ICAO codes
+    (e.g. <kbd>UAL</kbd>, <kbd>AAL</kbd>, <kbd>DAL</kbd>).
+  </p>
+  <p>
+    <strong>Search history:</strong> Click the clock icon next to the search box to see up to
+    10 recent successful searches. Click any entry to re-search that flight. History is saved
+    in your local settings and persists across sessions.
+  </p>
+  <ul>
+    <li><strong>Filed route</strong> — Dashed line from origin to destination through decoded
+      waypoints fetched from FlightAware&rsquo;s route API with actual coordinates.</li>
+    <li><strong>Origin</strong> — Green dot with airport code label.</li>
+    <li><strong>Destination</strong> — Red dot with airport code label.</li>
+    <li><strong>Waypoints</strong> — Blue dots along the filed route with fix names.</li>
+    <li><strong>Flown track</strong> — Solid orange line showing the actual path flown so far
+      (only for airborne flights).</li>
+    <li><strong>Live aircraft</strong> — If the flight is airborne and in the ADS-B feed, the
+      live aircraft is automatically selected and highlighted. If the flight is outside
+      ADS-B coverage, a synthetic aircraft entity is created from FlightAware position
+      data with the same velocity extrapolation, icon, and trail behavior as all other
+      aircraft.</li>
+  </ul>
+  <p>
+    The info panel shows flight details including route, aircraft type, status, progress,
+    altitude, ground speed, and scheduled departure/arrival times. When FlightAware does
+    not provide an arrival time, an estimated ETA is computed from flight progress or
+    great-circle distance and ground speed, labelled <strong>(EST)</strong>.
+    Use the close button on the info panel to deselect the aircraft and remove the route.
+  </p>
+  <p>
+    <strong>Selected aircraft always stay live:</strong> Any selected aircraft &mdash; whether found
+    via search or clicked on the map &mdash; receives the same treatment. FlightAware route
+    data (filed route, flown track) is automatically fetched and displayed. The aircraft
+    remains visible with live position extrapolation regardless of other visibility settings,
+    including when the Aircraft toggle is off.
+  </p>
+  <p>
+    <strong>Note:</strong> Flight plan search requires a FlightAware AeroAPI key. In the web
+    version, the key is stored server-side in <code>creds.json</code>. In the Electron version,
+    configure it in Settings under <em>API credentials</em>.
+  </p>
+
+  <h3 id="flight-plan-timeline">Flight Plan Timeline</h3>
+  <p>
+    When a flight plan is active (either from a search or by clicking a live aircraft),
+    a <strong>timeline scrubber</strong> appears at the bottom center of the screen. The slider
+    spans from departure to arrival, labelled with the origin and destination airport codes.
+    The predicted surface weather (icon and temperature in &deg;C) is shown below each airport
+    code &mdash; at departure time for the origin and at estimated arrival time for the destination.
+  </p>
+  <ul>
+    <li><strong>Elapsed time</strong> — The current slider position shows the elapsed flight time
+      and the corresponding UTC time.</li>
+    <li><strong>Scrubbing</strong> — Drag the slider to move through the estimated flight plan.
+      A cyan marker shows the estimated aircraft position along the filed route at that time.</li>
+    <li><strong>Other aircraft</strong> — When the slider is more than 5 minutes from the current
+      time, other aircraft are hidden since their positions cannot be predicted.</li>
+    <li><strong>Weather filtering</strong> — SIGMETs and AIRMETs that are not valid at the
+      selected time are automatically hidden.</li>
+    <li><strong>Historical position</strong> — When scrubbing into the past, the marker shows the
+      aircraft&rsquo;s position from its recorded track history.</li>
+    <li><strong>Live button</strong> — Click <strong>Live</strong> or double-click the slider to
+      return to real-time mode, restoring all aircraft and weather overlays.</li>
+  </ul>
+
+  <h2 id="weather-turbulence">Weather &amp; Turbulence</h2>
+
+  <h3 id="goes-ir">GOES IR</h3>
+  <p>
+    The IR toggle displays GOES infrared satellite imagery over CONUS via WMS tiles
+    from the Iowa State Mesonet. The imagery shows cloud-top temperatures using the
+    Clean Longwave Infrared Window (Band 13 at 10.3&nbsp;&micro;m), which is useful for
+    identifying cloud cover and estimating cloud-top heights. Brighter areas indicate
+    colder (higher) cloud tops. The overlay refreshes automatically every 10 minutes.
+  </p>
+
+  <h3 id="nexrad-radar">NEXRAD Radar</h3>
+  <p>
+    The Radar toggle displays composite NEXRAD reflectivity over CONUS via WMS tiles
+    from the Iowa State Mesonet. The overlay refreshes automatically every 5 minutes.
+  </p>
+
+  <h3 id="weather-hazard">Weather Hazard Overlays (SIGMETs / AIRMETs / PIREPs toggles)</h3>
+  <p>
+    The SIGMETs, AIRMETs, and PIREPs toggles independently enable weather hazard overlays
+    sourced from the FAA Aviation Weather Center (AWC):
+  </p>
+  <ul>
+    <li><strong>PIREPs (Pilot Reports)</strong> — Colored dots indicating pilot-reported
+      turbulence intensity. Click a dot to see the full report.</li>
+    <li><strong>Turbulence SIGMETs</strong> — Semi-transparent red polygons marking areas under
+      active turbulence SIGMETs.</li>
+    <li><strong>Convective SIGMETs</strong> — Semi-transparent yellow polygons marking areas of
+      severe thunderstorm activity (severe TS, tornadoes, hail, high winds).</li>
+    <li><strong>G-AIRMETs</strong> — Semi-transparent orange polygons marking areas under
+      graphical turbulence AIRMETs (TURB-HI and TURB-LO).</li>
+  </ul>
+
+  <h3 id="pirep-legend">PIREP Color Legend</h3>
+  <table>
+    <tr><th>Intensity</th><th>Color</th></tr>
+    <tr>
+      <td>None / Smooth</td>
+      <td><span class="color-swatch color-smooth"></span> Blue</td>
+    </tr>
+    <tr>
+      <td>Light</td>
+      <td><span class="color-swatch color-light"></span> Green</td>
+    </tr>
+    <tr>
+      <td>Moderate</td>
+      <td><span class="color-swatch color-moderate"></span> Orange</td>
+    </tr>
+    <tr>
+      <td>Severe</td>
+      <td><span class="color-swatch color-severe"></span> Red</td>
+    </tr>
+    <tr>
+      <td>Extreme</td>
+      <td><span class="color-swatch color-extreme"></span> Magenta</td>
+    </tr>
+  </table>
+
+  <h3 id="gtg-forecast">GTG Turbulence Forecast (Turbulence checkbox)</h3>
+  <p>
+    The Turbulence toggle overlays the Graphical Turbulence Guidance (GTG) model
+    forecast as a heatmap image covering CONUS and Alaska. When a selected flight has
+    a filed cruise altitude, the forecast is shown at that flight level. Otherwise,
+    the MAX (HI) composite is displayed. The forecast image refreshes every 15 minutes.
+    This layer is independent of the SIGMETs/AIRMETs/PIREPs toggles.
+  </p>
+
+  <h2 id="aircraft-info-panel">Aircraft Info Panel</h2>
+  <p>
+    Click on any aircraft to open the info panel in the top-right corner.
+    Use the collapse arrow button to roll up the panel so only the callsign
+    title is visible; click again to expand it.
+    It displays detailed information:
+  </p>
+  <ul>
+    <li><strong>Callsign</strong> and <strong>ICAO24</strong> hex address</li>
+    <li><strong>Squawk</strong> transponder code</li>
+    <li><strong>Origin</strong> country</li>
+    <li><strong>Altitude</strong> (feet), <strong>Ground speed</strong> (knots), <strong>Heading</strong> (degrees)</li>
+    <li><strong>Vertical speed</strong> (feet per minute)</li>
+    <li><strong>Latitude / Longitude</strong> coordinates</li>
+    <li><strong>Trail points</strong> count and last ADS-B contact time</li>
+  </ul>
+  <p>
+    When an aircraft is selected, its trail history is extended and a higher-resolution
+    track is fetched from the OpenSky API. Two buttons appear at the bottom of the panel:
+    <strong>Track</strong> is a toggle button that flies to and continuously follows the
+    aircraft&rsquo;s current position; clicking it again (or clicking <strong>Show Route</strong>)
+    stops tracking. Zoom and orbit still work while tracking is active.
+    <strong>Show Route</strong> flies the camera to show the full route (if available)
+    or the aircraft&rsquo;s flight history trail from a top-down view.
+  </p>
+  <p>
+    Clicking on a turbulence feature (PIREP, SIGMET, or G-AIRMET) opens the same panel
+    with details about that report, including intensity, altitude, validity times, and
+    raw observation text when available.
+  </p>
+
+  <h2 id="hud">HUD (Heads-Up Display)</h2>
+  <p>The top-right bar shows:</p>
+  <ul>
+    <li><strong>Clock</strong> — Current UTC time.</li>
+    <li><strong>Tracks</strong> — Number of aircraft currently tracked.</li>
+    <li><strong>Updated</strong> — Time of the last data update.</li>
+    <li><strong>Lat, Lon</strong> — Camera center coordinates.</li>
+  </ul>
+
+  <h2 id="airspace-colors">Airspace Colors</h2>
+  <table>
+    <tr><th>Class</th><th>Color</th></tr>
+    <tr>
+      <td>Class B (major airports)</td>
+      <td><span class="color-swatch color-class-b"></span> Blue</td>
+    </tr>
+    <tr>
+      <td>Class C (medium airports)</td>
+      <td><span class="color-swatch color-class-c"></span> Magenta</td>
+    </tr>
+    <tr>
+      <td>Class D (smaller towered airports)</td>
+      <td><span class="color-swatch color-class-d"></span> Light blue</td>
+    </tr>
+  </table>
+
+  <h2 id="map-layers">Map Layers</h2>
+  <table>
+    <tr><th>Layer</th><th>Description</th></tr>
+    <tr><td>Simple</td><td>CartoDB dark or light basemap without text labels (matches current theme)</td></tr>
+    <tr><td>Simple (Labels)</td><td>Same CartoDB basemap with city and road labels</td></tr>
+    <tr><td>Gray Canvas</td><td>Esri minimal gray basemap (dark/light variants match theme)</td></tr>
+    <tr><td>Satellite</td><td>ESRI/ArcGIS global satellite and aerial imagery</td></tr>
+    <tr><td>OpenStreetMap</td><td>Standard OpenStreetMap road and street map</td></tr>
+    <tr><td>Topographic</td><td>OpenTopoMap with contour lines and hill shading</td></tr>
+    <tr><td>Night Lights</td><td>NASA VIIRS Earth at Night city lights imagery</td></tr>
+    <tr><td>VFR Sectional</td><td>VFRMap.com hybrid VFR &mdash; shows WAC at low zoom, Sectional at mid, TAC at high</td></tr>
+    <tr><td>IFR Low</td><td>VFRMap.com IFR Low Altitude Enroute (zoom 1&ndash;11)</td></tr>
+    <tr><td>IFR High</td><td>VFRMap.com IFR High Altitude Enroute (zoom 1&ndash;10)</td></tr>
+  </table>
+
+  <h2 id="settings">Settings</h2>
+  <p>Open via <strong>Edit &gt; Settings</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) or the Settings button.</p>
+
+  <h3 id="display-mode">Display Mode</h3>
+  <ul>
+    <li><strong>Dark / System / Light</strong> — Dark mode uses a custom accent color aesthetic;
+      light mode uses a clean white basemap. System mode automatically follows your OS dark/light preference.</li>
+  </ul>
+
+  <h3 id="ui-color">UI Color</h3>
+  <ul>
+    <li><strong>Dark mode color</strong> — Customize the accent color used in dark mode.
+      Choose from presets or pick a custom color.</li>
+    <li><strong>Light mode color</strong> — Customize the accent color used in light mode.
+      Choose from presets or pick a custom color.</li>
+  </ul>
+
+  <h3 id="aircraft-display">Aircraft Display</h3>
+  <ul>
+    <li><strong>Font Size</strong> — Size of data block labels on the map.</li>
+    <li><strong>Trails</strong> — Choose trail display mode: <em>None</em> (no trails),
+      <em>History</em> (position history lines), or <em>Velocity</em> (predicted heading/speed vectors).</li>
+    <li><strong>History Length</strong> — How long trail history is retained (1&ndash;10 minutes). Only applies in History mode.</li>
+    <li><strong>Color by Altitude</strong> — Aircraft and trails are colored by altitude band
+      (red at low altitude through magenta at FL400).</li>
+    <li><strong>Trail Thickness by Altitude</strong> — Trail width varies with altitude
+      (thinner at low altitude, thicker at high altitude).</li>
+  </ul>
+
+  <h3 id="level-of-detail">Level of Detail</h3>
+  <ul>
+    <li><strong>Show Airspace Edges</strong> — Draw outline edges on airspace polygons.</li>
+    <li><strong>3D Airspace</strong> — Extrude airspace boundaries to their floor and ceiling altitudes.</li>
+    <li><strong>Show Small Airports</strong> — Include smaller airports in the airport layer.</li>
+    <li><strong>Include Waypoint Fixes</strong> — Show named waypoint fixes along with navaids.</li>
+  </ul>
+
+  <h3 id="other">Other</h3>
+  <ul>
+    <li><strong>Rotation Speed</strong> — Speed of automatic camera rotation (degrees per second).</li>
+    <li><strong>Weather Overlay Opacity</strong> — Controls the transparency of all weather imagery
+      layers (NEXRAD radar, GOES satellite IR, and GTG turbulence forecast). Range is 10&ndash;100%.</li>
+    <li><strong>3D Turbulence</strong> — When enabled, the GTG turbulence forecast is displayed as
+      stacked semi-transparent surfaces at each flight level altitude (FL100&ndash;FL450) instead of a
+      single flat overlay. Each layer is shown at 10% opacity to create a volumetric 3D effect.</li>
+    <li><strong>Height Gain (10&times;)</strong> — Scales all entity altitudes by 10&times; to make
+      vertical separation more visible. Affects aircraft, trails, airspace volumes, turbulence surfaces,
+      PIREPs, and flight plan routes.</li>
+    <li><strong>API Credentials</strong> — Click the disclosure triangle to expand. Enter OpenSky Network client ID/secret for authenticated
+      access (higher rate limits), and FlightAware AeroAPI key for flight plan search.
+      You can also drag and drop a <code>creds.json</code> or <code>credentials.json</code> file
+      to populate all fields at once.</li>
+  </ul>
+
+  <h2 id="data-sources">Data Sources</h2>
+  <ul>
+    <li><strong>OpenSky Network</strong> — Real-time ADS-B aircraft surveillance data.
+      Anonymous access is rate-limited to one request every 10 seconds.
+      Register for free API credentials at opensky-network.org for higher limits.</li>
+    <li><strong>FlightAware AeroAPI</strong> — Flight plan data including filed routes,
+      origin/destination airports, aircraft type, and real-time flight status.
+      Requires an API key from flightaware.com.</li>
+    <li><strong>FAA Aviation Weather Center (AWC)</strong> — Weather hazard data including
+      GTG turbulence forecasts, PIREPs, turbulence and convective SIGMETs, and G-AIRMETs.</li>
+    <li><strong>Iowa State Mesonet</strong> — NEXRAD composite radar reflectivity and GOES satellite IR imagery.</li>
+    <li><strong>FAA</strong> — Airspace boundaries,
+      airport data, and navigation aids.</li>
+    <li><strong>VFRMap.com</strong> — VFR/IFR aeronautical charts.</li>
+  </ul>
+</main>

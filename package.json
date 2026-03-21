@@ -1,29 +1,24 @@
 {
   "name": "flight-radar",
   "version": "2.12.0",
+  "private": true,
+  "type": "module",
   "description": "Real-time 3D flight tracker with Material 3 Expressive design",
-  "main": "main.js",
   "author": "Jonathan Birge",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
-    "build:snap:js": "node scripts/obfuscate-snap.js",
-    "postinstall": "node scripts/copy-cesium.js && node scripts/download-fonts.js",
-"pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
-    "pack": "electron-forge package",
-    "dist": "electron-forge make"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "postinstall": "node scripts/download-fonts.cjs",
+    "pull-data": "node scripts/download-airports.cjs && node scripts/download-airspace.cjs && node scripts/download-waypoints.cjs && node scripts/promote-airports.cjs"
   },
-  "config": {
-    "forge": "./forge.config.js"
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "cesium": "^1.138.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "*",
-    "@electron-forge/maker-deb": "*",
-    "@electron-forge/maker-squirrel": "*",
-    "cesium": "*",
-    "electron": "*",
-    "javascript-obfuscator": "*",
-    "terser": "*"
-  },
-  "cesiumVersion": "1.138.0"
+    "@capacitor/cli": "^6.0.0",
+    "vite": "^6.0.0",
+    "vite-plugin-static-copy": "^2.0.0"
+  }
 }

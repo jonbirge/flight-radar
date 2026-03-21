@@ -1,0 +1,284 @@
+// Unified flightAPI implementation (browser fetch + localStorage)
+// Adapted from web/app.js — provides window.flightAPI for all platforms
+
+import DEFAULT_SETTINGS from './defaults.js';
+import { CONFIG } from './config.js';
+
+// ============================================================
+// Settings (localStorage)
+// ============================================================
+
+const SETTINGS_STORAGE_KEY = 'flightRadar_settings';
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (raw) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    }
+  } catch (err) {
+    console.error('[Settings] Load error:', err.message);
+  }
+  return { ...DEFAULT_SETTINGS };
+}
+
+function saveSettings(settings) {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    console.log('[Settings] Saved to localStorage');
+  } catch (err) {
+    console.error('[Settings] Save error:', err.message);
+  }
+}
+
+// ============================================================
+// OpenSky API (browser fetch)
+// ============================================================
+
+const OPENSKY_BASE = 'https://opensky-network.org/api';
+
+let lastStatesCall = 0;
+let lastTrackCall = 0;
+const STATES_MIN_INTERVAL = 10000;
+const TRACK_MIN_INTERVAL = 10000;
+
+let cachedToken = null;
+let tokenExpiresAt = 0;
+
+async function fetchTokenViaProxy(clientId, clientSecret) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const opts = { signal: controller.signal };
+    if (clientId && clientSecret) {
+      opts.method = 'POST';
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify({ client_id: clientId, client_secret: clientSecret });
+    }
+    const resp = await fetch('cred.php', opts);
+    clearTimeout(timeout);
+    if (!resp.ok) throw new Error(`Token proxy failed: HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
+}
+
+async function getOpenSkyToken() {
+  const now = Date.now();
+  if (cachedToken && tokenExpiresAt > now + 60000) {
+    return cachedToken;
+  }
+
+  const s = loadSettings();
+  if (s.openskyClientId && s.openskyClientSecret) {
+    try {
+      const resp = await fetchTokenViaProxy(s.openskyClientId, s.openskyClientSecret);
+      if (resp.access_token) {
+        cachedToken = resp.access_token;
+        tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
+        return cachedToken;
+      }
+    } catch (err) {
+      // Token fetch failed, fall back to anonymous
+    }
+  }
+
+  cachedToken = null;
+  tokenExpiresAt = 0;
+  return null;
+}
+
+async function apiGetStates(bounds) {
+  const now = Date.now();
+  if (now - lastStatesCall < STATES_MIN_INTERVAL) {
+    return { error: 'Rate limited', retryIn: STATES_MIN_INTERVAL - (now - lastStatesCall) };
+  }
+  lastStatesCall = now;
+
+  try {
+    const { south, west, north, east } = bounds;
+    const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
+
+    const token = await getOpenSkyToken();
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const resp = await fetch(url, { headers, signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (resp.status === 429) {
+      return { error: 'Rate limited by OpenSky API' };
+    }
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function apiGetTrack(icao24) {
+  const now = Date.now();
+  if (now - lastTrackCall < TRACK_MIN_INTERVAL) {
+    return { error: 'Rate limited', retryIn: TRACK_MIN_INTERVAL - (now - lastTrackCall) };
+  }
+  lastTrackCall = now;
+
+  try {
+    const url = `${OPENSKY_BASE}/tracks/all?icao24=${icao24}`;
+
+    const token = await getOpenSkyToken();
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const resp = await fetch(url, { headers, signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// ============================================================
+// FlightAware AeroAPI (via PHP proxy)
+// ============================================================
+
+async function apiGetFlightPlan(ident) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights&ident=${encodeURIComponent(ident)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return { error: `HTTP ${resp.status}` };
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function apiGetFlightRoute(faFlightId) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights/route&fa_flight_id=${encodeURIComponent(faFlightId)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return { error: `HTTP ${resp.status}` };
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function apiGetFlightTrack(faFlightId) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights/track&fa_flight_id=${encodeURIComponent(faFlightId)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return { error: `HTTP ${resp.status}` };
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function apiSearchFlights(advQuery) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=flights/search/advanced&query=${encodeURIComponent(advQuery)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return { error: `HTTP ${resp.status}` };
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// ============================================================
+// window.flightAPI shim
+// ============================================================
+
+export function setupFlightAPI() {
+  window.flightAPI = {
+    getStates: (bounds) => apiGetStates(bounds),
+    getTrack: (icao24) => apiGetTrack(icao24),
+    getFlightPlan: (ident) => apiGetFlightPlan(ident),
+    getFlightRoute: (faFlightId) => apiGetFlightRoute(faFlightId),
+    getFlightTrack: (faFlightId) => apiGetFlightTrack(faFlightId),
+    searchFlights: (advQuery) => apiSearchFlights(advQuery),
+    getSettings: () => Promise.resolve(loadSettings()),
+    saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
+    onOpenSettings: () => {},
+
+    // System theme detection
+    getSystemTheme: () => Promise.resolve(
+      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    ),
+    onSystemThemeChanged: (callback) => {
+      window.matchMedia('(prefers-color-scheme: dark)')
+        .addEventListener('change', (e) => callback(e.matches ? 'dark' : 'light'));
+    },
+
+    // Web context menu
+    showContextMenu: (items, x, y) => {
+      return new Promise((resolve) => {
+        const menu = document.getElementById('context-menu');
+        const list = document.getElementById('context-menu-list');
+        list.innerHTML = '';
+
+        let resolved = false;
+        const done = (id) => {
+          if (resolved) return;
+          resolved = true;
+          menu.classList.add('hidden');
+          document.removeEventListener('click', dismiss, true);
+          document.removeEventListener('contextmenu', dismiss, true);
+          resolve(id);
+        };
+
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = item.label;
+          li.addEventListener('click', () => done(item.id));
+          list.appendChild(li);
+        });
+
+        const menuW = 180, menuH = items.length * 40 + 8;
+        const left = (x + menuW > window.innerWidth)  ? x - menuW : x;
+        const top  = (y + menuH > window.innerHeight) ? y - menuH : y;
+        menu.style.left = left + 'px';
+        menu.style.top  = top  + 'px';
+        menu.classList.remove('hidden');
+
+        const dismiss = (e) => { if (!menu.contains(e.target)) done(null); };
+        setTimeout(() => {
+          document.addEventListener('click', dismiss, true);
+          document.addEventListener('contextmenu', dismiss, true);
+        }, 0);
+      });
+    },
+  };
+}
+
+export { loadSettings, saveSettings, SETTINGS_STORAGE_KEY };
