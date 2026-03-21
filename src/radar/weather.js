@@ -3,8 +3,9 @@
 import S from '../state.js';
 import { CONFIG, exAlt } from '../config.js';
 import { createPirepIcon } from '../icons.js';
-
-'use strict';
+import { computeHorizonDist } from './aircraft.js';
+import { pickBestFlight } from './flightplan.js';
+import { filterWeatherByTime } from './timeline.js';
 
 // Maximum age of PIREPs to display (both live and scrubbing).
 // In live mode, PIREPs older than this are discarded at fetch time.
@@ -569,8 +570,8 @@ export async function fetchPireps() {
         console.log(`[Weather] Added ${pirepCount} turbulence PIREP entities`);
       }
       // If scrubbing, immediately filter new entities to the current timeline position
-      if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
-        filterWeatherByTime(timelineTime);
+      if (S.timelineTime !== null) {
+        filterWeatherByTime(S.timelineTime);
       } else {
         updateLiveAltitudeFilter(true);
       }
@@ -643,8 +644,8 @@ export async function fetchSigmets() {
         console.log(`[Weather] Added ${count} SIGMET polygons`);
       }
       // If scrubbing, immediately filter new entities to the current timeline position
-      if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
-        filterWeatherByTime(timelineTime);
+      if (S.timelineTime !== null) {
+        filterWeatherByTime(S.timelineTime);
       } else {
         updateLiveAltitudeFilter(true);
       }
@@ -746,8 +747,8 @@ export async function fetchAirmetsForScrubbing() {
     const count = _buildAirmetEntities(jsonResults, S._scrubAirmetEntities, 'turb-airmet-scrub');
     console.log(`[Weather] Added ${count} G-AIRMET scrub polygons across ${forecastHours.length} forecast snapshots`);
     // Immediately filter to current timeline position
-    if (timelineTime !== null && typeof filterWeatherByTime === 'function') {
-      filterWeatherByTime(timelineTime);
+    if (S.timelineTime !== null) {
+      filterWeatherByTime(S.timelineTime);
     } else {
       updateLiveAltitudeFilter(true);
     }
@@ -939,7 +940,7 @@ export function getSelectedAircraftFL() {
 let _lastLiveFilterFL = null;
 export function updateLiveAltitudeFilter(force) {
   // Don't interfere with scrubbing mode
-  if (timelineTime !== null) return;
+  if (S.timelineTime !== null) return;
 
   const altFL = getSelectedAircraftFL();
 
@@ -1072,8 +1073,8 @@ export function refreshTurbForecast() {
 const TURB_LEVELS = [100, 130, 160, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450];
 
 export function computeTurbLevel() {
-  if (activeFlightPlan) {
-    const flights = activeFlightPlan.flights || [];
+  if (S.activeFlightPlan) {
+    const flights = S.activeFlightPlan.flights || [];
     const flight = flights.length > 0 ? pickBestFlight(flights) : null;
     if (flight && flight.filed_altitude != null) {
       return computeTurbLevelForFL(flight.filed_altitude);
