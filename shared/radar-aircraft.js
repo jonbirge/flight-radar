@@ -438,10 +438,13 @@ function updateExtrapolationTrail(icao, ac, currentPos) {
 
 // Compute extrapolated position from a state's observed position, heading, and velocity.
 // Returns Cartesian3 or null if extrapolation isn't possible.
+// Callers are responsible for staleness checks (extrapolatePositions guards on
+// lastServerUpdate).  This function caps elapsed time at 5 minutes to prevent
+// unreasonable positions from very old timePosition values.
 function computeExtrapolatedPosition(s, baseTime, now) {
   if (s.heading == null || !s.velocity) return null;
   const elapsed = now - baseTime;
-  if (elapsed < 0 || elapsed > CONFIG.staleThreshold) return null;
+  if (elapsed < 0 || elapsed > 300) return null; // cap at 5 minutes
 
   const speed = s.velocity; // m/s
   const distance = speed * elapsed; // meters traveled since observed position
@@ -494,6 +497,13 @@ function extrapolatePositions() {
     if (!ac.entity || ac.state.heading == null || !ac.state.velocity) continue;
 
     const s = ac.state;
+
+    // Check staleness based on when we last received data from the server,
+    // NOT when the aircraft last transmitted (s.timePosition), which can be
+    // 10-30+ seconds behind real time and cause extrapolation to time out
+    // well before the next poll arrives.
+    if (now - ac.lastServerUpdate > CONFIG.staleThreshold) continue;
+
     const baseTime = s.timePosition || ac.lastServerUpdate;
     const newPos = computeExtrapolatedPosition(s, baseTime, now);
     if (!newPos) continue;
@@ -729,7 +739,10 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
             Math.cos(angDist) - Math.sin(acLatRad) * Math.sin(endLat)
           );
 
-          const alt = s.altitude || 0;
+          // Use the actual entity altitude (from pos, which includes vertical rate
+          // extrapolation) so the trail front matches the icon exactly.  Using raw
+          // s.altitude would create a vertical ECEF offset for climbing/descending aircraft.
+          const alt = acCarto.height;
           const endAlt = alt - (s.verticalRate || 0) * 60;
           const positions = [
             Cesium.Cartesian3.fromDegrees(acLon, acLat, alt),
