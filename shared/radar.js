@@ -72,6 +72,8 @@ async function loadAndApplySettings() {
       CONFIG.airmetsEnabled = saved.airmetsEnabled || DEFAULT_SETTINGS.airmetsEnabled;
       CONFIG.pirepsEnabled = saved.pirepsEnabled || DEFAULT_SETTINGS.pirepsEnabled;
       CONFIG.satelliteIREnabled = saved.satelliteIREnabled || DEFAULT_SETTINGS.satelliteIREnabled;
+      const prevTurb3D = CONFIG.turb3D;
+      CONFIG.turb3D = saved.turb3D || DEFAULT_SETTINGS.turb3D;
       // Migrate old turbulenceLevel setting to new checkbox model
       if (saved.turbForecastEnabled !== undefined) {
         CONFIG.turbForecastEnabled = saved.turbForecastEnabled;
@@ -125,6 +127,11 @@ async function loadAndApplySettings() {
       if (CONFIG.turbForecastEnabled) {
         if (turbRefreshTimer) clearInterval(turbRefreshTimer);
         turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
+      }
+      // If 3D turbulence mode changed while forecast is active, rebuild layers
+      if (prevTurb3D !== CONFIG.turb3D && CONFIG.turbForecastEnabled) {
+        disableTurbForecast();
+        enableTurbForecast();
       }
       // Individual weather hazard toggles
       if (CONFIG.sigmetsEnabled) {

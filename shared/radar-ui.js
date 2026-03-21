@@ -263,7 +263,7 @@ async function applyMapLayerValue(value) {
     satelliteIRLayer = layers.addImageryProvider(makeSatelliteIRProvider());
     satelliteIRLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
   }
-  if (CONFIG.turbulenceLevel !== 'none') {
+  if (CONFIG.turbulenceLevel !== 'none' && !CONFIG.turb3D) {
     const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
     if (turbProvider) {
       turbLayer = layers.addImageryProvider(turbProvider);
