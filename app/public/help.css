@@ -6,7 +6,7 @@
   font-style: normal;
   font-weight: 100 1000;
   font-display: swap;
-  src: url('../shared/fonts/roboto-flex.woff2') format('woff2');
+  src: url('/shared/fonts/roboto-flex.woff2') format('woff2');
 }
 
 /* ============================================================

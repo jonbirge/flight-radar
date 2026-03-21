@@ -218,9 +218,9 @@ async function loadAndApplySettings() {
 
   // Load data files
   const [airports, airspace, waypoints] = await Promise.all([
-    loadDataJSON('../data/airports.json'),
-    loadDataJSON('../data/airspace.json'),
-    loadDataJSON('../data/waypoints.json'),
+    loadDataJSON('/data/airports.json'),
+    loadDataJSON('/data/airspace.json'),
+    loadDataJSON('/data/waypoints.json'),
   ]);
 
   // Initialize airport markers (after theme is applied so colors are correct)

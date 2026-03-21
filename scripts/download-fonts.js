@@ -1,12 +1,12 @@
 // scripts/download-fonts.js
-// Downloads Roboto Flex variable woff2 font from Google Fonts to shared/fonts/.
+// Downloads Roboto Flex variable woff2 font from Google Fonts to app/public/shared/fonts/.
 // Runs automatically via postinstall after npm install.
 
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const FONTS_DIR = path.join(__dirname, '..', 'shared', 'fonts');
+const FONTS_DIR = path.join(__dirname, '..', 'app', 'public', 'shared', 'fonts');
 const FONT_FILE = 'roboto-flex.woff2';
 const FONT_PATH = path.join(FONTS_DIR, FONT_FILE);
 const CSS_URL = 'https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap';

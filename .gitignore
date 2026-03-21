@@ -1,10 +1,12 @@
 node_modules/
-vendor/
-shared/fonts/
 out/
+dist/
+app/shared/fonts/
+app/vendor/
+app/public/vendor/
 assets/*.png
 web/creds.json
 web/cred.json
-data/vfrmap/
+app/data/vfrmap/
 *.snap
 .claude/*

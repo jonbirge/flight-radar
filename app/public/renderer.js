@@ -16,13 +16,15 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 // Electron-specific: React to settings changes from external window
 // ============================================================
 
-window.flightAPI.onSettingsChanged(async () => {
-  try {
-    await loadAndApplySettings();
-  } catch (err) {
-    console.warn('[Settings] Could not reload:', err);
-  }
-});
+if (window.flightAPI && typeof window.flightAPI.onSettingsChanged === 'function') {
+  window.flightAPI.onSettingsChanged(async () => {
+    try {
+      await loadAndApplySettings();
+    } catch (err) {
+      console.warn('[Settings] Could not reload:', err);
+    }
+  });
+}
 
 // ============================================================
 // Start

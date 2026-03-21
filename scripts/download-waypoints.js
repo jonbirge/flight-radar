@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const OUT_DIR = path.join(__dirname, '..', 'data');
+const OUT_DIR = path.join(__dirname, '..', 'app', 'public', 'data');
 const OUT_FILE = path.join(OUT_DIR, 'waypoints.json');
 
 const REQUEST_TIMEOUT = 30000;

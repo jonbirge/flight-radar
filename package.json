@@ -2,28 +2,28 @@
   "name": "flight-radar",
   "version": "2.12.0",
   "description": "Real-time 3D flight tracker with Material 3 Expressive design",
-  "main": "main.js",
+  "main": "electron/build/src/index.js",
   "author": "Jonathan Birge",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
-    "build:snap:js": "node scripts/obfuscate-snap.js",
-    "postinstall": "node scripts/copy-cesium.js && node scripts/download-fonts.js",
+    "dev": "vite",
+    "build": "vite build",
+    "postinstall": "npm --prefix electron install && node scripts/copy-cesium.js && node scripts/download-fonts.js",
     "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
-    "pack": "electron-forge package",
-    "dist": "electron-forge make"
-  },
-  "config": {
-    "forge": "./forge.config.js"
+    "cap:sync": "npm run build && npx cap sync @capacitor-community/electron",
+    "start": "npm run cap:sync && npm --prefix electron run electron:start",
+    "pack": "npm run cap:sync && npm --prefix electron run electron:pack",
+    "dist": "npm run cap:sync && npm --prefix electron run electron:make"
   },
   "devDependencies": {
-    "@electron-forge/cli": "*",
-    "@electron-forge/maker-deb": "*",
-    "@electron-forge/maker-squirrel": "*",
+    "@capacitor-community/electron": "^5.0.1",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/preferences": "^8.0.1",
     "cesium": "*",
-    "electron": "*",
     "javascript-obfuscator": "*",
-    "terser": "*"
+    "terser": "*",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.1"
   },
   "cesiumVersion": "1.139.1"
 }

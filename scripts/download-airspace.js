@@ -9,7 +9,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const OUT_DIR = path.join(__dirname, '..', 'data');
+const OUT_DIR = path.join(__dirname, '..', 'app', 'public', 'data');
 const OUT_FILE = path.join(OUT_DIR, 'airspace.json');
 
 const CLASSES = ['B', 'C', 'D'];

@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 const CSV_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv';
-const OUT_DIR = path.join(__dirname, '..', 'data');
+const OUT_DIR = path.join(__dirname, '..', 'app', 'public', 'data');
 const OUT_FILE = path.join(OUT_DIR, 'airports.json');
 
 function fetch(url) {
