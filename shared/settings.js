@@ -375,11 +375,20 @@ function createSettingsFormHTML() {
           </div>
         </div>
 
-        <div class="settings-section" style="border-bottom:none;">
+        <div class="settings-section">
           <div class="settings-label">Weather overlay opacity</div>
           <div class="settings-row">
             <input type="range" id="set-weather-opacity" min="10" max="100" value="25" step="5">
             <span class="settings-fontsize-val" id="set-weather-opacity-val">25%</span>
+          </div>
+        </div>
+
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-row">
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-turb-3d">
+              <span>3D turbulence map</span>
+            </label>
           </div>
         </div>
       </div>
@@ -585,6 +594,10 @@ function populateSettingsForm(container, settings) {
     weatherOpacityVal.textContent = `${s.weatherOverlayOpacity}%`;
   }
 
+  // 3D turbulence
+  const turb3dEl = container.querySelector('#set-turb-3d');
+  if (turb3dEl) turb3dEl.checked = s.turb3D;
+
   // Credentials
   container.querySelector('#set-client-id').value = s.openskyClientId || '';
   container.querySelector('#set-client-secret').value = s.openskyClientSecret || '';
@@ -643,6 +656,7 @@ function initSettingsPanel(options) {
   const rotVal = container.querySelector('#set-rotation-speed-val');
   const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
+  const turb3d = container.querySelector('#set-turb-3d');
   const clientId = container.querySelector('#set-client-id');
   const clientSecret = container.querySelector('#set-client-secret');
   const faApiKey = container.querySelector('#set-fa-api-key');
@@ -673,6 +687,7 @@ function initSettingsPanel(options) {
       showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
+      turb3D: turb3d ? turb3d.checked : false,
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
       flightawareApiKey: faApiKey ? faApiKey.value.trim() : '',
@@ -818,6 +833,9 @@ function initSettingsPanel(options) {
     weatherOpacityVal.textContent = `${weatherOpacitySlider.value}%`;
     debouncedBroadcast();
   });
+
+  // --- 3D turbulence toggle ---
+  if (turb3d) turb3d.addEventListener('change', broadcast);
 
   // --- Credentials (fire on blur/change, not every keystroke) ---
   clientId.addEventListener('change', broadcast);

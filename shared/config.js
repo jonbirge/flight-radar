@@ -51,6 +51,7 @@ const CONFIG = {
   pirepsEnabled: DEFAULT_SETTINGS.pirepsEnabled,
   satelliteIREnabled: DEFAULT_SETTINGS.satelliteIREnabled,
   turbForecastEnabled: DEFAULT_SETTINGS.turbForecastEnabled,
+  turb3D: DEFAULT_SETTINGS.turb3D,
   turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
   weatherOverlayOpacity: DEFAULT_SETTINGS.weatherOverlayOpacity,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access

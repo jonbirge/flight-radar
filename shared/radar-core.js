@@ -44,6 +44,7 @@ let satelliteIRLayer = null;
 let satelliteIRRefreshTimer = null;
 let turbLayer = null;
 let turbRefreshTimer = null;
+const turb3dEntities = [];      // 3D turbulence altitude surface entities
 let pirepRefreshTimer = null;
 let sigmetRefreshTimer = null;
 let airmetRefreshTimer = null;
@@ -320,7 +321,7 @@ async function applyTheme() {
       satelliteIRLayer = layers.addImageryProvider(makeSatelliteIRProvider());
       satelliteIRLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
     }
-    if (CONFIG.turbulenceLevel !== 'none') {
+    if (CONFIG.turbulenceLevel !== 'none' && !CONFIG.turb3D) {
       const turbProvider = await makeTurbProvider(CONFIG.turbulenceLevel);
       if (turbProvider) {
         turbLayer = layers.addImageryProvider(turbProvider);

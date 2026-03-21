@@ -253,8 +253,9 @@ function geoLatToMercY(latDeg) {
 
 // Fetch a GTG turbulence image, crop, and reproject from Mercator to geographic.
 // dateSecs: Unix timestamp in seconds for the forecast valid time (null = current).
+// opts.keepTransparency: if true, don't fill transparent pixels with white (for 3D layers).
 // Returns a data URL string (PNG) or null on failure.
-async function fetchTurbImageDataUrl(level, dateSecs) {
+async function fetchTurbImageDataUrl(level, dateSecs, opts) {
   const dateParam = dateSecs != null ? `&date=${dateSecs}` : '';
   const url = awcUrl(`model?model=gfaak&level=${level}&type=gtg${dateParam}&_t=${Date.now()}`);
   console.log(`[Weather] Loading GTG image: level=${level}${dateSecs != null ? `, date=${dateSecs}` : ''}`);
@@ -309,13 +310,32 @@ async function fetchTurbImageDataUrl(level, dateSecs) {
       );
     }
     // Replace transparent pixels with white (lightest turbulence color)
-    const pixels = outData.data;
-    for (let i = 0; i < pixels.length; i += 4) {
-      if (pixels[i + 3] === 0) {
-        pixels[i] = 255;     // R
-        pixels[i + 1] = 255; // G
-        pixels[i + 2] = 255; // B
-        pixels[i + 3] = 255; // A
+    // unless keepTransparency is set (used for 3D altitude surfaces)
+    if (opts?.keepTransparency) {
+      // For 3D layers: make white-ish and blue-ish pixels fully transparent
+      // so only moderate-to-severe turbulence colors (green/yellow/orange/red) remain
+      const pixels = outData.data;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+        // Near-white: all channels high (smooth/no turbulence)
+        if (r > 200 && g > 200 && b > 200) {
+          pixels[i + 3] = 0;
+          continue;
+        }
+        // Blue-dominant: blue significantly exceeds red (light turbulence)
+        if (b > 150 && b > r + 40) {
+          pixels[i + 3] = 0;
+        }
+      }
+    } else {
+      const pixels = outData.data;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3] === 0) {
+          pixels[i] = 255;     // R
+          pixels[i + 1] = 255; // G
+          pixels[i + 2] = 255; // B
+          pixels[i + 3] = 255; // A
+        }
       }
     }
 
@@ -395,6 +415,58 @@ function removeTurbLayer() {
     viewer.imageryLayers.remove(turbLayer);
     turbLayer = null;
   }
+}
+
+// ============================================================
+// 3D Turbulence Altitude Surfaces
+// ============================================================
+// Fetches GTG images for all numeric flight levels and displays each as a
+// semi-transparent rectangle entity at the appropriate altitude.
+
+let _turb3dGen = 0; // generation counter to cancel stale async work
+
+async function addTurb3DLayers(dateSecs) {
+  const gen = ++_turb3dGen;
+  const rectangle = Cesium.Rectangle.fromDegrees(TURB_CROP_LON, TURB_LAT_SOUTH, TURB_LON_EAST, TURB_LAT_NORTH);
+
+  // Fetch all levels in parallel
+  const results = await Promise.all(
+    TURB_LEVELS.map(async (fl) => {
+      const dataUrl = await fetchTurbImageDataUrl(String(fl), dateSecs, { keepTransparency: true });
+      return { fl, dataUrl };
+    })
+  );
+
+  if (_turb3dGen !== gen) return; // superseded
+
+  for (const { fl, dataUrl } of results) {
+    if (!dataUrl) continue;
+    const altMeters = fl * 100 * 0.3048; // FL to feet to meters
+    const entity = viewer.entities.add({
+      rectangle: {
+        coordinates: rectangle,
+        material: new Cesium.ImageMaterialProperty({
+          image: dataUrl,
+          color: Cesium.Color.WHITE.withAlpha(0.10),
+          transparent: true,
+        }),
+        height: altMeters,
+        heightReference: Cesium.HeightReference.NONE,
+        outline: false,
+        shadows: Cesium.ShadowMode.DISABLED,
+      },
+    });
+    turb3dEntities.push(entity);
+  }
+  console.log(`[Weather] Added ${turb3dEntities.length} 3D turbulence altitude surfaces`);
+}
+
+function removeTurb3DLayers() {
+  _turb3dGen++;
+  for (const entity of turb3dEntities) {
+    viewer.entities.remove(entity);
+  }
+  turb3dEntities.length = 0;
 }
 
 function removePirepEntities() {
@@ -954,15 +1026,21 @@ function resumeWeatherRefresh() {
 
 // GTG forecast dropdown: heatmap imagery layer (independent of TURB toggle)
 function enableTurbForecast() {
-  if (turbLayer) return;
-  addTurbLayer();
-  console.log(`[Weather] GTG forecast enabled: ${CONFIG.turbulenceLevel}`);
+  if (CONFIG.turb3D) {
+    if (turb3dEntities.length > 0) return;
+    addTurb3DLayers();
+  } else {
+    if (turbLayer) return;
+    addTurbLayer();
+  }
+  console.log(`[Weather] GTG forecast enabled: ${CONFIG.turbulenceLevel} (3D: ${CONFIG.turb3D})`);
   if (turbRefreshTimer) clearInterval(turbRefreshTimer);
   turbRefreshTimer = setInterval(refreshTurbForecast, 15 * 60 * 1000);
 }
 
 function disableTurbForecast() {
   removeTurbLayer();
+  removeTurb3DLayers();
   if (turbRefreshTimer) {
     clearInterval(turbRefreshTimer);
     turbRefreshTimer = null;
@@ -976,7 +1054,12 @@ function refreshTurbForecast() {
   if (_turbTimelineDate != null && _turbImageCache.size > 0) return;
   // Respect timeline scrub position if active
   const dateSecs = _turbTimelineDate != null ? _turbTimelineDate : undefined;
-  addTurbLayer(dateSecs);
+  if (CONFIG.turb3D) {
+    removeTurb3DLayers();
+    addTurb3DLayers(dateSecs);
+  } else {
+    addTurbLayer(dateSecs);
+  }
   console.log('[Weather] GTG forecast refreshed');
 }
 
@@ -1060,11 +1143,16 @@ function resetTurbToLive() {
   if (_turbTimelineDate != null) {
     console.log('[Weather] Timeline: restoring GTG to live');
     _turbTimelineDate = null;
-    // Re-add live layer (handles old layer removal) or just remove if disabled
     if (CONFIG.turbForecastEnabled) {
-      addTurbLayer();
+      if (CONFIG.turb3D) {
+        removeTurb3DLayers();
+        addTurb3DLayers();
+      } else {
+        addTurbLayer();
+      }
     } else {
       removeTurbLayer();
+      removeTurb3DLayers();
     }
   }
   _turbTimelineDate = null;
@@ -1209,6 +1297,7 @@ function clearTurbCache() {
 // Returns true if cache hit, false if cache miss.
 function applyTurbFromCache(dateSecs) {
   if (!CONFIG.turbForecastEnabled) return false;
+  if (CONFIG.turb3D) return false; // 3D mode doesn't use cached flat imagery
   const dataUrl = _turbImageCache.get(dateSecs);
   if (!dataUrl) return false;
 
