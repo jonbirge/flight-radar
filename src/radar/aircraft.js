@@ -2,15 +2,15 @@
 
 import S from '../state.js';
 import { RATE_LIMIT_MS, RENDER_CHUNK_SIZE, SELECTED_POLL_INTERVAL, TRACK_FETCH_INTERVAL } from '../state.js';
-import { CONFIG, exAlt, computeDisplaySize, computeIconSize, altitudeToRgb, altitudeToSelectedRgb, altitudeToTrailWidth } from '../config.js';
+import { CONFIG, exAlt, computeDisplaySize, computeIconSize, altitudeToRgb, altitudeToSelectedRgb, altitudeToTrailWidth, hexToRgb, computePollInterval, computePositionUpdateInterval } from '../config.js';
 import { parseState, formatAltitude, formatSpeed, verticalIndicator } from '../data.js';
 import { createAircraftIcon, createDotIcon, clearIconCaches } from '../icons.js';
-
-'use strict';
+import { showAircraftInfo, hideAircraftInfo, clearFlightPlanRoute, selectSearchedAircraft } from './flightplan.js';
+import { updateLiveAltitudeFilter } from './weather.js';
 
 // ==== Entity Cleanup & Toggling ============================================
 
-// Destroy and re-create all S.aircraft entities to pick up new theme
+// Destroy and re-create all aircraft entities to pick up new theme
 export function removeTrailEntities(ac) {
   for (const e of ac.trailEntities) S.viewer.entities.remove(e);
   ac.trailEntities = [];
@@ -45,10 +45,10 @@ export function toggleAircraft(show) {
     // Reset poll guard so the next enable doesn't hang waiting for a stale lock
     S._pollInFlight = false;
 
-    // Determine which S.aircraft to keep: any selected or searched S.aircraft
+    // Determine which aircraft to keep: any selected or searched aircraft
     const keepIcao = S.selectedIcao || S.searchedIcao;
 
-    // Remove all S.aircraft entities and trails from Cesium, but preserve
+    // Remove all aircraft entities and trails from Cesium, but preserve
     // the selected/searched flight so it stays visible regardless of toggle
     S.viewer.entities.suspendEvents();
     try {
@@ -60,13 +60,13 @@ export function toggleAircraft(show) {
     } finally {
       S.viewer.entities.resumeEvents();
     }
-    // Remove all except the kept S.aircraft from the Map
-    for (const icao of [...aircraft.keys()]) {
+    // Remove all except the kept aircraft from the Map
+    for (const icao of [...S.aircraft.keys()]) {
       if (icao !== keepIcao) S.aircraft.delete(icao);
     }
     if (!keepIcao) hideAircraftInfo();
     document.getElementById('track-count').textContent = keepIcao ? '1' : '0';
-    if (viewChangePollDebounce) { clearTimeout(viewChangePollDebounce); viewChangePollDebounce = null; }
+    if (S.viewChangePollDebounce) { clearTimeout(S.viewChangePollDebounce); S.viewChangePollDebounce = null; }
     // Keep tick running for the selected aircraft, or stop everything
     if (keepIcao) {
       ensureTick();
@@ -83,7 +83,7 @@ export function toggleAircraft(show) {
     S._lastSelectedPollApiMs = 0;
     S.lastSelectedPollMs = 0;
     // Suspend → resume: fully stop the tick timer (which may have been
-    // running for selected-S.aircraft-only polling) so startPolling() can
+    // running for selected-aircraft-only polling) so startPolling() can
     // do a clean restart with the correct interval and initial fetch.
     stopTick();
     startPolling();
@@ -173,17 +173,17 @@ export async function pollSelectedAircraft() {
 export function tick() {
   const now = Date.now();
 
-  // 1. Always extrapolate S.aircraft positions between server polls
+  // 1. Always extrapolate aircraft positions between server polls
   extrapolatePositions();
 
   // Safety valve: force-reset in-flight guards if they've been stuck too long
   // (covers cases where the IPC call hangs or the Promise never resolves)
   if (S._pollInFlight && now - S._lastBulkPollMs > 30000) {
-    console.warn('[Poll] Force-resetting S._pollInFlight (stuck >30s)');
+    console.warn('[Poll] Force-resetting _pollInFlight (stuck >30s)');
     S._pollInFlight = false;
   }
   if (S._selectedPollInFlight && now - S._lastSelectedPollApiMs > 30000) {
-    console.warn('[Poll] Force-resetting S._selectedPollInFlight (stuck >30s)');
+    console.warn('[Poll] Force-resetting _selectedPollInFlight (stuck >30s)');
     S._selectedPollInFlight = false;
   }
 
@@ -192,7 +192,7 @@ export function tick() {
     return;
   }
 
-  // 2. Bulk poll when S.aircraft display is on and poll interval has elapsed
+  // 2. Bulk poll when aircraft display is on and poll interval has elapsed
   if (CONFIG.aircraftEnabled) {
     const elapsed = S.lastPollTime ? now - S.lastPollTime.getTime() : Infinity;
     if (elapsed >= CONFIG.pollInterval) {
@@ -300,7 +300,7 @@ export function updateAircraft(states) {
       let ac = S.aircraft.get(s.icao24);
 
       if (!ac) {
-        // New S.aircraft — create entity
+        // New aircraft — create entity
         ac = {
           state: s,
           entity: null,
@@ -357,7 +357,7 @@ export function updateAircraft(states) {
 
     }
 
-    // Remove stale S.aircraft (but never remove the selected or searched flight)
+    // Remove stale aircraft (but never remove the selected or searched flight)
     for (const [icao, ac] of S.aircraft) {
       if (!seen.has(icao) && icao !== S.searchedIcao && icao !== S.selectedIcao) {
         const age = now - (ac.state.lastContact || 0);
@@ -375,7 +375,7 @@ export function updateAircraft(states) {
   // Update visual entities
   renderAircraft();
 
-  // If we have a searched flight ident but haven't matched it to a live S.aircraft yet,
+  // If we have a searched flight ident but haven't matched it to a live aircraft yet,
   // try to find it now (it may have just appeared in the state data)
   if (S.searchedFlightIdent && !S.searchedIcao) {
     selectSearchedAircraft();
@@ -493,7 +493,7 @@ export function updateInfoPanelInterim(newPos) {
   if (lonEl) lonEl.textContent = lon.toFixed(4);
 }
 
-// Extrapolate S.aircraft positions between server polls based on heading and velocity
+// Extrapolate aircraft positions between server polls based on heading and velocity
 export function extrapolatePositions() {
   const now = Date.now() / 1000;
   let updated = false;
@@ -505,7 +505,7 @@ export function extrapolatePositions() {
     const s = ac.state;
 
     // Check staleness based on when we last received data from the server,
-    // NOT when the S.aircraft last transmitted (s.timePosition), which can be
+    // NOT when the aircraft last transmitted (s.timePosition), which can be
     // 10-30+ seconds behind real time and cause extrapolation to time out
     // well before the next poll arrives.
     if (now - ac.lastServerUpdate > CONFIG.staleThreshold) continue;
@@ -520,7 +520,7 @@ export function extrapolatePositions() {
     const oldPos = ac.extrapolatedPos || ac.entity.position.getValue();
     const delta = Cesium.Cartesian3.subtract(newPos, oldPos, new Cesium.Cartesian3());
 
-    // Apply delta to S.aircraft entity
+    // Apply delta to aircraft entity
     ac.entity.position = newPos;
     ac.extrapolatedPos = newPos.clone();
 
@@ -581,7 +581,7 @@ export function computeHorizonDist(camHeight) {
   return Math.sqrt(2 * R * camHeight + camHeight * camHeight) * 1.25;
 }
 
-// Render a single S.aircraft entity (billboard + trail). Called per-S.aircraft by renderAircraft.
+// Render a single aircraft entity (billboard + trail). Called per-aircraft by renderAircraft.
 export function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     const s = ac.state;
     // Use extrapolated position if available, otherwise compute from state
@@ -702,7 +702,7 @@ export function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     // Skip trail rebuild when data hasn't changed (e.g., during camera pan/zoom)
     const _th = _computeTrailHash(ac, s, isSelected);
     if (ac._trailHash === _th) return;
-    // Show trails if enabled OR if this S.aircraft is selected (selected aircraft always show history trail)
+    // Show trails if enabled OR if this aircraft is selected (selected aircraft always show history trail)
     if (CONFIG.trailMode !== 'none' || isSelected) {
       // Determine base trail width, then scale down with zoom
       let trailWidth;
@@ -717,7 +717,7 @@ export function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
 
       // Selected aircraft always show history trail; others follow global setting
       if (!isSelected && CONFIG.trailMode === 'velocity' && s.heading != null && s.velocity != null) {
-        // Velocity vector mode: single line behind S.aircraft proportional to speed
+        // Velocity vector mode: single line behind aircraft proportional to speed
         removeTrailEntities(ac);
 
         const speed = s.velocity || 0; // m/s
@@ -728,7 +728,7 @@ export function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           const acLon = Cesium.Math.toDegrees(acCarto.longitude);
           const acLat = Cesium.Math.toDegrees(acCarto.latitude);
 
-          // Compute endpoint behind the S.aircraft (heading + 180°)
+          // Compute endpoint behind the aircraft (heading + 180°)
           const behindDeg = (s.heading + 180) % 360;
           const behindRad = Cesium.Math.toRadians(behindDeg);
           const acLonRad = acCarto.longitude;
@@ -747,7 +747,7 @@ export function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
 
           // Use the actual entity altitude (from pos, which includes vertical rate
           // extrapolation) so the trail front matches the icon exactly.  Using raw
-          // s.altitude would create a vertical ECEF offset for climbing/descending S.aircraft.
+          // s.altitude would create a vertical ECEF offset for climbing/descending aircraft.
           const alt = acCarto.height;
           const endAlt = alt - exAlt((s.verticalRate || 0) * 60);
           const positions = [
@@ -855,7 +855,7 @@ export function renderAircraft(filterIcaos) {
   const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
   S.acDisplayCond = new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camHeight));
 
-  // Collect the S.aircraft entries to render
+  // Collect the aircraft entries to render
   const entries = [];
   for (const [icao, ac] of S.aircraft) {
     if (filterIcaos && !filterIcaos.has(icao)) continue;
@@ -880,7 +880,7 @@ export function renderAircraft(filterIcaos) {
   let idx = 0;
 
   function renderChunk() {
-    // Abort if a newer render has been requested or S.aircraft display was disabled
+    // Abort if a newer render has been requested or aircraft display was disabled
     if (gen !== S._renderGeneration || !CONFIG.aircraftEnabled) return;
 
     const end = Math.min(idx + RENDER_CHUNK_SIZE, entries.length);
@@ -925,7 +925,7 @@ export function resizeAircraftIcons() {
         ac.entity.label.distanceDisplayCondition = S.acDisplayCond;
       }
     }
-    for (const entity of pirepEntities) {
+    for (const entity of S.pirepEntities) {
       if (entity.billboard) {
         entity.billboard.distanceDisplayCondition = S.acDisplayCond;
       }
@@ -1052,7 +1052,7 @@ export async function pollStates() {
   S._lastBulkPollMs = now;
   try {
     const viewBounds = S.frozenBounds || getViewBounds();
-    // Fetch S.aircraft from a 50% larger region so small pans don't re-poll
+    // Fetch aircraft from a 50% larger region so small pans don't re-poll
     const bounds = padBounds(viewBounds, 0.5);
     console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
     const t0 = Date.now();
@@ -1080,15 +1080,15 @@ export async function pollStates() {
 
     warningEl.classList.add('hidden');
 
-    // If S.aircraft display was disabled while the poll was in-flight, discard
+    // If aircraft display was disabled while the poll was in-flight, discard
     // the results to avoid creating orphaned entities in Cesium.
     if (!CONFIG.aircraftEnabled) {
-      console.log('[Poll] Discarding results: S.aircraft disabled during poll');
+      console.log('[Poll] Discarding results: aircraft disabled during poll');
       return;
     }
 
     const stateCount = data.states ? data.states.length : 0;
-    console.log(`[OpenSky] Got ${stateCount} S.aircraft`);
+    console.log(`[OpenSky] Got ${stateCount} aircraft`);
 
     // Update HUD immediately so the user sees fresh data before heavy processing
     S.lastPollTime = new Date();
@@ -1125,15 +1125,15 @@ export async function fetchNextTrack() {
 
 export function startPolling() {
   if (!CONFIG.aircraftEnabled) {
-    console.log('[Poll] startPolling: S.aircraft disabled, skipping');
+    console.log('[Poll] startPolling: aircraft disabled, skipping');
     return;
   }
   // Set initial poll interval based on current zoom level
   const camHeight = S.viewer.camera.positionCartographic
     ? S.viewer.camera.positionCartographic.height
     : CONFIG.startAlt;
-  lastPollHeight = camHeight;
-  lastPositionUpdateHeight = camHeight;
+  S.lastPollHeight = camHeight;
+  S.lastPositionUpdateHeight = camHeight;
   const pollMs = computePollInterval(camHeight);
   const tickMs = computePositionUpdateInterval(camHeight);
   setPollInterval(pollMs);

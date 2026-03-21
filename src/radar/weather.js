@@ -935,7 +935,7 @@ export function getSelectedAircraftFL() {
 }
 
 // Apply altitude filter in live mode based on selected aircraft's current altitude.
-// Called after S.aircraft poll updates, weather refreshes, and selection changes.
+// Called after aircraft poll updates, weather refreshes, and selection changes.
 // force: if true, always re-filter (use after new weather entities are fetched).
 let _lastLiveFilterFL = null;
 export function updateLiveAltitudeFilter(force) {
@@ -1297,7 +1297,7 @@ export function clearTurbCache() {
   _turbPixelCache.clear();
 }
 
-// Apply a cached GTG image to the S.viewer as an imagery layer (instant, no fetch).
+// Apply a cached GTG image to the viewer as an imagery layer (instant, no fetch).
 // Returns true if cache hit, false if cache miss.
 export function applyTurbFromCache(dateSecs) {
   if (!CONFIG.turbForecastEnabled) return false;

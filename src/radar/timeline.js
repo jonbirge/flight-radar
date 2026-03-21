@@ -375,7 +375,7 @@ function updateOrCreateTimelineMarker(position) {
 // Weather Filtering by Time
 // ============================================================
 
-function filterWeatherByTime(timeMs) {
+export function filterWeatherByTime(timeMs) {
   // Compute altitude from interpolated route position for altitude filtering
   let altFL = null;
   if (_timelineFlight) {
