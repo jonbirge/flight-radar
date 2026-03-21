@@ -308,6 +308,17 @@ async function fetchTurbImageDataUrl(level, dateSecs) {
         row * rowBytes
       );
     }
+    // Replace transparent pixels with white (lightest turbulence color)
+    const pixels = outData.data;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] === 0) {
+        pixels[i] = 255;     // R
+        pixels[i + 1] = 255; // G
+        pixels[i + 2] = 255; // B
+        pixels[i + 3] = 255; // A
+      }
+    }
+
     outCanvas.getContext('2d').putImageData(outData, 0, 0);
 
     console.log(`[Weather] GTG image reprojected: ${cropW}x${img.height}`);
