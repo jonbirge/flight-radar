@@ -9,7 +9,7 @@
     "dev": "electron . --dev",
     "build:snap:js": "node scripts/obfuscate-snap.js",
     "postinstall": "node scripts/copy-cesium.js && node scripts/download-fonts.js",
-"pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
+    "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
     "pack": "electron-forge package",
     "dist": "electron-forge make"
   },
@@ -25,5 +25,5 @@
     "javascript-obfuscator": "*",
     "terser": "*"
   },
-  "cesiumVersion": "1.138.0"
+  "cesiumVersion": "1.139.1"
 }
