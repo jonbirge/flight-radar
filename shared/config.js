@@ -52,10 +52,21 @@ const CONFIG = {
   satelliteIREnabled: DEFAULT_SETTINGS.satelliteIREnabled,
   turbForecastEnabled: DEFAULT_SETTINGS.turbForecastEnabled,
   turb3D: DEFAULT_SETTINGS.turb3D,
+  exaggerateAltitudes: DEFAULT_SETTINGS.exaggerateAltitudes,
   turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
   weatherOverlayOpacity: DEFAULT_SETTINGS.weatherOverlayOpacity,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
 };
+
+// ============================================================
+// Altitude Helpers
+// ============================================================
+
+// Apply altitude exaggeration factor (10×) when enabled.
+// Use for all entity positioning — NOT for display values or camera height.
+function exAlt(meters) {
+  return CONFIG.exaggerateAltitudes ? meters * 10 : meters;
+}
 
 // ============================================================
 // Color Utilities

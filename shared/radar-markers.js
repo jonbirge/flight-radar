@@ -202,8 +202,8 @@ function initAirspace(airspace) {
           outline: edgesOn,
           outlineColor: edgesOn ? colors.outline : undefined,
           outlineWidth: edgesOn ? 1 : undefined,
-          height: floorM,
-          extrudedHeight: ceilM,
+          height: exAlt(floorM),
+          extrudedHeight: exAlt(ceilM),
         }
       : {
           hierarchy: new Cesium.PolygonHierarchy(positions),

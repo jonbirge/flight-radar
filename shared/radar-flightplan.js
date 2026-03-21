@@ -741,7 +741,7 @@ async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destC
             timelineRoutePoints.push({ lon: originCoords.lon, lat: originCoords.lat, alt: 0 });
           }
           for (const fix of validFixes) {
-            routePositions.push(Cesium.Cartesian3.fromDegrees(fix.longitude, fix.latitude, alt));
+            routePositions.push(Cesium.Cartesian3.fromDegrees(fix.longitude, fix.latitude, exAlt(alt)));
             timelineRoutePoints.push({ lon: fix.longitude, lat: fix.latitude, alt });
           }
           if (destCoords) {
