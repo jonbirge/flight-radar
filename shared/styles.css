@@ -176,7 +176,7 @@ body {
   top: 50%;
   transform: translateY(-50%);
   width: 4px;
-  height: 36px;
+  height: 54px;
   margin: 0;
 }
 
@@ -493,7 +493,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 #aircraft-info > .sheet-handle {
-  margin-top: 14px;
+  margin: 14px auto 0;
 }
 
 #aircraft-info.hidden {
@@ -866,9 +866,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   min-height: 1em;
 }
 
-/* Sheet handle pill — embedded toggle bar */
+/* Sheet handle pill — embedded toggle bar with enlarged hit area via ::before */
 .sheet-handle {
-  width: 36px;
+  position: relative;
+  width: 54px;
   height: 4px;
   background: var(--md-on-surface-variant);
   border-radius: 2px;
@@ -878,6 +879,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
   flex-shrink: 0;
   cursor: pointer;
   transition: opacity var(--md-motion-duration-short) var(--md-motion-easing-standard);
+}
+
+.sheet-handle::before {
+  content: '';
+  position: absolute;
+  inset: -10px -16px;
 }
 
 .sheet-handle:hover {
@@ -958,7 +965,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   /* Revert handle to horizontal bar at top on mobile */
   #controls > .sheet-handle {
     position: static;
-    width: 36px;
+    width: 54px;
     height: 4px;
     transform: none;
     margin: 0 auto 10px;
@@ -998,7 +1005,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
      Total bottom strip = 12 + 20 + 4px pill = 36px = exact stowed reveal height */
   /* Handle sits at bottom of the aircraft info panel */
   #aircraft-info .sheet-handle {
-    margin-top: 20px;
+    margin: 20px auto 0;
   }
 
   /* Hide 2D/3D buttons, North up, and Auto rotate on mobile */
