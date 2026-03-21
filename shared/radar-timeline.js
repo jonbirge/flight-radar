@@ -495,9 +495,7 @@ function positionTimeline() {
   // If controls panel is collapsed or absent, centering is fine
   if (!controls || controls.classList.contains('collapsed')) return;
 
-  // Use the toggle tab's right edge if present, otherwise the controls panel's
-  const toggle = document.getElementById('controls-toggle');
-  const edgeRect = (toggle || controls).getBoundingClientRect();
+  const edgeRect = controls.getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
   const gap = 20;
 

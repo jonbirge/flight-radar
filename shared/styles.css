@@ -158,7 +158,7 @@ body {
   z-index: 100;
   background: var(--md-surface-container);
   border-radius: var(--md-shape-lg);
-  padding: 14px;
+  padding: 14px 22px 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -169,8 +169,19 @@ body {
   transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-emphasized);
 }
 
+/* Controls handle: vertical bar on the right edge (desktop) */
+#controls > .sheet-handle {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 36px;
+  margin: 0;
+}
+
 #controls.collapsed {
-  transform: translateX(calc(-100% - 12px));
+  transform: translateX(calc(-100% + 20px));
 }
 
 .control-group {
@@ -446,54 +457,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   z-index: 0;
 }
 
-/* Panel Toggle Buttons */
-.panel-toggle {
-  position: absolute;
-  background: var(--md-surface-container);
-  border: none;
-  color: var(--md-on-surface-variant);
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: -1;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.panel-toggle:hover {
-  color: var(--md-on-surface);
-}
-
-.panel-toggle svg {
-  transition: transform var(--md-motion-duration-medium) var(--md-motion-easing-standard);
-}
-
-/* Controls panel toggle — right edge tab, near bottom */
-#controls-toggle {
-  right: -25px;
-  bottom: 20px;
-  width: 24px;
-  height: 48px;
-  border-radius: 0 var(--md-shape-sm) var(--md-shape-sm) 0;
-}
-
-#controls.collapsed #controls-toggle svg {
-  transform: rotate(180deg);
-}
-
-/* Info panel toggle — bottom edge tab */
-#info-toggle {
-  bottom: -24px;
-  right: 28px;
-  width: 48px;
-  height: 24px;
-  border-radius: 0 0 var(--md-shape-sm) var(--md-shape-sm);
-}
-
-#aircraft-info.collapsed #info-toggle svg {
-  transform: rotate(180deg);
-}
 
 #info-collapsible {
   overflow: hidden;
@@ -512,11 +475,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   margin-bottom: 0;
 }
 
-.theme-light #controls-toggle,
-.theme-light #info-toggle {
-  background: #ffffff;
-}
-
 /* Aircraft Info Panel */
 #aircraft-info {
   position: absolute;
@@ -525,13 +483,17 @@ input[type="range"]::-webkit-slider-thumb:hover {
   z-index: 100;
   background: var(--md-surface-container);
   border-radius: var(--md-shape-xl);
-  padding: 20px;
+  padding: 20px 20px 10px;
   min-width: 240px;
   font: var(--md-typescale-body-small);
   line-height: 1.6;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   overflow: visible;
+}
+
+#aircraft-info > .sheet-handle {
+  margin-top: 14px;
 }
 
 #aircraft-info.hidden {
@@ -904,7 +866,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   min-height: 1em;
 }
 
-/* Sheet handle pill — hidden on desktop, shown on mobile */
+/* Sheet handle pill — embedded toggle bar */
 .sheet-handle {
   width: 36px;
   height: 4px;
@@ -912,9 +874,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-radius: 2px;
   margin: 0 auto;
   opacity: 0.4;
-  display: none;
+  display: block;
   flex-shrink: 0;
   cursor: pointer;
+  transition: opacity var(--md-motion-duration-short) var(--md-motion-easing-standard);
+}
+
+.sheet-handle:hover {
+  opacity: 0.7;
 }
 
 /* Settings icon button — square icon variant of scope-btn, centered */
@@ -952,10 +919,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
     width: calc(100% - 32px);
   }
 
-  /* Reveal sheet handles on mobile */
-  .sheet-handle {
-    display: block;
-  }
 
   /* ---- Bottom sheet wrapper: timeline stacks above controls ---- */
   #bottom-sheet {
@@ -992,14 +955,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
     transform: none;
   }
 
-  /* Handle sits at top of controls panel */
-  #controls .sheet-handle {
-    margin-bottom: 10px;
-  }
-
-  /* Hide the old desktop side-tab toggle */
-  #controls-toggle {
-    display: none;
+  /* Revert handle to horizontal bar at top on mobile */
+  #controls > .sheet-handle {
+    position: static;
+    width: 36px;
+    height: 4px;
+    transform: none;
+    margin: 0 auto 10px;
   }
 
   /* Timeline: floats just above the bottom sheet, moves with it during transition */
@@ -1037,11 +999,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   /* Handle sits at bottom of the aircraft info panel */
   #aircraft-info .sheet-handle {
     margin-top: 20px;
-  }
-
-  /* Hide the old desktop bottom-edge tab toggle */
-  #info-toggle {
-    display: none;
   }
 
   /* Hide 2D/3D buttons, North up, and Auto rotate on mobile */
