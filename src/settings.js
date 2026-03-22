@@ -94,7 +94,8 @@ initSettingsPanel({
   getSettings: async () => {
     originalSettings = await window.settingsAPI.getSettings();
     applySettingsTheme(originalSettings);
-    return originalSettings;
+    // Always open the settings window with credentials collapsed
+    return { ...originalSettings, credentialsExpanded: false };
   },
   onChanged: (form) => {
     applySettingsTheme(form);
