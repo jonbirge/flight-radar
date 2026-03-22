@@ -8,3 +8,4 @@ web/cred.json
 data/vfrmap/
 *.snap
 .claude/*
+dist/
