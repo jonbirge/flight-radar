@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Listen for settings changes applied from the settings window
   onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', callback),
 
+  // Listen for lightweight previews during slider drag
+  onFontSizePreview: (callback) => ipcRenderer.on('font-size-preview', (_, size) => callback(size)),
+  onRotationSpeedPreview: (callback) => ipcRenderer.on('rotation-speed-preview', (_, speed) => callback(speed)),
+  onWeatherOpacityPreview: (callback) => ipcRenderer.on('weather-opacity-preview', (_, opacity) => callback(opacity)),
+
   // System theme detection
   getSystemTheme: () => ipcRenderer.invoke('get-system-theme'),
   onSystemThemeChanged: (callback) => ipcRenderer.on('system-theme-changed', (_, theme) => callback(theme)),

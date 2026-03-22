@@ -22,6 +22,22 @@ window.flightAPI.onSettingsChanged(async () => {
   }
 });
 
+// Lightweight slider previews — update CONFIG without full reload
+window.flightAPI.onFontSizePreview((size) => {
+  CONFIG.fontSize = size;
+  updateLabelFontSize();
+});
+window.flightAPI.onRotationSpeedPreview((speed) => {
+  CONFIG.rotationSpeed = speed;
+});
+window.flightAPI.onWeatherOpacityPreview((opacity) => {
+  CONFIG.weatherOverlayOpacity = opacity;
+  const alpha = opacity / 100;
+  if (radarLayer) radarLayer.alpha = alpha;
+  if (satelliteIRLayer) satelliteIRLayer.alpha = alpha;
+  if (turbLayer) turbLayer.alpha = alpha;
+});
+
 // ============================================================
 // Start
 // ============================================================
