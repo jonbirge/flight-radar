@@ -104,6 +104,19 @@ initSettingsPanel({
   onClose: () => {
     window.settingsAPI.close();
   },
+  onFontSizePreview: (size) => {
+    window.settingsAPI.previewFontSize(size);
+  },
+  onRotationSpeedPreview: (speed) => {
+    window.settingsAPI.previewRotationSpeed(speed);
+  },
+  onWeatherOpacityPreview: (opacity) => {
+    window.settingsAPI.previewWeatherOpacity(opacity);
+  },
+  onQuietSave: (form) => {
+    applySettingsTheme(form);
+    window.settingsAPI.updateSettingsQuiet({ ...originalSettings, ...form });
+  },
   onDefaults: async () => {
     const result = await window.settingsAPI.resetSettings();
     if (result.reset) {

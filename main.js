@@ -466,6 +466,12 @@ ipcMain.handle('update-settings', (event, settings) => {
   return true;
 });
 
+// IPC: save settings without notifying renderer (used after slider preview)
+ipcMain.handle('update-settings-quiet', (event, settings) => {
+  saveSettings(settings);
+  return true;
+});
+
 // IPC: reset all settings to defaults
 ipcMain.handle('reset-settings', async () => {
   const parent = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : mainWindow;
@@ -498,6 +504,23 @@ ipcMain.handle('reset-settings', async () => {
 ipcMain.on('close-settings-window', () => {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.close();
+  }
+});
+
+// IPC: lightweight previews — forward to renderer without full settings reload
+ipcMain.on('preview-font-size', (event, size) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('font-size-preview', size);
+  }
+});
+ipcMain.on('preview-rotation-speed', (event, speed) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('rotation-speed-preview', speed);
+  }
+});
+ipcMain.on('preview-weather-opacity', (event, opacity) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('weather-opacity-preview', opacity);
   }
 });
 

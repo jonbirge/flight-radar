@@ -1139,6 +1139,16 @@ function startPolling() {
   ensureTick();
 }
 
+// Lightweight font-size-only update — used during slider drag to avoid full reload
+function updateLabelFontSize() {
+  const font = `bold ${CONFIG.fontSize}px Roboto Flex, sans-serif`;
+  for (const [, ac] of aircraft) {
+    if (ac.entity && ac.entity.label) {
+      ac.entity.label.font = font;
+    }
+  }
+}
+
 // Expose all top-level functions as globals
 window.removeTrailEntities = removeTrailEntities;
 window.refreshAllEntities = refreshAllEntities;
@@ -1160,6 +1170,7 @@ window.computeHorizonDist = computeHorizonDist;
 window._renderOneAircraft = _renderOneAircraft;
 window.renderAircraft = renderAircraft;
 window.resizeAircraftIcons = resizeAircraftIcons;
+window.updateLabelFontSize = updateLabelFontSize;
 window.smoothTrailPositions = smoothTrailPositions;
 window.buildTrailPositions = buildTrailPositions;
 window.padBounds = padBounds;

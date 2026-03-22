@@ -626,10 +626,11 @@ function populateSettingsForm(container, settings) {
  * @param {Function} options.getSettings - async () => settingsObject
  * @param {Function} options.onChanged - (formSettings) => void, called on every change
  * @param {Function} [options.onClose] - () => void, called when Done/close is triggered
+ * @param {Function} [options.onFontSizePreview] - (size) => void, lightweight callback during font slider drag
  * @returns {{ populate: (settings) => void }}
  */
 function initSettingsPanel(options) {
-  const { container, getSettings, onChanged, onClose, onDefaults } = options;
+  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onQuietSave } = options;
 
   // Inject shared CSS into this document
   injectSettingsCSS(container.ownerDocument);
@@ -709,6 +710,16 @@ function initSettingsPanel(options) {
     onChanged(formState);
   }
 
+  // Save settings without triggering a full renderer reload (used after slider preview)
+  function quietBroadcast() {
+    formState = readForm();
+    if (onQuietSave) {
+      onQuietSave(formState);
+    } else {
+      onChanged(formState);
+    }
+  }
+
   function updateDarkSwatchActive(selectedColor) {
     darkSwatches.forEach(sw => {
       sw.classList.toggle('active', sw.dataset.color === selectedColor);
@@ -735,7 +746,14 @@ function initSettingsPanel(options) {
   // --- Font size slider ---
   fontSlider.addEventListener('input', () => {
     fontVal.textContent = `${fontSlider.value}px`;
-    debouncedBroadcast();
+    if (onFontSizePreview) {
+      onFontSizePreview(parseInt(fontSlider.value));
+    } else {
+      debouncedBroadcast();
+    }
+  });
+  fontSlider.addEventListener('change', () => {
+    quietBroadcast();
   });
 
   // --- Theme toggle ---
@@ -834,13 +852,27 @@ function initSettingsPanel(options) {
   // --- Rotation speed slider ---
   rotSlider.addEventListener('input', () => {
     rotVal.textContent = `${rotSlider.value} \u00B0/s`;
-    debouncedBroadcast();
+    if (onRotationSpeedPreview) {
+      onRotationSpeedPreview(parseInt(rotSlider.value));
+    } else {
+      debouncedBroadcast();
+    }
+  });
+  rotSlider.addEventListener('change', () => {
+    quietBroadcast();
   });
 
   // --- Weather overlay opacity slider ---
   weatherOpacitySlider.addEventListener('input', () => {
     weatherOpacityVal.textContent = `${weatherOpacitySlider.value}%`;
-    debouncedBroadcast();
+    if (onWeatherOpacityPreview) {
+      onWeatherOpacityPreview(parseInt(weatherOpacitySlider.value));
+    } else {
+      debouncedBroadcast();
+    }
+  });
+  weatherOpacitySlider.addEventListener('change', () => {
+    quietBroadcast();
   });
 
   // --- 3D turbulence toggle ---
