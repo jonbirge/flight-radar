@@ -125,6 +125,34 @@ viewer.camera.lookAt(
 // Unlock camera from the lookAt target so the user can freely navigate
 viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 
+// Limit scroll-wheel zoom speed so high-DPI mice / "multiple lines" Windows
+// scroll settings don't jump several zoom levels per notch.
+viewer.scene.canvas.addEventListener('wheel', (e) => {
+  const MAX_DELTA = 40;          // px — one "normal" notch ≈ 100-120; cap well below that
+  if (Math.abs(e.deltaY) > MAX_DELTA) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    // Re-dispatch a clamped copy so Cesium still zooms, just slower
+    const clamped = new WheelEvent('wheel', {
+      deltaX:    e.deltaX,
+      deltaY:    Math.sign(e.deltaY) * MAX_DELTA,
+      deltaZ:    e.deltaZ,
+      deltaMode: e.deltaMode,
+      clientX:   e.clientX,
+      clientY:   e.clientY,
+      screenX:   e.screenX,
+      screenY:   e.screenY,
+      ctrlKey:   e.ctrlKey,
+      shiftKey:  e.shiftKey,
+      altKey:    e.altKey,
+      metaKey:   e.metaKey,
+      bubbles:   true,
+      cancelable: true,
+    });
+    e.target.dispatchEvent(clamped);
+  }
+}, { passive: false, capture: true });
+
 // ============================================================
 // Theme Engine
 // ============================================================
