@@ -1,12 +1,10 @@
 // Weather overlays: NEXRAD radar, GOES satellite IR, AWC turbulence forecast, PIREPs, SIGMETs, G-AIRMETs.
 // Depends on radar-core.js (viewer, CONFIG, state variables).
 
-'use strict';
-
 // Maximum age of PIREPs to display (both live and scrubbing).
 // In live mode, PIREPs older than this are discarded at fetch time.
 // In scrubbing mode, PIREPs are visible from observation time until this duration after.
-const PIREP_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours
+window.PIREP_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 // ============================================================
 // GOES Satellite IR Overlay
@@ -148,17 +146,33 @@ class FilteredRadarImageryProvider {
       const rn = r / 255, gn = g / 255, bn = b / 255;
       const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
       const l = (max + min) / 2;
-      let s = 0;
+      let s = 0, h = 0;
       if (max !== min) {
         const delta = max - min;
         s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+        if (max === rn)      h = ((gn - bn) / delta + (gn < bn ? 6 : 0)) * 60;
+        else if (max === gn) h = ((bn - rn) / delta + 2) * 60;
+        else                 h = ((rn - gn) / delta + 4) * 60;
       }
 
-      // Remove pixels that are too dark, too dim, or too desaturated.
-      // These represent ground clutter and low-level noise in the NEXRAD data.
-      // Keep only vivid weather colors: saturated greens, yellows, oranges, reds, magentas.
+      // Remove ground clutter (grey/dark/bright) and non-precipitation blues.
+      // Fade gradually from transparent (blue/grey) to full opacity (green)
+      // so the transition from blue→cyan→green isn't a hard edge.
       if (s < 0.3 || l < 0.12 || l > 0.92) {
-        d[i + 3] = 0; // make transparent
+        d[i + 3] = 0;
+      } else if (h >= 180 && h <= 260) {
+        // Pure blue range — fully transparent
+        d[i + 3] = 0;
+      } else if (h >= 120 && h < 180) {
+        // Cyan-to-green transition zone (180→120): fade in gradually.
+        // At h=180 (cyan): fully transparent. At h=120 (green): full alpha.
+        const t = (180 - h) / 60; // 0 at cyan, 1 at green
+        d[i + 3] = Math.round(a * t);
+      } else if (h > 260 && h <= 300) {
+        // Blue-to-magenta transition zone (260→300): fade in gradually.
+        // At h=260: fully transparent. At h=300 (magenta): full alpha.
+        const t = (h - 260) / 40; // 0 at blue edge, 1 at magenta
+        d[i + 3] = Math.round(a * t);
       }
     }
 
@@ -224,6 +238,11 @@ function refreshRadar() {
 
 function awcUrl(path) {
   if (CONFIG.awcProxyUrl) {
+    if (CONFIG.awcProxyUrl.startsWith('/')) {
+      // Path-based proxy (Vite dev server) — clean URL
+      return `${CONFIG.awcProxyUrl}/${path}`;
+    }
+    // PHP proxy (web) — query-string format
     const qIdx = path.indexOf('?');
     const endpoint = qIdx >= 0 ? path.substring(0, qIdx) : path;
     const params = qIdx >= 0 ? '&' + path.substring(qIdx + 1) : '';
@@ -239,11 +258,11 @@ function awcUrl(path) {
 // The image crosses the antimeridian (144.3°E → 39.5°W) which CesiumJS can't handle,
 // and the pixels are in Mercator Y (not geographic latitude).
 // Solution: fetch image → crop to Western hemisphere → reproject lat from Mercator to geographic.
-const TURB_LON_WEST = -215.69104;
-const TURB_LON_EAST = -39.508957;
-const TURB_LAT_SOUTH = -0.196746;
-const TURB_LAT_NORTH = 76.97271;
-const TURB_CROP_LON = -180; // crop everything west of antimeridian
+window.TURB_LON_WEST = -215.69104;
+window.TURB_LON_EAST = -39.508957;
+window.TURB_LAT_SOUTH = -0.196746;
+window.TURB_LAT_NORTH = 76.97271;
+window.TURB_CROP_LON = -180; // crop everything west of antimeridian
 
 // Mercator Y helper
 function geoLatToMercY(latDeg) {
@@ -423,7 +442,7 @@ function removeTurbLayer() {
 // Fetches GTG images for all numeric flight levels and displays each as a
 // semi-transparent rectangle entity at the appropriate altitude.
 
-let _turb3dGen = 0; // generation counter to cancel stale async work
+window._turb3dGen = 0; // generation counter to cancel stale async work
 
 async function addTurb3DLayers(dateSecs) {
   const gen = ++_turb3dGen;
@@ -490,7 +509,7 @@ function removeAirmetEntities() {
   airmetEntities.length = 0;
 }
 
-const PIREP_CSS_COLORS = {
+window.PIREP_CSS_COLORS = {
   NEG:   'rgba(51, 128, 255, 0.7)',
   SMT:   'rgba(51, 128, 255, 0.7)',
   LGT:   'rgba(0, 204, 0, 0.8)',
@@ -832,7 +851,7 @@ function disableAirmets() {
 // ============================================================
 
 // Altitude filter tolerance: weather is relevant within ±50 flight levels (5,000 ft).
-const ALT_FILTER_TOLERANCE_FL = 50;
+window.ALT_FILTER_TOLERANCE_FL = 50;
 
 // Parse various altitude representations to a flight level number (hundreds of feet).
 // Handles: numeric values, "SFC"/"SURFACE" → 0, "FL350" → 350, "?" → null.
@@ -933,7 +952,7 @@ function getSelectedAircraftFL() {
 // Apply altitude filter in live mode based on selected aircraft's current altitude.
 // Called after aircraft poll updates, weather refreshes, and selection changes.
 // force: if true, always re-filter (use after new weather entities are fetched).
-let _lastLiveFilterFL = null;
+window._lastLiveFilterFL = null;
 function updateLiveAltitudeFilter(force) {
   // Don't interfere with scrubbing mode
   if (timelineTime !== null) return;
@@ -1066,7 +1085,7 @@ function refreshTurbForecast() {
 // Compute the best turbulence forecast level based on the active flight plan.
 // If a flight plan with a filed altitude exists, snap to the nearest available FL.
 // Otherwise default to 'maxa' (MAX HI).
-const TURB_LEVELS = [100, 130, 160, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450];
+window.TURB_LEVELS = [100, 130, 160, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450];
 
 function computeTurbLevel() {
   if (activeFlightPlan) {
@@ -1099,10 +1118,10 @@ function refreshTurbLevel() {
 
 // Preload interval: 1 hour in seconds.  Covers the flight's time span with
 // one image per hour — at most ~19 images for an 18-hour flight (~1.6 MB).
-const TURB_PRELOAD_INTERVAL = 3600;
+window.TURB_PRELOAD_INTERVAL = 3600;
 
-let _turbTimelineDate = null;  // current forecast date (Unix secs) being displayed (null = live)
-let _turbAddGen = 0;           // generation counter — cancels in-flight async addTurbLayer() calls
+window._turbTimelineDate = null;  // current forecast date (Unix secs) being displayed (null = live)
+window._turbAddGen = 0;           // generation counter — cancels in-flight async addTurbLayer() calls
 
 // Update the turb forecast layer for a given scrubbed time.
 // Finds the nearest preloaded timestamp and applies it from cache instantly.
@@ -1164,11 +1183,11 @@ function resetTurbToLive() {
 
 // Cache of pre-fetched and reprojected GTG images keyed by Unix timestamp.
 // Stores data URL strings so fresh providers can be created instantly.
-const _turbImageCache = new Map(); // Map<number, string> (dateSecs → dataURL)
+window._turbImageCache = new Map(); // Map<number, string> (dateSecs → dataURL)
 
 // Decoded pixel data cache for scrubbing bar color sampling.
 // Populated after preloading completes.
-const _turbPixelCache = new Map(); // Map<number, ImageData> (dateSecs → ImageData)
+window._turbPixelCache = new Map(); // Map<number, ImageData> (dateSecs → ImageData)
 
 // Decode a data URL into an ImageData object for pixel sampling.
 async function decodeDataUrlToImageData(dataUrl) {
@@ -1317,3 +1336,62 @@ function applyTurbFromCache(dateSecs) {
   }
   return true;
 }
+
+window.FilteredRadarImageryProvider = FilteredRadarImageryProvider;
+window.makeSatelliteIRProvider = makeSatelliteIRProvider;
+window.addSatelliteIRLayer = addSatelliteIRLayer;
+window.enableSatelliteIR = enableSatelliteIR;
+window.disableSatelliteIR = disableSatelliteIR;
+window.refreshSatelliteIR = refreshSatelliteIR;
+window.makeRadarProvider = makeRadarProvider;
+window.enableRadar = enableRadar;
+window.disableRadar = disableRadar;
+window.refreshRadar = refreshRadar;
+window.awcUrl = awcUrl;
+window.geoLatToMercY = geoLatToMercY;
+window.fetchTurbImageDataUrl = fetchTurbImageDataUrl;
+window.createTurbProviderFromDataUrl = createTurbProviderFromDataUrl;
+window.makeTurbProvider = makeTurbProvider;
+window.addTurbLayer = addTurbLayer;
+window.removeTurbLayer = removeTurbLayer;
+window.addTurb3DLayers = addTurb3DLayers;
+window.removeTurb3DLayers = removeTurb3DLayers;
+window.removePirepEntities = removePirepEntities;
+window.removeSigmetEntities = removeSigmetEntities;
+window.removeAirmetEntities = removeAirmetEntities;
+window.pirepCssColor = pirepCssColor;
+window.fetchPireps = fetchPireps;
+window.fetchSigmets = fetchSigmets;
+window._buildAirmetEntities = _buildAirmetEntities;
+window.fetchAirmets = fetchAirmets;
+window.fetchAirmetsForScrubbing = fetchAirmetsForScrubbing;
+window.removeScrubAirmetEntities = removeScrubAirmetEntities;
+window.enablePireps = enablePireps;
+window.disablePireps = disablePireps;
+window.enableSigmets = enableSigmets;
+window.disableSigmets = disableSigmets;
+window.enableAirmets = enableAirmets;
+window.disableAirmets = disableAirmets;
+window.parseAltToFL = parseAltToFL;
+window.isWeatherEntityVisible = isWeatherEntityVisible;
+window.filterAllWeather = filterAllWeather;
+window.getSelectedAircraftFL = getSelectedAircraftFL;
+window.updateLiveAltitudeFilter = updateLiveAltitudeFilter;
+window.computeTurbLevelForFL = computeTurbLevelForFL;
+window.updateLiveTurbLevel = updateLiveTurbLevel;
+window.pauseWeatherRefresh = pauseWeatherRefresh;
+window.resumeWeatherRefresh = resumeWeatherRefresh;
+window.enableTurbForecast = enableTurbForecast;
+window.disableTurbForecast = disableTurbForecast;
+window.refreshTurbForecast = refreshTurbForecast;
+window.computeTurbLevel = computeTurbLevel;
+window.refreshTurbLevel = refreshTurbLevel;
+window.updateTurbForTimelineTime = updateTurbForTimelineTime;
+window.resetTurbToLive = resetTurbToLive;
+window.decodeDataUrlToImageData = decodeDataUrlToImageData;
+window.getTurbPixelColor = getTurbPixelColor;
+window.preloadTurbForTimeline = preloadTurbForTimeline;
+window.clearTurbCache = clearTurbCache;
+window.applyTurbFromCache = applyTurbFromCache;
+
+export {};

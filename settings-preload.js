@@ -1,5 +1,5 @@
 // settings-preload.js - Context bridge for the settings window
-const { contextBridge, ipcRenderer } = require('electron');
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('settingsAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
@@ -7,4 +7,4 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   resetSettings: () => ipcRenderer.invoke('reset-settings'),
   resizeToContent: () => ipcRenderer.invoke('resize-settings'),
   close: () => ipcRenderer.send('close-settings-window'),
-});
+})

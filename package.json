@@ -2,28 +2,59 @@
   "name": "flight-radar",
   "version": "2.12.0",
   "description": "Real-time 3D flight tracker with Material 3 Expressive design",
-  "main": "main.js",
+  "main": "out/main/index.js",
   "author": "Jonathan Birge",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
     "build:snap:js": "node scripts/obfuscate-snap.js",
     "postinstall": "node scripts/copy-cesium.js && node scripts/download-fonts.js",
-"pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
-    "pack": "electron-forge package",
-    "dist": "electron-forge make"
+    "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
+    "pack": "electron-vite build && electron-builder --dir",
+    "dist": "electron-vite build && electron-builder"
   },
-  "config": {
-    "forge": "./forge.config.js"
+  "build": {
+    "appId": "com.jonathanbirge.flightradar",
+    "productName": "Flight Radar",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToDowngrade": true,
+      "installerIcon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": ["deb"],
+      "icon": "assets/icon.png",
+      "category": "Utility",
+      "maintainer": "Jonathan Birge"
+    }
   },
   "devDependencies": {
-    "@electron-forge/cli": "*",
-    "@electron-forge/maker-deb": "*",
-    "@electron-forge/maker-squirrel": "*",
     "cesium": "*",
     "electron": "*",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
     "javascript-obfuscator": "*",
-    "terser": "*"
+    "terser": "*",
+    "vite": "^7.3.1",
+    "vite-plugin-static-copy": "^3.3.0"
   },
-  "cesiumVersion": "1.138.0"
+  "cesiumVersion": "1.139.1"
 }

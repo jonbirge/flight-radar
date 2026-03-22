@@ -1,8 +1,6 @@
 // renderer.js - Electron-specific entry point
-// Shared modules (config, data, icons, radar) are loaded before this script.
+// Shared modules are imported by entry.js before this script.
 // window.flightAPI is provided by preload.js.
-
-'use strict';
 
 // ============================================================
 // Electron-specific: Settings button opens IPC settings window
@@ -29,6 +27,11 @@ window.flightAPI.onSettingsChanged(async () => {
 // ============================================================
 
 async function init() {
+  // In dev mode (Vite dev server), route AWC API calls through the proxy
+  // to avoid CORS. In production (file:// protocol), calls go direct.
+  if (location.protocol !== 'file:') {
+    CONFIG.awcProxyUrl = '/awc-api';
+  }
   await loadAndApplySettings();
   applySavedView();
   startPolling();

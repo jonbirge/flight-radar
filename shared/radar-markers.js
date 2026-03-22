@@ -1,8 +1,6 @@
 // Map markers: airports, airspace boundaries, waypoints, and navaids.
 // Depends on radar-core.js (viewer, CONFIG, state variables).
 
-'use strict';
-
 // ============================================================
 // Airport Markers
 // ============================================================
@@ -167,15 +165,15 @@ function updateAirportColors() {
 // Airspace Boundaries (Class B / C / D)
 // ============================================================
 
-const FT_TO_M = 0.3048;
+window.FT_TO_M = 0.3048;
 
-const AIRSPACE_COLORS = {
+window.AIRSPACE_COLORS = {
   B: { fill: new Cesium.Color(0.27, 0.51, 0.97, 0.15),  outline: new Cesium.Color(0.27, 0.51, 0.97, 1.0) },  // blue
   C: { fill: new Cesium.Color(1.0, 0.0, 1.0, 0.15),    outline: new Cesium.Color(1.0, 0.0, 1.0, 1.0) },     // magenta
   D: { fill: new Cesium.Color(0.53, 0.81, 0.98, 0.15), outline: new Cesium.Color(0.53, 0.81, 0.98, 1.0) },  // light blue
 };
 
-let airspaceData = null; // cached for rebuild on 3D toggle
+window.airspaceData = null; // cached for rebuild on 3D toggle
 
 function initAirspace(airspace) {
   if (airspace) airspaceData = airspace;
@@ -421,3 +419,29 @@ function updateWaypointColors() {
     }
   }
 }
+
+window.getAirportColor = getAirportColor;
+window.getAirportOutlineColor = getAirportOutlineColor;
+window.getAirportOutlineWidth = getAirportOutlineWidth;
+window.getAirportLabelColor = getAirportLabelColor;
+window.initAirports = initAirports;
+window.initSmallAirports = initSmallAirports;
+window.removeSmallAirports = removeSmallAirports;
+window.toggleAirports = toggleAirports;
+window.updateAirportColors = updateAirportColors;
+window.initAirspace = initAirspace;
+window.rebuildAirspace = rebuildAirspace;
+window.toggleAirspace = toggleAirspace;
+window.toggleAirspace3D = toggleAirspace3D;
+window.toggleAirspaceEdges = toggleAirspaceEdges;
+window.getWaypointColor = getWaypointColor;
+window.getWaypointLabelColor = getWaypointLabelColor;
+window.getNavaidColor = getNavaidColor;
+window.initNavaids = initNavaids;
+window.initFixes = initFixes;
+window.removeFixes = removeFixes;
+window.removeNavaids = removeNavaids;
+window.toggleNavaids = toggleNavaids;
+window.updateWaypointColors = updateWaypointColors;
+
+export {}

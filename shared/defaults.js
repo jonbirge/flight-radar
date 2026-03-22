@@ -2,8 +2,6 @@
 // Loaded via <script> tag in browsers (exposes global DEFAULT_SETTINGS)
 // and via require() in Node.js (main.js)
 
-'use strict';
-
 const DEFAULT_SETTINGS = {
   fontSize: 12,
   theme: 'system',
@@ -45,4 +43,7 @@ const DEFAULT_SETTINGS = {
   searchHistory: [],
 };
 
-if (typeof module !== 'undefined' && module.exports) module.exports = DEFAULT_SETTINGS;
+// Expose globally for shared modules in the renderer
+if (typeof window !== 'undefined') window.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
+
+export default DEFAULT_SETTINGS;
