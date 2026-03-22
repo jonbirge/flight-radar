@@ -2,8 +2,6 @@
 // Loaded last — depends on all other radar-*.js modules.
 // Requires window.flightAPI to be available before init() is called.
 
-'use strict';
-
 // ============================================================
 // Shared Init Helpers
 // ============================================================
@@ -271,3 +269,12 @@ function applySavedView() {
     console.log('[FlightRadar] Starting — centered on BOS (default)');
   }
 }
+
+// ============================================================
+// Window exports for all top-level functions
+// ============================================================
+window.loadDataJSON = loadDataJSON;
+window.loadAndApplySettings = loadAndApplySettings;
+window.applySavedView = applySavedView;
+
+export {}

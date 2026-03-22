@@ -1,7 +1,5 @@
 // settings.js — Electron settings window (thin wrapper over shared/settings.js)
 
-'use strict';
-
 // ============================================================
 // Color utilities (subset of shared/config.js, Cesium-free)
 // ============================================================

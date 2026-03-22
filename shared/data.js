@@ -1,8 +1,6 @@
 // Shared data: airport database, OpenSky state parsing, formatting utilities
 // Loaded by both Electron and web versions
 
-'use strict';
-
 // ============================================================
 // Airport Database (major US airports + select international)
 // ============================================================
@@ -118,3 +116,14 @@ function verticalIndicator(rate) {
   if (rate == null || Math.abs(rate) < 0.5) return ' ';
   return rate > 0 ? '↑' : '↓';
 }
+
+// Expose to global scope for cross-module access
+window.AIRPORTS = AIRPORTS;
+window.lookupAirport = lookupAirport;
+window.IDX = IDX;
+window.parseState = parseState;
+window.formatAltitude = formatAltitude;
+window.formatSpeed = formatSpeed;
+window.verticalIndicator = verticalIndicator;
+
+export {};

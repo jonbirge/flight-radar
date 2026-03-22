@@ -1,73 +1,71 @@
 // Shared radar core: state declarations, Cesium viewer init, and theme engine.
 // Loaded first — all other radar-*.js files depend on this.
 
-'use strict';
-
 // ============================================================
 // State
 // ============================================================
 
-const aircraft = new Map();       // icao24 -> aircraft state object
-const trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
-const airportEntities = [];       // Cesium entities for airport markers
-const smallAirportEntities = [];  // Cesium entities for small airport markers
-const airspaceEntities = [];     // Cesium entities for airspace polygons
-const waypointEntities = [];     // Cesium entities for fix markers
-const navaidEntities = [];       // Cesium entities for navaid markers
-let cachedAirportData = null;     // Cached airport JSON for rebuilds
-let cachedWaypointData = null;    // Cached waypoint JSON for rebuilds
-let tickTimer = null;              // unified timer for extrapolation + polling + track fetches
-let clockTimer = null;             // HUD clock update interval
-let viewer = null;
-let is2D = false;
-let selectedIcao = null;
-let isRotating = false;
-let isTracking = false;
-let rotateHandler = null;
-let frozenBounds = null;          // locked viewport bounds during rotation
-let lastPollTime = null;
-let rateLimitedUntil = 0;           // timestamp: suppress all polling until this time
-let lastIconSize = -1;
-let lastPollBounds = null;
-let lastPollHeight = null;          // camera height at last poll interval adjustment
-let lastPositionUpdateHeight = null; // camera height at last position update interval adjustment
-let viewChangePollDebounce = null;
-let lastUseDot = null;              // track LOD tier to detect dot↔arrow transitions
-let _zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom resizes
-const RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
-const RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
-let _renderGeneration = 0;       // incremented to cancel stale chunked renders
-let acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft/PIREPs
-let radarLayer = null;
-let radarRefreshTimer = null;
-let satelliteIRLayer = null;
-let satelliteIRRefreshTimer = null;
-let turbLayer = null;
-let turbRefreshTimer = null;
-const turb3dEntities = [];      // 3D turbulence altitude surface entities
-let pirepRefreshTimer = null;
-let sigmetRefreshTimer = null;
-let airmetRefreshTimer = null;
-const pirepEntities = [];
-const sigmetEntities = [];
-const airmetEntities = [];
-const _scrubAirmetEntities = [];  // separate AIRMET entities for timeline scrubbing (all forecast hours)
-const flightPlanEntities = [];  // Cesium entities for flight plan route
-let activeFlightPlan = null;     // current flight plan data
-let searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
-let searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
-let selectedRouteFlight = null;  // picked flight from activeFlightPlan for info panel
-let timelineTime = null;         // ms timestamp for timeline scrubbing (null = live/now mode)
-let timelineEntity = null;       // Cesium entity showing aircraft position on timeline
-const timelineRoutePoints = [];  // geographic route points [{lon, lat, alt}] for interpolation
-let lastSelectedPollMs = 0;      // timestamp of last selected-aircraft poll
-let lastTrackFetchMs = 0;        // timestamp of last track queue processing
-let _pollInFlight = false;       // guard: true while pollStates() is running
-let _selectedPollInFlight = false; // guard: true while pollSelectedAircraft() is running
-let _lastBulkPollMs = 0;         // timestamp of last bulk poll API call
-let _lastSelectedPollApiMs = 0;  // timestamp of last selected-aircraft API call
-const SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s
-const TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
+window.aircraft = new Map();       // icao24 -> aircraft state object
+window.trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
+window.airportEntities = [];       // Cesium entities for airport markers
+window.smallAirportEntities = [];  // Cesium entities for small airport markers
+window.airspaceEntities = [];     // Cesium entities for airspace polygons
+window.waypointEntities = [];     // Cesium entities for fix markers
+window.navaidEntities = [];       // Cesium entities for navaid markers
+window.cachedAirportData = null;     // Cached airport JSON for rebuilds
+window.cachedWaypointData = null;    // Cached waypoint JSON for rebuilds
+window.tickTimer = null;              // unified timer for extrapolation + polling + track fetches
+window.clockTimer = null;             // HUD clock update interval
+window.viewer = null;
+window.is2D = false;
+window.selectedIcao = null;
+window.isRotating = false;
+window.isTracking = false;
+window.rotateHandler = null;
+window.frozenBounds = null;          // locked viewport bounds during rotation
+window.lastPollTime = null;
+window.rateLimitedUntil = 0;           // timestamp: suppress all polling until this time
+window.lastIconSize = -1;
+window.lastPollBounds = null;
+window.lastPollHeight = null;          // camera height at last poll interval adjustment
+window.lastPositionUpdateHeight = null; // camera height at last position update interval adjustment
+window.viewChangePollDebounce = null;
+window.lastUseDot = null;              // track LOD tier to detect dot↔arrow transitions
+window._zoomResizeRAF = null;          // rAF token for debouncing lightweight zoom resizes
+window.RATE_LIMIT_MS = 10000;     // must match main process STATES_MIN_INTERVAL
+window.RENDER_CHUNK_SIZE = 80;    // aircraft per frame in chunked render
+window._renderGeneration = 0;       // incremented to cancel stale chunked renders
+window.acDisplayCond = null;        // shared DistanceDisplayCondition for aircraft/PIREPs
+window.radarLayer = null;
+window.radarRefreshTimer = null;
+window.satelliteIRLayer = null;
+window.satelliteIRRefreshTimer = null;
+window.turbLayer = null;
+window.turbRefreshTimer = null;
+window.turb3dEntities = [];      // 3D turbulence altitude surface entities
+window.pirepRefreshTimer = null;
+window.sigmetRefreshTimer = null;
+window.airmetRefreshTimer = null;
+window.pirepEntities = [];
+window.sigmetEntities = [];
+window.airmetEntities = [];
+window._scrubAirmetEntities = [];  // separate AIRMET entities for timeline scrubbing (all forecast hours)
+window.flightPlanEntities = [];  // Cesium entities for flight plan route
+window.activeFlightPlan = null;     // current flight plan data
+window.searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
+window.searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
+window.selectedRouteFlight = null;  // picked flight from activeFlightPlan for info panel
+window.timelineTime = null;         // ms timestamp for timeline scrubbing (null = live/now mode)
+window.timelineEntity = null;       // Cesium entity showing aircraft position on timeline
+window.timelineRoutePoints = [];  // geographic route points [{lon, lat, alt}] for interpolation
+window.lastSelectedPollMs = 0;      // timestamp of last selected-aircraft poll
+window.lastTrackFetchMs = 0;        // timestamp of last track queue processing
+window._pollInFlight = false;       // guard: true while pollStates() is running
+window._selectedPollInFlight = false; // guard: true while pollSelectedAircraft() is running
+window._lastBulkPollMs = 0;         // timestamp of last bulk poll API call
+window._lastSelectedPollApiMs = 0;  // timestamp of last selected-aircraft API call
+window.SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s
+window.TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
 
 // ============================================================
 // Cesium Viewer Initialization
@@ -396,3 +394,23 @@ async function applyTheme() {
   // Update waypoint colors to match theme
   updateWaypointColors();
 }
+
+// Expose functions on window for cross-module access
+window.makeDarkTiles = makeDarkTiles;
+window.makeLightTiles = makeLightTiles;
+window.makeDarkNoLabelsTiles = makeDarkNoLabelsTiles;
+window.makeLightNoLabelsTiles = makeLightNoLabelsTiles;
+window.makeEsriGrayTiles = makeEsriGrayTiles;
+window.makeSatelliteTiles = makeSatelliteTiles;
+window.makeOsmTiles = makeOsmTiles;
+window.makeTopoTiles = makeTopoTiles;
+window.makeNightTiles = makeNightTiles;
+window.makeVfrMapTiles = makeVfrMapTiles;
+window.styleMapLayer = styleMapLayer;
+window.makeMapTiles = makeMapTiles;
+window.makeBaseTiles = makeBaseTiles;
+window.OVERLAY_LAYERS = OVERLAY_LAYERS;
+window.resolveTheme = resolveTheme;
+window.applyTheme = applyTheme;
+
+export {}

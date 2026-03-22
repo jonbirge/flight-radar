@@ -1,8 +1,6 @@
 // Aircraft entity management: rendering, trails, extrapolation, polling.
 // Depends on radar-core.js (viewer, CONFIG, state variables).
 
-'use strict';
-
 // ==== Entity Cleanup & Toggling ============================================
 
 // Destroy and re-create all aircraft entities to pick up new theme
@@ -1140,3 +1138,33 @@ function startPolling() {
 
   ensureTick();
 }
+
+// Expose all top-level functions as globals
+window.removeTrailEntities = removeTrailEntities;
+window.refreshAllEntities = refreshAllEntities;
+window.toggleAircraft = toggleAircraft;
+window.setPollInterval = setPollInterval;
+window.setTickInterval = setTickInterval;
+window.pollSelectedAircraft = pollSelectedAircraft;
+window.tick = tick;
+window.ensureTick = ensureTick;
+window.stopTick = stopTick;
+window.getViewBounds = getViewBounds;
+window.updateAircraft = updateAircraft;
+window.updateExtrapolationTrail = updateExtrapolationTrail;
+window.computeExtrapolatedPosition = computeExtrapolatedPosition;
+window.updateInfoPanelInterim = updateInfoPanelInterim;
+window.extrapolatePositions = extrapolatePositions;
+window._computeTrailHash = _computeTrailHash;
+window.computeHorizonDist = computeHorizonDist;
+window._renderOneAircraft = _renderOneAircraft;
+window.renderAircraft = renderAircraft;
+window.resizeAircraftIcons = resizeAircraftIcons;
+window.smoothTrailPositions = smoothTrailPositions;
+window.buildTrailPositions = buildTrailPositions;
+window.padBounds = padBounds;
+window.pollStates = pollStates;
+window.fetchNextTrack = fetchNextTrack;
+window.startPolling = startPolling;
+
+export {}
