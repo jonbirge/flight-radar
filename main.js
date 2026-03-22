@@ -1,15 +1,16 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const https = require('https');
-const http = require('http');
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } from 'electron'
+import path from 'path'
+import fs from 'fs'
+import https from 'https'
+import http from 'http'
+import DEFAULT_SETTINGS from './shared/defaults.js'
+import pkg from './package.json'
 
 // --- Settings Persistence ---
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
-const DEFAULT_SETTINGS = require('./shared/defaults');
 
 function loadSettings() {
   try {
@@ -355,11 +356,15 @@ function openHelpWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: path.join(__dirname, 'src', 'help-preload.js'),
+      preload: path.join(__dirname, '../preload/help.js'),
     },
   });
   helpWindow.setMenu(null);
-  helpWindow.loadFile(path.join(__dirname, 'src', 'help.html'));
+  if (process.env.ELECTRON_RENDERER_URL) {
+    helpWindow.loadURL(process.env.ELECTRON_RENDERER_URL + '/src/help.html');
+  } else {
+    helpWindow.loadFile(path.join(__dirname, '../renderer/src/help.html'));
+  }
   helpWindow.once('ready-to-show', () => helpWindow.show());
   helpWindow.on('closed', () => { helpWindow = null; });
 }
@@ -382,13 +387,17 @@ function openSettingsWindow() {
     show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#2d2d2d' : '#f0f0f0',
     webPreferences: {
-      preload: path.join(__dirname, 'settings-preload.js'),
+      preload: path.join(__dirname, '../preload/settings.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
   settingsWindow.setMenu(null);
-  settingsWindow.loadFile(path.join(__dirname, 'src', 'settings.html'));
+  if (process.env.ELECTRON_RENDERER_URL) {
+    settingsWindow.loadURL(process.env.ELECTRON_RENDERER_URL + '/src/settings.html');
+  } else {
+    settingsWindow.loadFile(path.join(__dirname, '../renderer/src/settings.html'));
+  }
   settingsWindow.once('ready-to-show', () => {
     // Auto-resize to fit content
     settingsWindow.webContents.executeJavaScript(
@@ -501,15 +510,20 @@ function createWindow() {
     height: 1000,
     backgroundColor: '#000000',
     title: '3D Flight Radar - FAA Scope',
-    icon: path.join(__dirname, 'assets', 'icon.ico'),
+    icon: path.join(__dirname, '../assets/icon.ico'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
+  // In dev mode, load from Vite dev server; in prod, load built file
+  if (process.env.ELECTRON_RENDERER_URL) {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL + '/src/index.html');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/src/index.html'));
+  }
 
   // Forward renderer console output to terminal
   mainWindow.webContents.on('console-message', (event, level, message) => {
@@ -564,13 +578,12 @@ function buildMenu() {
         {
           label: 'About 3D Flight Radar...',
           click: () => {
-            const cesiumVersion = require(path.join(__dirname, 'package.json')).cesiumVersion;
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About 3D Flight Radar',
               message: '3D Flight Radar',
               detail: [
-                `Version ${require(path.join(__dirname, 'package.json')).version}`,
+                `Version ${pkg.version}`,
                 '',
                 'Real-time flight tracking with data from',
                 'OpenSky Network (ADS-B)',
@@ -580,7 +593,7 @@ function buildMenu() {
                 'Iowa State Mesonet (NEXRAD)',
                 '',
                 `Electron ${process.versions.electron}`,
-                `CesiumJS ${cesiumVersion}`,
+                `CesiumJS ${pkg.cesiumVersion}`,
               ].join('\n'),
               buttons: ['OK'],
             });

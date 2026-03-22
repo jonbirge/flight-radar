@@ -8,19 +8,23 @@ and a standalone web app sharing a common `shared/` module layer.
 
 ```bash
 npm install      # copies CesiumJS runtime to vendor/, downloads fonts
-npm start        # launch Electron app
-npm run dev      # launch with DevTools open
+npm run dev      # Vite dev server + Electron with HMR
+npm run build    # production build → out/
+npm start        # preview production build
 ```
 
 ## Project Structure
 
 ```
-main.js                   # Electron main process (API calls, IPC, window mgmt)
+main.js                   # Electron main process (ESM, API calls, IPC, windows)
 preload.js                # Context-isolated IPC bridge → window.flightAPI
 settings-preload.js       # IPC bridge for settings window
+electron.vite.config.mjs  # Vite config (main, preload, renderer builds)
 src/
-  index.html              # Electron renderer HTML (loads shared/ then renderer.js)
+  entry.js                # Renderer entry — imports all shared modules + renderer.js
+  index.html              # Electron renderer HTML (<script type="module">)
   renderer.js             # Electron renderer entry point
+  settings-entry.js       # Settings window entry — imports defaults + settings
   settings.html/.js/.css  # Separate settings window
   help.html               # In-app help documentation
 shared/
@@ -38,6 +42,10 @@ shared/
   radar-timeline.js       # Timeline scrubber for flight plan playback
   radar.js                # Shared init helpers (loaded last)
   styles.css              # All common CSS
+out/                      # Build output (gitignored)
+  main/index.js           # Bundled main process
+  preload/                # Bundled preload scripts
+  renderer/               # Bundled renderer (HTML, JS, CSS, static assets)
 web/
   index.html              # Web renderer HTML
   app.js                  # Web entry point — flightAPI shim, settings wiring
@@ -71,12 +79,11 @@ a context-isolated IPC bridge (`preload.js`) as `window.flightAPI`.
 `postinstall` script copies `node_modules/cesium/Build/Cesium/` to `vendor/`
 so it can be served as static files. No Cesium Ion token is required.
 
-**Shared modules** (`shared/`) are plain JS loaded via `<script>` tags with no
-build step. They implement all features used by both Electron and web. Script
-load order is strict — `radar-core.js` must be loaded first, then the other
-`radar-*.js` files in order, then `radar.js` last. Top-level variables in
-`radar-core.js` are shared across subsequent scripts via the global lexical
-environment.
+**Shared modules** (`shared/`) are ES modules bundled by Vite. Each module
+exposes its API on `window` for cross-module access. Import order is defined in
+`src/entry.js` — `radar-core.js` must be imported first, then the other
+`radar-*.js` files in order, then `radar.js` last. The web version still loads
+them via `<script>` tags (the window-globals pattern is compatible with both).
 
 **`window.flightAPI`** is the platform abstraction layer. Both Electron
 (`preload.js`) and web (`web/app.js`) expose the same five methods:
@@ -119,7 +126,7 @@ When adding a new feature, document it in `src/help.html`.
 
 Update all three locations:
 
-1. `DEFAULT_SETTINGS` in `main.js`
+1. `DEFAULT_SETTINGS` in `shared/defaults.js`
 2. `CONFIG` defaults in `shared/config.js`
 3. `loadAndApplySettings()` in `shared/radar.js` — load the value, sync the UI
    element, and save on change in the event handler
@@ -199,12 +206,12 @@ See [web/README.md](web/README.md) for production deployment details.
 ## Packaging
 
 ```bash
-npm run pack     # portable folder → out/flight-radar-win32-x64/FlightRadar.exe
-npm run dist     # installer → out/make/squirrel.windows/x64/Flight Radar Setup.exe
+npm run pack     # build + unpacked directory → dist/win-unpacked/
+npm run dist     # build + installer → dist/Flight Radar Setup *.exe
 ```
 
-Uses **electron-forge** with Squirrel (Windows `.exe`) and deb (Linux `.deb`)
-makers configured in `forge.config.js`.
+Uses **electron-builder** with NSIS (Windows `.exe`) and deb (Linux `.deb`)
+targets configured in the `"build"` field of `package.json`.
 
 ### Snap (Linux)
 
@@ -233,7 +240,10 @@ snap run --shell flight-radar      # shell inside snap confinement
 
 ## Key Patterns & Conventions
 
-- **No build step**: Plain JS `<script>` tags throughout. No bundler, no transpiler.
+- **Vite build**: `electron-vite` bundles main, preload, and renderer. Output
+  goes to `out/`. `vite-plugin-static-copy` copies Cesium, data, and fonts to
+  the renderer output. The web version has no build step and still uses plain
+  `<script>` tags.
 - **Font loading**: Electron loads Roboto Flex from `shared/fonts/roboto-flex.woff2`
   (downloaded at install, gitignored). Web loads it from Google Fonts CDN.
   Do not put a `@font-face` in `shared/styles.css` — it causes a 404 on web.

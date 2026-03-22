@@ -1,13 +1,11 @@
 // Shared configuration, color utilities, and zoom-based scaling
 // Loaded by both Electron and web versions
 
-'use strict';
-
 // ============================================================
 // Configuration
 // ============================================================
 
-const CONFIG = {
+const CONFIG = window.CONFIG = {
   // CONUS center
   startLon: -98.6,
   startLat: 39.8,
@@ -171,8 +169,8 @@ function altitudeToTrailWidth(altMeters) {
 // Zoom-Based Scaling
 // ============================================================
 
-const CITY_HEIGHT = 100000;     // ~100km camera height = city scale
-const CONUS_HEIGHT = 6000000;   // ~6000km camera height = CONUS scale
+const CITY_HEIGHT = window.CITY_HEIGHT = 100000;     // ~100km camera height = city scale
+const CONUS_HEIGHT = window.CONUS_HEIGHT = 6000000;   // ~6000km camera height = CONUS scale
 
 function getZoomFraction(camHeight) {
   // Returns 0 at city zoom, 1 at CONUS zoom (logarithmic)
@@ -193,7 +191,7 @@ function computeDisplaySize(camHeight) {
   return Math.round(10 - 8 * t);
 }
 
-const POLL_STEPS = [10, 20, 30, 60]; // seconds
+const POLL_STEPS = window.POLL_STEPS = [10, 20, 30, 60]; // seconds
 
 function computePollInterval(camHeight) {
   const t = getZoomFraction(camHeight);
@@ -207,3 +205,23 @@ function computePositionUpdateInterval(camHeight) {
   // Linear interpolation: 200ms at city (t=0), 3000ms at CONUS (t=1)
   return Math.round(200 + (3000 - 200) * t);
 }
+
+// Expose on window for cross-module access
+window.exAlt = exAlt;
+window.hexToRgb = hexToRgb;
+window.brighten = brighten;
+window.withAlpha = withAlpha;
+window.lighten = lighten;
+window.setDarkColors = setDarkColors;
+window.setLightColors = setLightColors;
+window.hslToRgb = hslToRgb;
+window.altitudeToRgb = altitudeToRgb;
+window.altitudeToSelectedRgb = altitudeToSelectedRgb;
+window.altitudeToTrailWidth = altitudeToTrailWidth;
+window.getZoomFraction = getZoomFraction;
+window.computeIconSize = computeIconSize;
+window.computeDisplaySize = computeDisplaySize;
+window.computePollInterval = computePollInterval;
+window.computePositionUpdateInterval = computePositionUpdateInterval;
+
+export {};

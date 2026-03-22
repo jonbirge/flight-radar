@@ -1,5 +1,5 @@
 // preload.js - Context bridge between main and renderer
-const { contextBridge, ipcRenderer } = require('electron');
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch flight states within a geographic bounding box
@@ -36,4 +36,4 @@ contextBridge.exposeInMainWorld('flightAPI', {
 
   // Native context menu — returns selected item id or null if dismissed
   showContextMenu: (items) => ipcRenderer.invoke('show-context-menu', items),
-});
+})

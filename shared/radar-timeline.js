@@ -3,14 +3,12 @@
 // Aircraft (selected and others) are left completely alone and update independently.
 // Depends on radar-core.js, radar-weather.js, radar-flightplan.js.
 
-'use strict';
-
 // ============================================================
 // Airport Weather
 // ============================================================
 
 // WMO weather interpretation code → representative emoji icon.
-const WMO_WEATHER_ICON = {
+window.WMO_WEATHER_ICON = {
   0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
   45: '🌫️', 48: '🌫️',
   51: '🌦️', 53: '🌦️', 55: '🌧️',
@@ -25,7 +23,7 @@ const WMO_WEATHER_ICON = {
 
 // Fetch the surface weather forecast at an airport for a given time and display it in the
 // specified element. Uses the Open-Meteo free forecast API.
-let _weatherAbortCtrl = null;
+window._weatherAbortCtrl = null;
 
 async function fetchAirportWeather(airport, timeMs, elId) {
   const el = document.getElementById(elId);
@@ -136,9 +134,9 @@ function getFlightTimes(flight) {
 // Timeline UI
 // ============================================================
 
-let _timelineFlight = null;       // flight object the timeline is showing
-let _timelineLive = true;         // true = live mode (weather updates normally), false = scrubbing
-let _timelineLiveTimer = null;    // interval ID for auto-advancing slider in live mode
+window._timelineFlight = null;       // flight object the timeline is showing
+window._timelineLive = true;         // true = live mode (weather updates normally), false = scrubbing
+window._timelineLiveTimer = null;    // interval ID for auto-advancing slider in live mode
 
 function showTimeline(flight) {
   const panel = document.getElementById('timeline-panel');
@@ -400,7 +398,7 @@ function restoreWeatherVisibility() {
 // ============================================================
 
 // Sample every 5 minutes along the route to build a CSS gradient for the slider.
-const TURB_GRADIENT_INTERVAL_MS = 5 * 60 * 1000;
+window.TURB_GRADIENT_INTERVAL_MS = 5 * 60 * 1000;
 
 // Build a CSS linear-gradient string representing the turbulence level along the
 // entire route, sampled at 5-minute intervals.  Returns null if turbulence data
@@ -459,7 +457,7 @@ function clearSliderGradient() {
 // Event Wiring
 // ============================================================
 
-const _tlSlider = document.getElementById('timeline-slider');
+window._tlSlider = document.getElementById('timeline-slider');
 if (_tlSlider) {
   _tlSlider.addEventListener('input', onTimelineInput);
 
@@ -471,7 +469,7 @@ if (_tlSlider) {
 }
 
 // Live button toggles to live mode
-const _tlLiveBtn = document.getElementById('timeline-live');
+window._tlLiveBtn = document.getElementById('timeline-live');
 if (_tlLiveBtn) {
   _tlLiveBtn.addEventListener('click', () => {
     if (!_timelineFlight) return;
@@ -510,7 +508,36 @@ function positionTimeline() {
 window.addEventListener('resize', positionTimeline);
 
 // Reposition timeline when controls panel finishes collapsing/expanding
-const _tlControls = document.getElementById('controls');
+window._tlControls = document.getElementById('controls');
 if (_tlControls) {
   _tlControls.addEventListener('transitionend', positionTimeline);
 }
+
+// ============================================================
+// Window exports for all top-level functions
+// ============================================================
+window.fetchAirportWeather = fetchAirportWeather;
+window.computeRouteDistances = computeRouteDistances;
+window.interpolateRoutePosition = interpolateRoutePosition;
+window.getFlightTimes = getFlightTimes;
+window.showTimeline = showTimeline;
+window.hideTimeline = hideTimeline;
+window.resetTimelineToLive = resetTimelineToLive;
+window.enterLiveMode = enterLiveMode;
+window.enterScrubbingMode = enterScrubbingMode;
+window.startLiveTimer = startLiveTimer;
+window.stopLiveTimer = stopLiveTimer;
+window.updateLiveSliderPosition = updateLiveSliderPosition;
+window.formatDuration = formatDuration;
+window.updateTimelineLabel = updateTimelineLabel;
+window.onTimelineInput = onTimelineInput;
+window.updateTimelinePosition = updateTimelinePosition;
+window.updateOrCreateTimelineMarker = updateOrCreateTimelineMarker;
+window.filterWeatherByTime = filterWeatherByTime;
+window.restoreWeatherVisibility = restoreWeatherVisibility;
+window.computeSliderGradient = computeSliderGradient;
+window.applySliderGradient = applySliderGradient;
+window.clearSliderGradient = clearSliderGradient;
+window.positionTimeline = positionTimeline;
+
+export {}

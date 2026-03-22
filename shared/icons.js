@@ -1,8 +1,6 @@
 // Shared aircraft icon generation
 // Canvas-rendered symbols returned as data URLs for Cesium billboards
 
-'use strict';
-
 // Icon caches: store data URL strings to avoid redundant canvas rendering and GPU texture issues
 const _iconCache = { aircraft: new Map(), dot: new Map(), navaid: new Map(), pirep: new Map() };
 
@@ -175,3 +173,13 @@ function createPirepIcon(intensity, cssColor) {
   _iconCache.pirep.set(key, dataUrl);
   return dataUrl;
 }
+
+// Expose globals for cross-module access
+window._iconCache = _iconCache;
+window.clearIconCaches = clearIconCaches;
+window.createAircraftIcon = createAircraftIcon;
+window.createNavaidIcon = createNavaidIcon;
+window.createDotIcon = createDotIcon;
+window.createPirepIcon = createPirepIcon;
+
+export {}

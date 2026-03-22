@@ -1,7 +1,6 @@
 // Aircraft selection, info panel, flight plan search, and route display.
 // Depends on radar-core.js, radar-aircraft.js.
 
-'use strict';
 
 // ============================================================
 // Aircraft Selection (click to inspect)
@@ -9,10 +8,10 @@
 
 // Track window focus so the activation click (bringing window to front)
 // doesn't accidentally deselect the current aircraft.
-let focusTime = 0;
+window.focusTime = 0;
 window.addEventListener('focus', () => { focusTime = Date.now(); });
 
-const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+window.handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction((click) => {
   // Ignore clicks within 300ms of the window regaining focus — these are
   // activation clicks that the user intended to bring the window to front,
@@ -49,9 +48,9 @@ function formatDuration(ms) {
 //   3. Great-circle distance + default cruise speed (450 kts) as last resort
 // Returns an ISO date string or null if estimation is not possible.
 // DEFAULT_CRUISE_KNOTS is a conservative average ground speed for commercial jets.
-const DEFAULT_CRUISE_KNOTS = 450;
+window.DEFAULT_CRUISE_KNOTS = 450;
 // Minimum progress percentage required for reliable extrapolation.
-const MIN_PROGRESS_FOR_ESTIMATE = 5;
+window.MIN_PROGRESS_FOR_ESTIMATE = 5;
 
 function estimateArrivalTime(flight) {
   const depStr = flight.actual_out || flight.estimated_out || flight.scheduled_out;
@@ -1065,7 +1064,7 @@ function isNaturalLanguageQuery(query) {
 }
 
 // Common US airline name/abbreviation → ICAO operator code mapping.
-const AIRLINE_CODES = {
+window.AIRLINE_CODES = {
   'united':     'UAL', 'ual':     'UAL',
   'american':   'AAL', 'aal':     'AAL',
   'delta':      'DAL', 'dal':     'DAL',
@@ -1315,8 +1314,8 @@ async function searchFlightPlan(ident) {
 }
 
 // Wire up flight search UI
-const flightSearchInput = document.getElementById('flight-search');
-const flightSearchBtn = document.getElementById('btn-flight-search');
+window.flightSearchInput = document.getElementById('flight-search');
+window.flightSearchBtn = document.getElementById('btn-flight-search');
 
 if (flightSearchBtn) {
   flightSearchBtn.addEventListener('click', () => {
@@ -1346,7 +1345,7 @@ document.addEventListener('click', (e) => {
 // Search History
 // ============================================================
 
-const MAX_SEARCH_HISTORY = 10;
+window.MAX_SEARCH_HISTORY = 10;
 
 async function addSearchHistory(ident) {
   if (!ident || !window.flightAPI) return;
@@ -1405,7 +1404,7 @@ async function showSearchHistory() {
 }
 
 // Wire up search history button
-const searchHistoryBtn = document.getElementById('btn-search-history');
+window.searchHistoryBtn = document.getElementById('btn-search-history');
 if (searchHistoryBtn) {
   searchHistoryBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1426,7 +1425,7 @@ function stopTracking() {
   if (btn) btn.classList.remove('active');
 }
 
-const trackBtn = document.getElementById('btn-track');
+window.trackBtn = document.getElementById('btn-track');
 if (trackBtn) {
   trackBtn.addEventListener('click', () => {
     if (!selectedIcao) return;
@@ -1477,7 +1476,7 @@ if (trackBtn) {
   });
 }
 
-const showRouteBtn = document.getElementById('btn-show-route');
+window.showRouteBtn = document.getElementById('btn-show-route');
 if (showRouteBtn) {
   showRouteBtn.addEventListener('click', () => {
     stopTracking();
@@ -1494,3 +1493,39 @@ if (showRouteBtn) {
     }
   });
 }
+
+window.formatDuration = formatDuration;
+window.estimateArrivalTime = estimateArrivalTime;
+window.updateInfoPanelRoute = updateInfoPanelRoute;
+window.showAircraftInfo = showAircraftInfo;
+window.showTurbInfo = showTurbInfo;
+window.hideAircraftInfo = hideAircraftInfo;
+window.enrichSelectedWithFlightAware = enrichSelectedWithFlightAware;
+window.pickBestFlight = pickBestFlight;
+window.flyToRouteOverview = flyToRouteOverview;
+window.clearFlightPlanRoute = clearFlightPlanRoute;
+window.lookupAirportCoords = lookupAirportCoords;
+window.drawFlightPlanMarkers = drawFlightPlanMarkers;
+window.displayFlightPlanRoute = displayFlightPlanRoute;
+window.findAndSelectViaOpenSky = findAndSelectViaOpenSky;
+window.fetchSingleAircraftForSearch = fetchSingleAircraftForSearch;
+window.selectSearchedAircraft = selectSearchedAircraft;
+window.fetchAndDisplayFiledRoute = fetchAndDisplayFiledRoute;
+window.drawRouteFromString = drawRouteFromString;
+window.showFlightPlanInfo = showFlightPlanInfo;
+window.showFlightResults = showFlightResults;
+window.hideFlightResults = hideFlightResults;
+window.searchForLiveAircraft = searchForLiveAircraft;
+window.selectFlightFromResults = selectFlightFromResults;
+window.isNaturalLanguageQuery = isNaturalLanguageQuery;
+window.parseNaturalLanguage = parseNaturalLanguage;
+window.parseHourStr = parseHourStr;
+window.resolveToIcao = resolveToIcao;
+window.buildAdvancedQuery = buildAdvancedQuery;
+window.searchFlightsByNL = searchFlightsByNL;
+window.searchFlightPlan = searchFlightPlan;
+window.addSearchHistory = addSearchHistory;
+window.showSearchHistory = showSearchHistory;
+window.stopTracking = stopTracking;
+
+export {}

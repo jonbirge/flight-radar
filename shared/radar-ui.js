@@ -1,16 +1,14 @@
 // UI controls, HUD clock, camera change handler, rotation, and view morphing.
 // Depends on radar-core.js and radar-aircraft.js.
 
-'use strict';
-
 // ============================================================
 // Diagnostics
 // ============================================================
 
-const DIAGNOSTICS = false;
+window.DIAGNOSTICS = false;
 
 // Hide diagnostic HUD fields (lat/lon/alt) when not in diagnostics mode
-const hudDiagEl = document.getElementById('hud-diagnostics');
+window.hudDiagEl = document.getElementById('hud-diagnostics');
 if (hudDiagEl) hudDiagEl.style.display = DIAGNOSTICS ? '' : 'none';
 
 // ============================================================
@@ -139,14 +137,14 @@ document.getElementById('toggle-aircraft').addEventListener('change', async (e) 
   await window.flightAPI.saveSettings(settings);
 });
 
-const airspace3DToggle = document.getElementById('toggle-airspace-3d');
+window.airspace3DToggle = document.getElementById('toggle-airspace-3d');
 if (airspace3DToggle) {
   airspace3DToggle.addEventListener('change', (e) => {
     toggleAirspace3D(e.target.checked);
   });
 }
 
-const radarToggle = document.getElementById('toggle-radar');
+window.radarToggle = document.getElementById('toggle-radar');
 if (radarToggle) {
   radarToggle.addEventListener('change', async (e) => {
     if (e.target.checked) {
@@ -160,7 +158,7 @@ if (radarToggle) {
   });
 }
 
-const satelliteIRToggle = document.getElementById('toggle-satellite-ir');
+window.satelliteIRToggle = document.getElementById('toggle-satellite-ir');
 if (satelliteIRToggle) {
   satelliteIRToggle.addEventListener('change', async (e) => {
     if (e.target.checked) {
@@ -174,7 +172,7 @@ if (satelliteIRToggle) {
   });
 }
 
-const sigmetsToggle = document.getElementById('toggle-sigmets');
+window.sigmetsToggle = document.getElementById('toggle-sigmets');
 if (sigmetsToggle) {
   sigmetsToggle.addEventListener('change', async (e) => {
     if (e.target.checked) {
@@ -188,7 +186,7 @@ if (sigmetsToggle) {
   });
 }
 
-const airmetsToggle = document.getElementById('toggle-airmets');
+window.airmetsToggle = document.getElementById('toggle-airmets');
 if (airmetsToggle) {
   airmetsToggle.addEventListener('change', async (e) => {
     if (e.target.checked) {
@@ -202,7 +200,7 @@ if (airmetsToggle) {
   });
 }
 
-const pirepsToggle = document.getElementById('toggle-pireps');
+window.pirepsToggle = document.getElementById('toggle-pireps');
 if (pirepsToggle) {
   pirepsToggle.addEventListener('change', async (e) => {
     if (e.target.checked) {
@@ -216,7 +214,7 @@ if (pirepsToggle) {
   });
 }
 
-const turbToggle = document.getElementById('toggle-turb-forecast');
+window.turbToggle = document.getElementById('toggle-turb-forecast');
 if (turbToggle) {
   turbToggle.addEventListener('change', async (e) => {
     CONFIG.turbForecastEnabled = e.target.checked;
@@ -242,7 +240,7 @@ document.getElementById('toggle-labels').addEventListener('change', async (e) =>
   await window.flightAPI.saveSettings(settings);
 });
 
-const mapLayerSelect = document.getElementById('map-layer');
+window.mapLayerSelect = document.getElementById('map-layer');
 
 async function applyMapLayerValue(value) {
   CONFIG.mapLayer = value;
@@ -300,7 +298,7 @@ mapLayerSelect.querySelectorAll('.map-layer-option').forEach(opt => {
   });
 });
 
-const trailLengthEl = document.getElementById('trail-length');
+window.trailLengthEl = document.getElementById('trail-length');
 if (trailLengthEl) {
   trailLengthEl.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
@@ -344,7 +342,7 @@ async function saveView() {
 
 // Context menu — right-click on Cesium canvas
 viewer.canvas.addEventListener('contextmenu', e => e.preventDefault());
-const contextMenuHandler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+window.contextMenuHandler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 contextMenuHandler.setInputAction(async (click) => {
   const action = await window.flightAPI.showContextMenu([
     { id: 'home',      label: 'Go home'   },
@@ -364,7 +362,7 @@ document.getElementById('btn-north').addEventListener('click', () => {
 });
 
 // CONUS button (Electron only — absent from web HTML, so guard with null check)
-const conusBtn = document.getElementById('btn-conus');
+window.conusBtn = document.getElementById('btn-conus');
 if (conusBtn) {
   conusBtn.addEventListener('click', () => {
     viewer.camera.flyTo({
@@ -586,4 +584,24 @@ function resumeAllTimers() {
   if (CONFIG.aircraftEnabled) pollStates();
   console.log('[Visibility] All timers resumed');
 }
+
+// ============================================================
+// Expose top-level functions on window for cross-module access
+// ============================================================
+window.updateClock = updateClock;
+window.startClock = startClock;
+window.stopClock = stopClock;
+window.boundsContain = boundsContain;
+window.scheduleViewportPoll = scheduleViewportPoll;
+window.applyMapLayerValue = applyMapLayerValue;
+window.goHome = goHome;
+window.saveView = saveView;
+window.morphAndPreserveView = morphAndPreserveView;
+window.startRotation = startRotation;
+window.stopRotation = stopRotation;
+window.isMobile = isMobile;
+window.pauseAllTimers = pauseAllTimers;
+window.resumeAllTimers = resumeAllTimers;
+
+export {}
 

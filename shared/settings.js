@@ -2,15 +2,13 @@
 // Loaded by both Electron settings window and web inline modal.
 // Does NOT depend on Cesium, shared/config.js, or shared/radar.js.
 
-'use strict';
-
 // ============================================================
 // Constants
 // ============================================================
 
 // Use DEFAULT_SETTINGS from shared/defaults.js (loaded before this script)
 
-const COLOR_PRESETS = [
+const COLOR_PRESETS = window.COLOR_PRESETS = [
   { color: '#cccccc', label: 'White' },
   { color: '#00cccc', label: 'Cyan' },
   { color: '#cc8800', label: 'Amber' },
@@ -18,7 +16,7 @@ const COLOR_PRESETS = [
   { color: '#6c7f70', label: 'Sage' },
 ];
 
-const LIGHT_COLOR_PRESETS = [
+const LIGHT_COLOR_PRESETS = window.LIGHT_COLOR_PRESETS = [
   { color: '#1a1a1a', label: 'Black' },
   { color: '#2563eb', label: 'Cobalt' },
   { color: '#0d9488', label: 'Teal' },
@@ -30,7 +28,7 @@ const LIGHT_COLOR_PRESETS = [
 // Inline CSS (structural, shared by both platforms)
 // ============================================================
 
-const SETTINGS_CSS = `
+const SETTINGS_CSS = window.SETTINGS_CSS = `
 .settings-columns {
   display: flex;
 }
@@ -940,3 +938,9 @@ function initSettingsPanel(options) {
     },
   };
 }
+
+window.createSettingsFormHTML = createSettingsFormHTML;
+window.initSettingsPanel = initSettingsPanel;
+window.populateSettingsForm = populateSettingsForm;
+
+export {}
