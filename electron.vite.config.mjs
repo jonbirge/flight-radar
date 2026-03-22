@@ -41,6 +41,21 @@ export default defineConfig({
           changeOrigin: true,
           secure: true,
           rewrite: (path) => path.replace(/^\/awc-api/, '/api/data')
+        },
+        // Proxy VFRMap.com tile requests to avoid CORS in dev mode
+        '/vfrmap-tiles': {
+          target: 'https://vfrmap.com',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => {
+            const url = new URL(path, 'http://localhost');
+            const date = url.searchParams.get('date');
+            const chart = url.searchParams.get('chart');
+            const z = url.searchParams.get('z');
+            const y = url.searchParams.get('y');
+            const x = url.searchParams.get('x');
+            return `/${date}/tiles/${chart}/${z}/${y}/${x}.jpg`;
+          }
         }
       }
     },
