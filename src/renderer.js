@@ -31,6 +31,7 @@ async function init() {
   // to avoid CORS. In production (file:// protocol), calls go direct.
   if (location.protocol !== 'file:') {
     CONFIG.awcProxyUrl = '/awc-api';
+    CONFIG.vfrMapProxyUrl = '/vfrmap-tiles';
   }
   await loadAndApplySettings();
   applySavedView();
