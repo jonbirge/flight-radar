@@ -73,7 +73,14 @@ async function loadAndApplySettings() {
       const prevTurb3D = CONFIG.turb3D;
       CONFIG.turb3D = saved.turb3D || DEFAULT_SETTINGS.turb3D;
       const prevExAlt = CONFIG.exaggerateAltitudes;
-      CONFIG.exaggerateAltitudes = saved.exaggerateAltitudes || DEFAULT_SETTINGS.exaggerateAltitudes;
+      // Migrate old boolean setting: false → 1, true → 10
+      if (saved.exaggerateAltitudes === true) {
+        CONFIG.exaggerateAltitudes = 10;
+      } else if (saved.exaggerateAltitudes === false || !saved.exaggerateAltitudes) {
+        CONFIG.exaggerateAltitudes = DEFAULT_SETTINGS.exaggerateAltitudes;
+      } else {
+        CONFIG.exaggerateAltitudes = saved.exaggerateAltitudes;
+      }
       // Migrate old turbulenceLevel setting to new checkbox model
       if (saved.turbForecastEnabled !== undefined) {
         CONFIG.turbForecastEnabled = saved.turbForecastEnabled;

@@ -523,6 +523,11 @@ ipcMain.on('preview-weather-opacity', (event, opacity) => {
     mainWindow.webContents.send('weather-opacity-preview', opacity);
   }
 });
+ipcMain.on('preview-alt-gain', (event, factor) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('alt-gain-preview', factor);
+  }
+});
 
 // --- Window Creation ---
 let mainWindow;

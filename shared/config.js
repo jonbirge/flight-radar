@@ -60,10 +60,10 @@ const CONFIG = window.CONFIG = {
 // Altitude Helpers
 // ============================================================
 
-// Apply altitude exaggeration factor (10×) when enabled.
+// Apply altitude exaggeration factor when enabled.
 // Use for all entity positioning — NOT for display values or camera height.
 function exAlt(meters) {
-  return CONFIG.exaggerateAltitudes ? meters * 10 : meters;
+  return meters * CONFIG.exaggerateAltitudes;
 }
 
 // ============================================================

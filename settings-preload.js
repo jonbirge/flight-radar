@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   previewFontSize: (size) => ipcRenderer.send('preview-font-size', size),
   previewRotationSpeed: (speed) => ipcRenderer.send('preview-rotation-speed', speed),
   previewWeatherOpacity: (opacity) => ipcRenderer.send('preview-weather-opacity', opacity),
+  previewAltGain: (factor) => ipcRenderer.send('preview-alt-gain', factor),
 })
