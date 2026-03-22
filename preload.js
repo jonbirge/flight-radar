@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('flightAPI', {
   onFontSizePreview: (callback) => ipcRenderer.on('font-size-preview', (_, size) => callback(size)),
   onRotationSpeedPreview: (callback) => ipcRenderer.on('rotation-speed-preview', (_, speed) => callback(speed)),
   onWeatherOpacityPreview: (callback) => ipcRenderer.on('weather-opacity-preview', (_, opacity) => callback(opacity)),
+  onAltGainPreview: (callback) => ipcRenderer.on('alt-gain-preview', (_, factor) => callback(factor)),
 
   // System theme detection
   getSystemTheme: () => ipcRenderer.invoke('get-system-theme'),

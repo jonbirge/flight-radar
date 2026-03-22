@@ -37,6 +37,19 @@ window.flightAPI.onWeatherOpacityPreview((opacity) => {
   if (satelliteIRLayer) satelliteIRLayer.alpha = alpha;
   if (turbLayer) turbLayer.alpha = alpha;
 });
+window.flightAPI.onAltGainPreview((factor) => {
+  CONFIG.exaggerateAltitudes = factor;
+  renderAircraft();
+  updateAirspaceAltitudes();
+  if (CONFIG.turbForecastEnabled && CONFIG.turb3D) {
+    disableTurbForecast();
+    enableTurbForecast();
+  }
+  if (CONFIG.pirepsEnabled) {
+    removePirepEntities();
+    fetchPireps();
+  }
+});
 
 // ============================================================
 // Start

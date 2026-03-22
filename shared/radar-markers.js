@@ -232,6 +232,25 @@ function rebuildAirspace() {
   initAirspace();
 }
 
+// Lightweight altitude update for 3D airspace — adjusts height/extrudedHeight
+// without destroying entities. No-op when airspace is 2D (flat).
+function updateAirspaceAltitudes() {
+  if (!CONFIG.airspace3D || !airspaceData) return;
+  let i = 0;
+  for (const entry of airspaceData) {
+    const colors = AIRSPACE_COLORS[entry.cls];
+    if (!colors || !entry.coords || entry.coords.length < 3) continue;
+    if (i >= airspaceEntities.length) break;
+    const entity = airspaceEntities[i];
+    i++;
+    const hasAltData = entry.ceil != null && entry.floor != null;
+    if (hasAltData && entity.polygon) {
+      entity.polygon.height = exAlt(entry.floor * FT_TO_M);
+      entity.polygon.extrudedHeight = exAlt(entry.ceil * FT_TO_M);
+    }
+  }
+}
+
 function toggleAirspace(show) {
   CONFIG.airspaceEnabled = show;
   for (const entity of airspaceEntities) {
@@ -431,6 +450,7 @@ window.toggleAirports = toggleAirports;
 window.updateAirportColors = updateAirportColors;
 window.initAirspace = initAirspace;
 window.rebuildAirspace = rebuildAirspace;
+window.updateAirspaceAltitudes = updateAirspaceAltitudes;
 window.toggleAirspace = toggleAirspace;
 window.toggleAirspace3D = toggleAirspace3D;
 window.toggleAirspaceEdges = toggleAirspaceEdges;

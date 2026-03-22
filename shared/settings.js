@@ -444,20 +444,18 @@ function createSettingsFormHTML() {
               <input type="checkbox" id="set-show-fixes">
               <span>Nav fixes</span>
             </label>
-          </div>
-        </div>
-
-        <div class="settings-section" style="border-bottom:none;">
-          <div class="settings-label">Aviation weather</div>
-          <div class="settings-row settings-grid-2col">
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-turb-3d">
               <span>3D turbulence</span>
             </label>
-            <label class="settings-toggle-label">
-              <input type="checkbox" id="set-exaggerate-alt">
-              <span>Height gain (10×)</span>
-            </label>
+          </div>
+        </div>
+
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-label">Altitude gain</div>
+          <div class="settings-row" style="align-items:center;">
+            <input type="range" id="set-exaggerate-alt" min="1" max="10" value="1" step="0.1" style="flex:1;">
+            <span class="settings-fontsize-val" id="set-exaggerate-alt-val">1\u00D7</span>
           </div>
         </div>
       </div>
@@ -602,8 +600,14 @@ function populateSettingsForm(container, settings) {
   if (turb3dEl) turb3dEl.checked = s.turb3D;
 
   // Exaggerate altitudes
-  const exAltEl = container.querySelector('#set-exaggerate-alt');
-  if (exAltEl) exAltEl.checked = s.exaggerateAltitudes;
+  const exAltSlider = container.querySelector('#set-exaggerate-alt');
+  const exAltVal = container.querySelector('#set-exaggerate-alt-val');
+  if (exAltSlider) {
+    // Migrate old boolean: false → 1, true → 10
+    const v = s.exaggerateAltitudes === true ? 10 : (s.exaggerateAltitudes === false ? 1 : (s.exaggerateAltitudes || 1));
+    exAltSlider.value = v;
+    if (exAltVal) exAltVal.textContent = `${Number.isInteger(v) ? v : v.toFixed(1)}\u00D7`;
+  }
 
   // Credentials
   container.querySelector('#set-client-id').value = s.openskyClientId || '';
@@ -630,7 +634,7 @@ function populateSettingsForm(container, settings) {
  * @returns {{ populate: (settings) => void }}
  */
 function initSettingsPanel(options) {
-  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onQuietSave } = options;
+  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onAltGainPreview, onQuietSave } = options;
 
   // Inject shared CSS into this document
   injectSettingsCSS(container.ownerDocument);
@@ -666,6 +670,7 @@ function initSettingsPanel(options) {
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
   const turb3d = container.querySelector('#set-turb-3d');
   const exaggerateAlt = container.querySelector('#set-exaggerate-alt');
+  const exaggerateAltVal = container.querySelector('#set-exaggerate-alt-val');
   const clientId = container.querySelector('#set-client-id');
   const clientSecret = container.querySelector('#set-client-secret');
   const faApiKey = container.querySelector('#set-fa-api-key');
@@ -697,7 +702,7 @@ function initSettingsPanel(options) {
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
       turb3D: turb3d ? turb3d.checked : false,
-      exaggerateAltitudes: exaggerateAlt ? exaggerateAlt.checked : false,
+      exaggerateAltitudes: exaggerateAlt ? parseFloat(exaggerateAlt.value) : 1,
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
       flightawareApiKey: faApiKey ? faApiKey.value.trim() : '',
@@ -878,8 +883,21 @@ function initSettingsPanel(options) {
   // --- 3D turbulence toggle ---
   if (turb3d) turb3d.addEventListener('change', broadcast);
 
-  // --- Exaggerate altitudes toggle ---
-  if (exaggerateAlt) exaggerateAlt.addEventListener('change', broadcast);
+  // --- Exaggerate altitudes (height gain) slider ---
+  if (exaggerateAlt) {
+    exaggerateAlt.addEventListener('input', () => {
+      const v = parseFloat(exaggerateAlt.value);
+      if (exaggerateAltVal) exaggerateAltVal.textContent = `${Number.isInteger(v) ? v : v.toFixed(1)}\u00D7`;
+      if (onAltGainPreview) {
+        onAltGainPreview(v);
+      } else {
+        debouncedBroadcast();
+      }
+    });
+    exaggerateAlt.addEventListener('change', () => {
+      quietBroadcast();
+    });
+  }
 
   // --- Credentials (fire on blur/change, not every keystroke) ---
   clientId.addEventListener('change', broadcast);

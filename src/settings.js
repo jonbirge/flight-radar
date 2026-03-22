@@ -113,6 +113,9 @@ initSettingsPanel({
   onWeatherOpacityPreview: (opacity) => {
     window.settingsAPI.previewWeatherOpacity(opacity);
   },
+  onAltGainPreview: (factor) => {
+    window.settingsAPI.previewAltGain(factor);
+  },
   onQuietSave: (form) => {
     applySettingsTheme(form);
     window.settingsAPI.updateSettingsQuiet({ ...originalSettings, ...form });

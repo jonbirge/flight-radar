@@ -476,7 +476,7 @@ function updateInfoPanelInterim(newPos) {
   const carto = Cesium.Cartographic.fromCartesian(newPos);
   const lat = Cesium.Math.toDegrees(carto.latitude);
   const lon = Cesium.Math.toDegrees(carto.longitude);
-  const realHeight = CONFIG.exaggerateAltitudes ? carto.height / 10 : carto.height;
+  const realHeight = carto.height / CONFIG.exaggerateAltitudes;
   const altFeet = Math.round(realHeight * 3.28084);
   const altEl = details.querySelector('[data-field="alt"]');
   const latEl = details.querySelector('[data-field="lat"]');
@@ -749,7 +749,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           ];
 
           // Color logic matching existing trail colors (use real altitude, not exaggerated)
-          const realAlt = CONFIG.exaggerateAltitudes ? alt / 10 : alt;
+          const realAlt = alt / CONFIG.exaggerateAltitudes;
           let rgb;
           if (CONFIG.colorByAltitude) {
             rgb = isSelected ? altitudeToSelectedRgb(realAlt) : altitudeToRgb(realAlt);
