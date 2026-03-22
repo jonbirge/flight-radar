@@ -171,21 +171,21 @@
     </div>
   </div>
 
-  <!-- Shared modules -->
-  <script src="../shared/defaults.js?v=2.12.0"></script>
-  <script src="../shared/config.js?v=2.12.0"></script>
-  <script src="../shared/data.js?v=2.12.0"></script>
-  <script src="../shared/icons.js?v=2.12.0"></script>
-  <script src="../shared/settings.js?v=2.12.0"></script>
-  <script src="../shared/radar-core.js?v=2.12.0"></script>
-  <script src="../shared/radar-weather.js?v=2.12.0"></script>
-  <script src="../shared/radar-markers.js?v=2.12.0"></script>
-  <script src="../shared/radar-aircraft.js?v=2.12.0"></script>
-  <script src="../shared/radar-ui.js?v=2.12.0"></script>
-  <script src="../shared/radar-flightplan.js?v=2.12.0"></script>
-  <script src="../shared/radar-timeline.js?v=2.12.0"></script>
-  <script src="../shared/radar.js?v=2.12.0"></script>
+  <!-- Shared modules (type="module" required — Vite migration added export statements) -->
+  <script type="module" src="../shared/defaults.js?v=2.12.0"></script>
+  <script type="module" src="../shared/config.js?v=2.12.0"></script>
+  <script type="module" src="../shared/data.js?v=2.12.0"></script>
+  <script type="module" src="../shared/icons.js?v=2.12.0"></script>
+  <script type="module" src="../shared/settings.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar-core.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar-weather.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar-markers.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar-aircraft.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar-ui.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar-flightplan.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar-timeline.js?v=2.12.0"></script>
+  <script type="module" src="../shared/radar.js?v=2.12.0"></script>
   <!-- Web-specific (API shim + settings panel + init) -->
-  <script src="app.js?v=2.12.0"></script>
+  <script type="module" src="app.js?v=2.12.0"></script>
 </body>
 </html>
