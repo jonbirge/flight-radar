@@ -282,7 +282,9 @@ async function fetchTurbImageDataUrl(level, dateSecs, opts) {
     // Fetch as blob so canvas won't be tainted by cross-origin
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (resp.status === 204) throw new Error('No content (HTTP 204)');
     const blob = await resp.blob();
+    if (blob.size === 0) throw new Error('Empty response body');
     const blobUrl = URL.createObjectURL(blob);
 
     const img = await new Promise((resolve, reject) => {
@@ -1149,7 +1151,8 @@ function refreshTurbForecast() {
 // Compute the best turbulence forecast level based on the active flight plan.
 // If a flight plan with a filed altitude exists, snap to the nearest available FL.
 // Otherwise default to 'maxa' (MAX HI).
-window.TURB_LEVELS = [100, 130, 160, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450];
+// Only levels that the AWC GTG API actually serves (others return 204 No Content).
+window.TURB_LEVELS = [180, 210, 240, 270, 300, 360, 420];
 
 function computeTurbLevel() {
   if (activeFlightPlan) {
