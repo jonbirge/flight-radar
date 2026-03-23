@@ -66,6 +66,9 @@ window._lastBulkPollMs = 0;         // timestamp of last bulk poll API call
 window._lastSelectedPollApiMs = 0;  // timestamp of last selected-aircraft API call
 window.SELECTED_POLL_INTERVAL = 10000; // poll selected aircraft every 10s
 window.TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
+window.selectedAirport = null;           // { icao, iata, name, type, lat, lon } of clicked airport
+window.airportFilterCallsigns = null;    // Set of callsigns (uppercase) to show, null = no filter
+window.airportFlightsData = null;        // Raw FlightAware response for the selected airport
 
 // ============================================================
 // Cesium Viewer Initialization

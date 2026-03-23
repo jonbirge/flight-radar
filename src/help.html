@@ -33,7 +33,12 @@
         <li><a href="#gtg-forecast" class="nav-h3">GTG Forecast</a></li>
       </ul>
     </li>
-    <li><a href="#aircraft-info-panel" class="nav-h2">Aircraft Info Panel</a></li>
+    <li>
+      <a href="#aircraft-info-panel" class="nav-h2">Aircraft Info Panel</a>
+      <ul>
+        <li><a href="#airport-filter" class="nav-h3">Airport Flight Filter</a></li>
+      </ul>
+    </li>
     <li><a href="#hud" class="nav-h2">HUD</a></li>
     <li><a href="#airspace-colors" class="nav-h2">Airspace Colors</a></li>
     <li><a href="#map-layers" class="nav-h2">Map Layers</a></li>
@@ -331,6 +336,16 @@
     Clicking on a turbulence feature (PIREP, SIGMET, or G-AIRMET) opens the same panel
     with details about that report, including intensity, altitude, validity times, and
     raw observation text when available.
+  </p>
+
+  <h3 id="airport-filter">Airport Flight Filter</h3>
+  <p>
+    Click on any airport marker to open an airport info panel showing the airport name,
+    ICAO/IATA codes, and type. The app queries FlightAware for all flights currently
+    en route to or from that airport and filters the map to show only those aircraft.
+    While the airport info panel is open, only matching flights are visible on the map.
+    Close the panel to clear the filter and restore all aircraft.
+    A FlightAware API key is required for this feature (configure in Settings).
   </p>
 
   <h2 id="hud">HUD (Heads-Up Display)</h2>

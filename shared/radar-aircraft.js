@@ -837,6 +837,15 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       removeTrailEntities(ac);
     }
     ac._trailHash = _th;
+
+    // Airport filter: hide aircraft not in the filter set (selected aircraft always visible)
+    if (airportFilterCallsigns && !isSelected) {
+      const cs = (s.callsign || '').trim().toUpperCase();
+      const visible = airportFilterCallsigns.has(cs);
+      ac.entity.show = visible;
+      if (ac.extrapolationTrail) ac.extrapolationTrail.show = visible;
+      for (const trail of ac.trailEntities) trail.show = visible;
+    }
 }
 
 function renderAircraft(filterIcaos) {
