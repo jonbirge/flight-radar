@@ -1,6 +1,12 @@
 // Aircraft entity management: rendering, trails, extrapolation, polling.
 // Depends on radar-core.js (viewer, CONFIG, state variables).
 
+// Returns true when aircraft polling/rendering should be active — either the
+// Aircraft toggle is on, or an airport filter is showing filtered flights.
+function aircraftActive() {
+  return CONFIG.aircraftEnabled || !!airportFilterCallsigns;
+}
+
 // ==== Entity Cleanup & Toggling ============================================
 
 // Destroy and re-create all aircraft entities to pick up new theme
@@ -32,6 +38,13 @@ function refreshAllEntities() {
 function toggleAircraft(show) {
   CONFIG.aircraftEnabled = show;
   if (!show) {
+    // If an airport filter is active, keep polling for filtered flights —
+    // just hide non-matching aircraft instead of wiping everything.
+    if (airportFilterCallsigns) {
+      applyAirportFilter();
+      return;
+    }
+
     // Cancel any in-progress chunked render so it doesn't create orphaned entities
     _renderGeneration++;
 
@@ -185,8 +198,8 @@ function tick() {
     return;
   }
 
-  // 2. Bulk poll when aircraft display is on and poll interval has elapsed
-  if (CONFIG.aircraftEnabled) {
+  // 2. Bulk poll when aircraft display is on (or airport filter active) and poll interval has elapsed
+  if (aircraftActive()) {
     const elapsed = lastPollTime ? now - lastPollTime.getTime() : Infinity;
     if (elapsed >= CONFIG.pollInterval) {
       pollStates();
@@ -198,7 +211,7 @@ function tick() {
   if (selectedIcao && now - lastSelectedPollMs >= SELECTED_POLL_INTERVAL) {
     lastSelectedPollMs = now;
     const ac = aircraft.get(selectedIcao);
-    const coveredByBulk = CONFIG.aircraftEnabled && ac && lastPollBounds
+    const coveredByBulk = aircraftActive() && ac && lastPollBounds
       && ac.state.lat >= lastPollBounds.south && ac.state.lat <= lastPollBounds.north
       && ac.state.lon >= lastPollBounds.west && ac.state.lon <= lastPollBounds.east;
     if (!coveredByBulk) {
@@ -883,7 +896,7 @@ function renderAircraft(filterIcaos) {
 
   function renderChunk() {
     // Abort if a newer render has been requested or aircraft display was disabled
-    if (gen !== _renderGeneration || !CONFIG.aircraftEnabled) return;
+    if (gen !== _renderGeneration || !aircraftActive()) return;
 
     const end = Math.min(idx + RENDER_CHUNK_SIZE, entries.length);
     viewer.entities.suspendEvents();
@@ -1084,7 +1097,7 @@ async function pollStates() {
 
     // If aircraft display was disabled while the poll was in-flight, discard
     // the results to avoid creating orphaned entities in Cesium.
-    if (!CONFIG.aircraftEnabled) {
+    if (!aircraftActive()) {
       console.log('[Poll] Discarding results: aircraft disabled during poll');
       return;
     }
@@ -1126,7 +1139,7 @@ async function fetchNextTrack() {
 }
 
 function startPolling() {
-  if (!CONFIG.aircraftEnabled) {
+  if (!aircraftActive()) {
     console.log('[Poll] startPolling: aircraft disabled, skipping');
     return;
   }
@@ -1159,6 +1172,7 @@ function updateLabelFontSize() {
 }
 
 // Expose all top-level functions as globals
+window.aircraftActive = aircraftActive;
 window.removeTrailEntities = removeTrailEntities;
 window.refreshAllEntities = refreshAllEntities;
 window.toggleAircraft = toggleAircraft;
