@@ -620,13 +620,20 @@ async function fetchSigmets() {
           // Color by hazard type: TURB=red, CONVECTIVE/TS=yellow
           const isConvective = hazard === 'CONVECTIVE' || hazard === 'TS';
           const fillColor = isConvective
-            ? new Cesium.Color(1.0, 0.85, 0.0, 0.2)
-            : new Cesium.Color(1.0, 0.0, 0.0, 0.2);
+            ? new Cesium.Color(1.0, 0.85, 0.0, 0.12)
+            : new Cesium.Color(1.0, 0.0, 0.0, 0.12);
           const edgeColor = isConvective
-            ? new Cesium.Color(1.0, 0.85, 0.0, 0.8)
-            : new Cesium.Color(1.0, 0.0, 0.0, 0.8);
+            ? new Cesium.Color(1.0, 0.85, 0.0, 0.6)
+            : new Cesium.Color(1.0, 0.0, 0.0, 0.6);
           const polygons = geom.type === 'Polygon' ? [geom.coordinates]
             : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+          // Parse altitude bounds for 3D volume extrusion
+          const baseVal = sp.altitudeLow1 || sp.altLow || null;
+          const topVal = sp.altitudeHi1 || sp.altHi || null;
+          const baseFL = parseAltToFL(baseVal);
+          const topFL = parseAltToFL(topVal);
+          const baseMeters = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
+          const topMeters = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
           for (const rings of polygons) {
             if (!rings || !rings[0] || rings[0].length < 3) continue;
             const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
@@ -638,15 +645,15 @@ async function fetchSigmets() {
                 outline: true,
                 outlineColor: edgeColor,
                 outlineWidth: 1,
-                height: 0,
-                classificationType: Cesium.ClassificationType.BOTH,
+                height: baseMeters,
+                extrudedHeight: topMeters,
               },
               properties: {
                 turbType: isConvective ? 'CONVECTIVE SIGMET' : 'SIGMET',
                 hazard: hazard,
                 severity: sp.severity || '?',
-                base: sp.altitudeLow1 || sp.altLow || '?',
-                top: sp.altitudeHi1 || sp.altHi || '?',
+                base: baseVal || '?',
+                top: topVal || '?',
                 validFrom: sp.validTimeFrom || '?',
                 validTo: sp.validTimeTo || '?',
                 rawText: sp.rawAirSigmet || sp.rawSigmet || '',
@@ -692,6 +699,13 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
       }
       const polygons = geom.type === 'Polygon' ? [geom.coordinates]
         : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+      // Parse altitude bounds for 3D volume extrusion
+      const baseVal = ap.base || null;
+      const topVal = ap.top || null;
+      const baseFL = parseAltToFL(baseVal);
+      const topFL = parseAltToFL(topVal);
+      const baseMeters = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
+      const topMeters = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
       for (const rings of polygons) {
         if (!rings || !rings[0] || rings[0].length < 3) continue;
         const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
@@ -703,15 +717,15 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
             outline: true,
             outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
             outlineWidth: 1,
-            height: 0,
-            classificationType: Cesium.ClassificationType.BOTH,
+            height: baseMeters,
+            extrudedHeight: topMeters,
           },
           properties: {
             turbType: 'G-AIRMET',
             hazard: ap.hazard || '?',
             severity: ap.severity || '?',
-            base: ap.base || '?',
-            top: ap.top || '?',
+            base: baseVal || '?',
+            top: topVal || '?',
             validFrom: validFrom || '?',
             validTo: validTo || '?',
           },
@@ -1356,6 +1370,40 @@ window.addTurbLayer = addTurbLayer;
 window.removeTurbLayer = removeTurbLayer;
 window.addTurb3DLayers = addTurb3DLayers;
 window.removeTurb3DLayers = removeTurb3DLayers;
+// Update all weather entity altitudes in place when exaggeration changes (no refetch).
+function updateWeatherAltitudes() {
+  // PIREPs — reposition using stored fltlvl
+  for (const entity of pirepEntities) {
+    const p = entity.properties;
+    if (!p || !p.fltlvl) continue;
+    const fl = parseAltToFL(p.fltlvl.getValue());
+    if (fl == null) continue;
+    const altMeters = fl * 100 * 0.3048;
+    const carto = Cesium.Cartographic.fromCartesian(entity.position.getValue(Cesium.JulianDate.now()));
+    entity.position = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, exAlt(altMeters));
+  }
+  // SIGMETs — update polygon height/extrudedHeight
+  for (const entity of sigmetEntities) {
+    const p = entity.properties;
+    if (!p) continue;
+    const baseFL = p.base ? parseAltToFL(p.base.getValue()) : null;
+    const topFL = p.top ? parseAltToFL(p.top.getValue()) : null;
+    entity.polygon.height = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
+    entity.polygon.extrudedHeight = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
+  }
+  // AIRMETs (live + scrub)
+  const allAirmets = airmetEntities.concat(_scrubAirmetEntities);
+  for (const entity of allAirmets) {
+    const p = entity.properties;
+    if (!p) continue;
+    const baseFL = p.base ? parseAltToFL(p.base.getValue()) : null;
+    const topFL = p.top ? parseAltToFL(p.top.getValue()) : null;
+    entity.polygon.height = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
+    entity.polygon.extrudedHeight = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
+  }
+}
+
+window.updateWeatherAltitudes = updateWeatherAltitudes;
 window.removePirepEntities = removePirepEntities;
 window.removeSigmetEntities = removeSigmetEntities;
 window.removeAirmetEntities = removeAirmetEntities;
