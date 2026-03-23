@@ -284,6 +284,7 @@ function toggleAirspace3D(use3D) {
 function toggleAirspaceEdges(show) {
   CONFIG.airspaceEdges = show;
   rebuildAirspace();
+  updateWeatherEdges();
 }
 
 // ============================================================

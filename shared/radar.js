@@ -178,6 +178,9 @@ async function loadAndApplySettings() {
       if ((prevEdges !== CONFIG.airspaceEdges || prev3D !== CONFIG.airspace3D || prevExAlt !== CONFIG.exaggerateAltitudes) && airspaceEntities.length > 0) {
         rebuildAirspace();
       }
+      if (prevEdges !== CONFIG.airspaceEdges) {
+        updateWeatherEdges();
+      }
       // Altitude exaggeration changed — rebuild 3D turb layers, PIREPs, and re-render aircraft
       if (prevExAlt !== CONFIG.exaggerateAltitudes) {
         renderAircraft();

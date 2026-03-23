@@ -430,7 +430,7 @@ function createSettingsFormHTML() {
             </label>
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-airspace-edges">
-              <span>Airspace edges</span>
+              <span>Volume edges</span>
             </label>
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-navaids">
