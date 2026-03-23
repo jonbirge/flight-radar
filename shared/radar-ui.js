@@ -43,7 +43,7 @@ function boundsContain(outer, inner) {
 }
 
 function scheduleViewportPoll() {
-  if (!CONFIG.aircraftEnabled || Date.now() < rateLimitedUntil) return;
+  if (!aircraftActive() || Date.now() < rateLimitedUntil) return;
   if (viewChangePollDebounce) clearTimeout(viewChangePollDebounce);
   // Wait at least until the rate limit window has passed
   const elapsed = lastPollTime ? Date.now() - lastPollTime.getTime() : Infinity;
@@ -581,7 +581,7 @@ function resumeAllTimers() {
     startLiveTimer();
   }
   // Trigger immediate data refresh since data is stale
-  if (CONFIG.aircraftEnabled) pollStates();
+  if (aircraftActive()) pollStates();
   console.log('[Visibility] All timers resumed');
 }
 
