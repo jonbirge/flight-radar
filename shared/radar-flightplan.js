@@ -431,7 +431,13 @@ async function fetchAirportFlights(icao) {
     // Apply filter
     if (callsigns.size > 0) {
       airportFilterCallsigns = callsigns;
-      applyAirportFilter();
+      // If aircraft display is off, start polling so filtered flights appear
+      // (aircraftActive() now returns true because airportFilterCallsigns is set)
+      if (!CONFIG.aircraftEnabled) {
+        startPolling();
+      } else {
+        applyAirportFilter();
+      }
     } else {
       updateAirportFlightsStatus('No en-route flights found');
     }
@@ -487,12 +493,38 @@ function clearAirportFilter() {
   }
 
   const hadFilter = airportFilterCallsigns !== null;
+  const wasAircraftOff = !CONFIG.aircraftEnabled;
   selectedAirport = null;
   airportFilterCallsigns = null;
   airportFlightsData = null;
 
-  // Re-show all aircraft if a filter was active
-  if (hadFilter) {
+  // If aircraft toggle is off, clean up the filtered aircraft (restore "off" state)
+  if (hadFilter && wasAircraftOff) {
+    _renderGeneration++;
+    _pollInFlight = false;
+    const keepIcao = selectedIcao || searchedIcao;
+    viewer.entities.suspendEvents();
+    try {
+      for (const [icao, ac] of aircraft) {
+        if (icao === keepIcao) continue;
+        if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
+        removeTrailEntities(ac);
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    for (const icao of [...aircraft.keys()]) {
+      if (icao !== keepIcao) aircraft.delete(icao);
+    }
+    document.getElementById('track-count').textContent = keepIcao ? '1' : '0';
+    if (viewChangePollDebounce) { clearTimeout(viewChangePollDebounce); viewChangePollDebounce = null; }
+    if (keepIcao) {
+      ensureTick();
+    } else {
+      stopTick();
+    }
+  } else if (hadFilter) {
+    // Re-show all aircraft if a filter was active and aircraft toggle is on
     viewer.entities.suspendEvents();
     try {
       for (const [, ac] of aircraft) {
@@ -594,9 +626,9 @@ function hideAircraftInfo() {
     } finally {
       viewer.entities.resumeEvents();
     }
-    // If aircraft toggle is off, remove the deselected aircraft entirely
-    // (it was only kept because it was selected). Otherwise re-render normally.
-    if (!CONFIG.aircraftEnabled) {
+    // If aircraft toggle is off (and no airport filter), remove the deselected
+    // aircraft entirely (it was only kept because it was selected). Otherwise re-render.
+    if (!aircraftActive()) {
       aircraft.delete(prevIcao);
       document.getElementById('track-count').textContent = '0';
     } else {
@@ -604,7 +636,7 @@ function hideAircraftInfo() {
     }
   }
   // Stop tick if nothing needs it (no selected aircraft, display off)
-  if (!CONFIG.aircraftEnabled) stopTick();
+  if (!aircraftActive()) stopTick();
   // Clear altitude-based weather filter (no aircraft selected → show all)
   updateLiveAltitudeFilter();
 }
