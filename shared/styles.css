@@ -148,6 +148,9 @@ body {
 }
 
 #throttle-warning.hidden { display: none; }
+#throttle-warning:not(.hidden) ~ #flight-search-wrap {
+  top: 46px;
+}
 
 
 /* Controls Panel */
@@ -561,6 +564,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transform: translateX(-50%);
   z-index: 100;
   width: 420px;
+  transition: top 0.3s ease;
 }
 
 /* Flight search input */

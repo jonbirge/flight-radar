@@ -59,7 +59,11 @@ async function fetchTokenViaProxy(clientId, clientSecret) {
     }
     const resp = await fetch('cred.php', opts);
     clearTimeout(timeout);
-    if (!resp.ok) throw new Error(`Token proxy failed: HTTP ${resp.status}`);
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      const detail = body.detail ? ` — ${body.detail}` : '';
+      throw new Error(`Token proxy failed: HTTP ${resp.status}${detail}`);
+    }
     return await resp.json();
   } catch (err) {
     clearTimeout(timeout);
@@ -73,22 +77,24 @@ async function getOpenSkyToken() {
     return cachedToken;
   }
 
-  // Only use server proxy if credentials are configured in settings
+  // Try server proxy — it will use server-side creds.json if no credentials are passed
   const s = loadSettings();
-  if (s.openskyClientId && s.openskyClientSecret) {
-    try {
-      const resp = await fetchTokenViaProxy(s.openskyClientId, s.openskyClientSecret);
-      if (resp.access_token) {
-        cachedToken = resp.access_token;
-        tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
-        return cachedToken;
-      }
-    } catch (err) {
-      // Token fetch failed, will fall back to anonymous
+  const clientId = s.openskyClientId || null;
+  const clientSecret = s.openskyClientSecret || null;
+
+  try {
+    const resp = await fetchTokenViaProxy(clientId, clientSecret);
+    if (resp.access_token) {
+      cachedToken = resp.access_token;
+      tokenExpiresAt = now + ((resp.expires_in || 1500) * 1000);
+      console.log('OpenSky: authenticated via token proxy');
+      return cachedToken;
     }
+  } catch (err) {
+    console.warn('OpenSky: token proxy failed, falling back to anonymous', err.message);
   }
 
-  // No credentials configured — anonymous access
+  // Token fetch failed — anonymous access
   cachedToken = null;
   tokenExpiresAt = 0;
   return null;
