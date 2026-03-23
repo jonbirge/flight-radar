@@ -119,7 +119,7 @@ function setLightColors(hex) {
   CONFIG.phosphorSelect = CONFIG.phosphorBright;
   CONFIG.phosphorDim = withAlpha(hex, 0.45);
   CONFIG.trailColor = [r, g, b];
-  CONFIG.labelOutlineColor = Cesium.Color.WHITE;
+  CONFIG.labelOutlineColor = Cesium.Color.BLACK;
 }
 
 // HSL to RGB helper (h in degrees, s and l in 0-1)
