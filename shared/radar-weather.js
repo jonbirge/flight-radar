@@ -628,12 +628,13 @@ async function fetchSigmets() {
           const polygons = geom.type === 'Polygon' ? [geom.coordinates]
             : geom.type === 'MultiPolygon' ? geom.coordinates : [];
           // Parse altitude bounds for 3D volume extrusion
+          // SIGMET altitudes from AWC API are in feet (e.g. 45000), not flight levels
           const baseVal = sp.altitudeLow1 || sp.altLow || null;
           const topVal = sp.altitudeHi1 || sp.altHi || null;
-          const baseFL = parseAltToFL(baseVal);
-          const topFL = parseAltToFL(topVal);
-          const baseMeters = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
-          const topMeters = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
+          const baseFt = (baseVal != null && baseVal !== '?' && baseVal !== '') ? Number(baseVal) : null;
+          const topFt = (topVal != null && topVal !== '?' && topVal !== '') ? Number(topVal) : null;
+          const baseMeters = baseFt != null && !isNaN(baseFt) ? exAlt(baseFt * 0.3048) : 0;
+          const topMeters = topFt != null && !isNaN(topFt) ? exAlt(topFt * 0.3048) : exAlt(60000 * 0.3048);
           for (const rings of polygons) {
             if (!rings || !rings[0] || rings[0].length < 3) continue;
             const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
@@ -1382,14 +1383,14 @@ function updateWeatherAltitudes() {
     const carto = Cesium.Cartographic.fromCartesian(entity.position.getValue(Cesium.JulianDate.now()));
     entity.position = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, exAlt(altMeters));
   }
-  // SIGMETs — update polygon height/extrudedHeight
+  // SIGMETs — update polygon height/extrudedHeight (values are in feet, not FL)
   for (const entity of sigmetEntities) {
     const p = entity.properties;
     if (!p) continue;
-    const baseFL = p.base ? parseAltToFL(p.base.getValue()) : null;
-    const topFL = p.top ? parseAltToFL(p.top.getValue()) : null;
-    entity.polygon.height = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
-    entity.polygon.extrudedHeight = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
+    const baseFt = p.base ? Number(p.base.getValue()) : NaN;
+    const topFt = p.top ? Number(p.top.getValue()) : NaN;
+    entity.polygon.height = !isNaN(baseFt) ? exAlt(baseFt * 0.3048) : 0;
+    entity.polygon.extrudedHeight = !isNaN(topFt) ? exAlt(topFt * 0.3048) : exAlt(60000 * 0.3048);
   }
   // AIRMETs (live + scrub)
   const allAirmets = airmetEntities.concat(_scrubAirmetEntities);
