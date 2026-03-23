@@ -556,7 +556,7 @@ async function fetchPireps() {
           const cssColor = pirepCssColor(intensity);
           const icon = createPirepIcon(intensity, cssColor);
 
-          const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 25) + 'Z' : '?';
+          const obsTime = props.obsTime ? new Date(props.obsTime).toUTCString().slice(17, 22) + 'Z' : '?';
           const camH = viewer.camera.positionCartographic ? viewer.camera.positionCartographic.height : 1e7;
           const pirepDisplayCond = acDisplayCond || new Cesium.DistanceDisplayCondition(0, computeHorizonDist(camH));
           const entity = viewer.entities.add({
@@ -683,13 +683,8 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
       const geom = f.geometry;
       if (!geom) continue;
       const ap = f.properties || {};
-      // Each snapshot is valid from validTime for 3 hours (until the next snapshot)
+      // G-AIRMETs are point-in-time snapshots, not intervals
       const validFrom = ap.validTime || null;
-      let validTo = null;
-      if (validFrom) {
-        const fromMs = new Date(validFrom).getTime();
-        if (!isNaN(fromMs)) validTo = new Date(fromMs + 3 * 60 * 60 * 1000).toISOString();
-      }
       const polygons = geom.type === 'Polygon' ? [geom.coordinates]
         : geom.type === 'MultiPolygon' ? geom.coordinates : [];
       for (const rings of polygons) {
@@ -713,7 +708,6 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
             base: ap.base || '?',
             top: ap.top || '?',
             validFrom: validFrom || '?',
-            validTo: validTo || '?',
           },
         });
         targetArray.push(entity);
@@ -724,21 +718,47 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
   return count;
 }
 
-// Fetch only the current G-AIRMET snapshot (forecast hour 0) for live display.
+// Fetch G-AIRMET snapshots for hours 0 and 3, keep the one closest to now.
+// G-AIRMETs are point-in-time snapshots issued every 6 hours; the fore=0 and
+// fore=3 snapshots may both be in the past, so we pick whichever is nearest.
 async function fetchAirmets() {
-  console.log('[Weather] Fetching G-AIRMETs (live, hour 0)...');
+  console.log('[Weather] Fetching G-AIRMETs (live, hours 0 & 3)...');
   try {
-    const resp = await fetch(awcUrl('gairmet?format=geojson&fore=0'))
-      .catch(err => { console.warn('[Weather] G-AIRMET fetch failed:', err.message); return null; });
-    if (!resp || !resp.ok) return;
-    const data = await resp.json();
-    const count = _buildAirmetEntities([data], airmetEntities, 'turb-airmet');
-    console.log(`[Weather] Added ${count} G-AIRMET polygons (live, hour 0)`);
+    const [resp0, resp3] = await Promise.all([
+      fetch(awcUrl('gairmet?format=geojson&fore=0'))
+        .catch(err => { console.warn('[Weather] G-AIRMET fore=0 fetch failed:', err.message); return null; }),
+      fetch(awcUrl('gairmet?format=geojson&fore=3'))
+        .catch(err => { console.warn('[Weather] G-AIRMET fore=3 fetch failed:', err.message); return null; }),
+    ]);
+    const snapshots = [];
+    for (const resp of [resp0, resp3]) {
+      if (resp && resp.ok) snapshots.push(await resp.json());
+    }
+    if (snapshots.length === 0) return;
+    // Pick the snapshot whose validTime is closest to now
+    const now = Date.now();
+    const best = snapshots.reduce((a, b) => {
+      const aTime = _snapshotTime(a);
+      const bTime = _snapshotTime(b);
+      return Math.abs(aTime - now) <= Math.abs(bTime - now) ? a : b;
+    });
+    const count = _buildAirmetEntities([best], airmetEntities, 'turb-airmet');
+    console.log(`[Weather] Added ${count} G-AIRMET polygons (nearest snapshot)`);
     // Apply altitude filter for new entities in live mode
     updateLiveAltitudeFilter(true);
   } catch (err) {
     console.warn('[Weather] Error fetching G-AIRMETs:', err);
   }
+}
+
+// Extract the validTime from the first feature in a G-AIRMET response as epoch ms.
+function _snapshotTime(resp) {
+  const features = resp && resp.features;
+  if (features && features.length > 0) {
+    const vt = (features[0].properties || {}).validTime;
+    if (vt) { const ms = new Date(vt).getTime(); if (!isNaN(ms)) return ms; }
+  }
+  return 0;
 }
 
 // Fetch all G-AIRMET forecast snapshots (hours 0,3,6,9,12) into the scrubbing array.
@@ -883,6 +903,9 @@ function isWeatherEntityVisible(entity, timeMs, altitudeFL) {
         const obsMs = new Date(isoStr).getTime();
         if (!isNaN(obsMs) && (obsMs > timeMs || timeMs - obsMs > PIREP_MAX_AGE_MS)) return false;
       }
+    } else if (type === 'G-AIRMET') {
+      // G-AIRMETs are point-in-time snapshots — handled by _filterNearestAirmetSnapshot
+      // so skip per-entity time filtering here (let the snapshot filter decide)
     } else {
       const from = p.validFrom ? p.validFrom.getValue() : null;
       const to = p.validTo ? p.validTo.getValue() : null;
@@ -927,13 +950,39 @@ function filterAllWeather(timeMs, altitudeFL) {
   for (const entity of sigmetEntities) {
     entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
   }
-  if (_scrubAirmetEntities.length > 0) {
-    for (const entity of _scrubAirmetEntities) {
-      entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
-    }
-  } else {
-    for (const entity of airmetEntities) {
-      entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
+  const airmetArr = _scrubAirmetEntities.length > 0 ? _scrubAirmetEntities : airmetEntities;
+  _filterNearestAirmetSnapshot(airmetArr, timeMs, altitudeFL);
+}
+
+// For G-AIRMET entities (point-in-time snapshots), show only entities from the
+// snapshot whose validTime is closest to timeMs. Then apply altitude filtering.
+function _filterNearestAirmetSnapshot(entities, timeMs, altitudeFL) {
+  if (entities.length === 0) return;
+  if (timeMs == null) {
+    // No time constraint — show all, just apply altitude filter
+    for (const e of entities) e.show = isWeatherEntityVisible(e, null, altitudeFL);
+    return;
+  }
+  // Group entities by validFrom and find the nearest snapshot
+  const byTime = new Map();
+  for (const e of entities) {
+    const vf = e.properties && e.properties.validFrom ? e.properties.validFrom.getValue() : null;
+    if (!byTime.has(vf)) byTime.set(vf, []);
+    byTime.get(vf).push(e);
+  }
+  let bestKey = null;
+  let bestDist = Infinity;
+  for (const key of byTime.keys()) {
+    if (!key || key === '?') continue;
+    const ms = new Date(key).getTime();
+    if (isNaN(ms)) continue;
+    const dist = Math.abs(ms - timeMs);
+    if (dist < bestDist) { bestDist = dist; bestKey = key; }
+  }
+  for (const [key, ents] of byTime) {
+    const isNearest = key === bestKey;
+    for (const e of ents) {
+      e.show = isNearest && isWeatherEntityVisible(e, null, altitudeFL);
     }
   }
 }
