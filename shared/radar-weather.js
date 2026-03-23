@@ -709,7 +709,7 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
           id: `${idPrefix}-${count}`,
           polygon: {
             hierarchy: new Cesium.PolygonHierarchy(positions),
-            material: new Cesium.Color(1.0, 0.5, 0.0, 0.15),
+            material: new Cesium.Color(1.0, 0.5, 0.0, 0.10),
             outline: true,
             outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
             outlineWidth: 1,
