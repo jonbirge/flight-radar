@@ -133,6 +133,10 @@ class FilteredRadarImageryProvider {
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(image, 0, 0, w, h);
 
+    if (!CONFIG.radarThinning) {
+      return createImageBitmap(canvas);
+    }
+
     const imageData = ctx.getImageData(0, 0, w, h);
     const d = imageData.data;
 

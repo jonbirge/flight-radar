@@ -374,11 +374,16 @@ function createSettingsFormHTML() {
         </div>
 
         <div class="settings-section" style="border-bottom:none;">
-          <div class="settings-label">Weather overlay opacity</div>
-          <div class="settings-row">
-            <input type="range" id="set-weather-opacity" min="10" max="100" value="25" step="5">
+          <div class="settings-label">Weather overlay</div>
+          <div class="settings-row" style="margin-bottom:10px;">
+            <span class="settings-toggle-label" style="cursor:default;">Opacity</span>
+            <input type="range" id="set-weather-opacity" min="10" max="100" value="25" step="5" style="flex:1;">
             <span class="settings-fontsize-val" id="set-weather-opacity-val">25%</span>
           </div>
+          <label class="settings-toggle-label">
+            <input type="checkbox" id="set-radar-thinning">
+            <span>Radar thinning</span>
+          </label>
         </div>
       </div>
 
@@ -418,7 +423,7 @@ function createSettingsFormHTML() {
           <div class="settings-row settings-grid-2col">
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-airports">
-              <span>Airports</span>
+              <span>Major airports</span>
             </label>
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-airspace">
@@ -595,6 +600,10 @@ function populateSettingsForm(container, settings) {
     weatherOpacityVal.textContent = `${s.weatherOverlayOpacity}%`;
   }
 
+  // Radar thinning
+  const radarThinningEl = container.querySelector('#set-radar-thinning');
+  if (radarThinningEl) radarThinningEl.checked = s.radarThinning;
+
   // 3D turbulence
   const turb3dEl = container.querySelector('#set-turb-3d');
   if (turb3dEl) turb3dEl.checked = s.turb3D;
@@ -668,6 +677,7 @@ function initSettingsPanel(options) {
   const rotVal = container.querySelector('#set-rotation-speed-val');
   const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
+  const radarThinning = container.querySelector('#set-radar-thinning');
   const turb3d = container.querySelector('#set-turb-3d');
   const exaggerateAlt = container.querySelector('#set-exaggerate-alt');
   const exaggerateAltVal = container.querySelector('#set-exaggerate-alt-val');
@@ -701,6 +711,7 @@ function initSettingsPanel(options) {
       showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
+      radarThinning: radarThinning ? radarThinning.checked : true,
       turb3D: turb3d ? turb3d.checked : false,
       exaggerateAltitudes: exaggerateAlt ? parseFloat(exaggerateAlt.value) : 1,
       openskyClientId: clientId.value.trim(),
@@ -879,6 +890,9 @@ function initSettingsPanel(options) {
   weatherOpacitySlider.addEventListener('change', () => {
     quietBroadcast();
   });
+
+  // --- Radar thinning toggle ---
+  if (radarThinning) radarThinning.addEventListener('change', broadcast);
 
   // --- 3D turbulence toggle ---
   if (turb3d) turb3d.addEventListener('change', broadcast);

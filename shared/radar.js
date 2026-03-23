@@ -44,6 +44,8 @@ async function loadAndApplySettings() {
       }
       CONFIG.trailMaxAge = saved.trailLength || DEFAULT_SETTINGS.trailLength;
       CONFIG.weatherOverlayOpacity = saved.weatherOverlayOpacity ?? DEFAULT_SETTINGS.weatherOverlayOpacity;
+      const prevRadarThinning = CONFIG.radarThinning;
+      CONFIG.radarThinning = saved.radarThinning !== undefined ? saved.radarThinning : DEFAULT_SETTINGS.radarThinning;
       CONFIG.rotationSpeed = saved.rotationSpeed || DEFAULT_SETTINGS.rotationSpeed;
       const prevEdges = CONFIG.airspaceEdges;
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : DEFAULT_SETTINGS.airspaceEdges;
@@ -111,6 +113,8 @@ async function loadAndApplySettings() {
       if (rToggle) rToggle.checked = CONFIG.radarEnabled;
       // Start auto-refresh timer (applyTheme already adds the visual layer)
       if (CONFIG.radarEnabled) {
+        // Refresh radar tiles when thinning setting changes
+        if (prevRadarThinning !== CONFIG.radarThinning) refreshRadar();
         if (radarRefreshTimer) clearInterval(radarRefreshTimer);
         radarRefreshTimer = setInterval(refreshRadar, 5 * 60 * 1000);
       }

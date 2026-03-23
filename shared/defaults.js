@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS = {
   exaggerateAltitudes: 1,
   turbulenceLevel: 'none',
   weatherOverlayOpacity: 25,
+  radarThinning: true,
   rotationSpeed: 6,
   credentialsExpanded: false,
   openskyClientId: '',

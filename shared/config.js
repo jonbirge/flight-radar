@@ -53,6 +53,7 @@ const CONFIG = window.CONFIG = {
   exaggerateAltitudes: DEFAULT_SETTINGS.exaggerateAltitudes,
   turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
   weatherOverlayOpacity: DEFAULT_SETTINGS.weatherOverlayOpacity,
+  radarThinning: DEFAULT_SETTINGS.radarThinning,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
 };
 
