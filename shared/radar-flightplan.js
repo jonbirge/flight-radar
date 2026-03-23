@@ -26,6 +26,8 @@ handler.setInputAction((click) => {
     const id = picked.id.id;
     if (id.startsWith('ac-')) {
       showAircraftInfo(id.replace('ac-', ''));
+    } else if (id.startsWith('apt-')) {
+      showAirportInfo(picked.id);
     } else if (id.startsWith('turb-') && !selectedIcao) {
       // Only show turbulence info when no aircraft is selected —
       // the close button is the only way to deselect an aircraft.
@@ -141,6 +143,9 @@ function showAircraftInfo(icao) {
   const ac = aircraft.get(icao);
   if (!ac) return;
 
+  // Clear airport filter when selecting an aircraft
+  if (selectedAirport) clearAirportFilter();
+
   const prevSelected = selectedIcao;
   selectedIcao = icao;
 
@@ -235,6 +240,271 @@ function showAircraftInfo(icao) {
 
   // Ensure the unified tick timer is running for extrapolation and polling
   ensureTick();
+}
+
+// ============================================================
+// Airport Selection & Flight Filtering
+// ============================================================
+
+function showAirportInfo(entity) {
+  const p = entity.properties;
+  if (!p) return;
+  const icao = p.icao ? p.icao.getValue() : '';
+  const iata = p.iata ? p.iata.getValue() : '';
+  const name = p.name ? p.name.getValue() : '';
+  const type = p.type ? p.type.getValue() : '';
+  const lat = p.lat ? p.lat.getValue() : 0;
+  const lon = p.lon ? p.lon.getValue() : 0;
+
+  // Clear any previous airport filter
+  clearAirportFilter();
+
+  // Deselect any aircraft
+  if (selectedIcao) {
+    const prevIcao = selectedIcao;
+    selectedIcao = null;
+    const toRefresh = new Set([prevIcao]);
+    viewer.entities.suspendEvents();
+    try {
+      const rac = aircraft.get(prevIcao);
+      if (rac) {
+        if (rac.entity) { viewer.entities.remove(rac.entity); rac.entity = null; }
+        rac._iconKey = ''; rac._labelText = '';
+        removeTrailEntities(rac);
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+    renderAircraft(toRefresh);
+  }
+
+  // Clear any flight plan route
+  clearFlightPlanRoute();
+
+  // Store selected airport
+  selectedAirport = { icao, iata, name, type, lat, lon };
+
+  // Highlight the selected airport entity
+  if (entity.point) {
+    entity._origPointColor = entity.point.color.getValue(Cesium.JulianDate.now());
+    entity._origPointSize = entity.point.pixelSize.getValue(Cesium.JulianDate.now());
+    entity.point.color = Cesium.Color.fromCssColorString(CONFIG.phosphorBright);
+    entity.point.outlineColor = Cesium.Color.fromCssColorString(CONFIG.phosphor);
+    entity.point.outlineWidth = 2;
+    entity.point.pixelSize = entity._origPointSize * 1.5;
+  }
+
+  // Show info panel
+  const typeLabel = type === 'L' ? 'Large' : type === 'M' ? 'Medium' : 'Small';
+  const codeDisplay = iata ? `${icao} / ${iata}` : icao;
+  const panel = document.getElementById('aircraft-info');
+  const wasHidden = panel.classList.contains('hidden');
+  panel.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  if (wasHidden) {
+    if (isMobile()) panel.classList.add('mob-collapsed');
+    else panel.classList.remove('mob-collapsed');
+  }
+  const infoButtons = document.getElementById('info-buttons');
+  if (infoButtons) infoButtons.classList.add('hidden');
+
+  document.getElementById('info-callsign').textContent = codeDisplay;
+  document.getElementById('info-details').innerHTML = `
+    <div><span class="label">AIRPORT</span><span>${name || icao}</span></div>
+    <div><span class="label">TYPE</span><span>${typeLabel}</span></div>
+    <div><span class="label">LAT</span><span>${lat.toFixed(4)}</span></div>
+    <div><span class="label">LON</span><span>${lon.toFixed(4)}</span></div>
+    <div class="airport-flights-status"><span class="label">FLIGHTS</span><span>Loading...</span></div>
+  `;
+
+  // Fetch flights from FlightAware
+  fetchAirportFlights(icao);
+}
+
+// Compute great-circle distance in km between two lat/lon points.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Max flights to keep per direction (arriving / departing)
+window.AIRPORT_FILTER_MAX = 16;
+
+async function fetchAirportFlights(icao) {
+  if (!window.flightAPI.getAirportFlights) {
+    updateAirportFlightsStatus('FlightAware API not available');
+    return;
+  }
+
+  try {
+    console.log(`[Airport] Fetching arrivals & departures for ${icao}...`);
+
+    // Combined /airports/{id}/flights returns four arrays:
+    // arrivals (recently landed), departures (recently departed),
+    // scheduled_arrivals (scheduled/en-route inbound), scheduled_departures.
+    const data = await window.flightAPI.getAirportFlights(icao);
+
+    // Bail if user closed the airport panel or selected a different airport
+    if (!selectedAirport || selectedAirport.icao !== icao) return;
+
+    if (data.error) {
+      console.warn(`[Airport] Flights error: ${data.error}`);
+      updateAirportFlightsStatus(data.error);
+      return;
+    }
+
+    // Filter to en-route only (progress > 0 and < 100, or departed but not arrived)
+    const enRouteFilter = f => {
+      if (f.progress_percent != null) return f.progress_percent > 0 && f.progress_percent < 100;
+      return f.actual_off && !f.actual_on;
+    };
+
+    // En-route inbound flights may be in arrivals OR scheduled_arrivals.
+    // En-route outbound flights may be in departures OR scheduled_departures.
+    const allInbound = [...(data.arrivals || []), ...(data.scheduled_arrivals || [])];
+    const allOutbound = [...(data.departures || []), ...(data.scheduled_departures || [])];
+    // Deduplicate by fa_flight_id
+    const dedup = (flights) => {
+      const seen = new Set();
+      return flights.filter(f => {
+        const id = f.fa_flight_id || f.ident;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+    };
+
+    let arrivals = dedup(allInbound).filter(enRouteFilter);
+    let departures = dedup(allOutbound).filter(enRouteFilter);
+
+    console.log(`[Airport] ${icao} raw: arrivals=${(data.arrivals||[]).length}, scheduled_arrivals=${(data.scheduled_arrivals||[]).length}, departures=${(data.departures||[]).length}, scheduled_departures=${(data.scheduled_departures||[]).length}`);
+    console.log(`[Airport] ${icao} en-route after filter: ${arrivals.length} inbound, ${departures.length} outbound`);
+
+    // Sort by proximity to the airport — closest flights first.
+    // Arrivals: closest to landing (nearest to airport).
+    // Departures: most recently took off (also nearest to airport).
+    const aptLat = selectedAirport.lat;
+    const aptLon = selectedAirport.lon;
+
+    const distanceFromAirport = (f) => {
+      if (f.last_position && f.last_position.latitude != null && f.last_position.longitude != null) {
+        return haversineKm(aptLat, aptLon, f.last_position.latitude, f.last_position.longitude);
+      }
+      return Infinity;
+    };
+
+    arrivals.sort((a, b) => distanceFromAirport(a) - distanceFromAirport(b));
+    departures.sort((a, b) => distanceFromAirport(a) - distanceFromAirport(b));
+
+    // Limit to top N per direction
+    arrivals = arrivals.slice(0, AIRPORT_FILTER_MAX);
+    departures = departures.slice(0, AIRPORT_FILTER_MAX);
+
+    airportFlightsData = { arrivals, departures };
+
+    // Build callsign set
+    const callsigns = new Set();
+    for (const f of arrivals) {
+      const cs = (f.ident || '').trim().toUpperCase();
+      if (cs) callsigns.add(cs);
+    }
+    for (const f of departures) {
+      const cs = (f.ident || '').trim().toUpperCase();
+      if (cs) callsigns.add(cs);
+    }
+
+    console.log(`[Airport] ${icao}: ${arrivals.length} arriving, ${departures.length} departing, ${callsigns.size} unique callsigns`);
+
+    // Update info panel
+    const details = document.getElementById('info-details');
+    if (details && selectedAirport && selectedAirport.icao === icao) {
+      const statusEl = details.querySelector('.airport-flights-status');
+      if (statusEl) {
+        statusEl.innerHTML = `<span class="label">EN ROUTE</span><span>${arrivals.length} arriving, ${departures.length} departing</span>`;
+      }
+    }
+
+    // Apply filter
+    if (callsigns.size > 0) {
+      airportFilterCallsigns = callsigns;
+      applyAirportFilter();
+    } else {
+      updateAirportFlightsStatus('No en-route flights found');
+    }
+  } catch (err) {
+    console.error('[Airport] Fetch error:', err);
+    if (selectedAirport && selectedAirport.icao === icao) {
+      updateAirportFlightsStatus('Failed to load flights');
+    }
+  }
+}
+
+function updateAirportFlightsStatus(msg) {
+  const details = document.getElementById('info-details');
+  if (!details) return;
+  const statusEl = details.querySelector('.airport-flights-status');
+  if (statusEl) {
+    statusEl.innerHTML = `<span class="label">FLIGHTS</span><span>${msg}</span>`;
+  }
+}
+
+function applyAirportFilter() {
+  if (!airportFilterCallsigns) return;
+  viewer.entities.suspendEvents();
+  try {
+    for (const [icao, ac] of aircraft) {
+      if (!ac.entity) continue;
+      const isSelected = icao === selectedIcao;
+      if (isSelected) continue; // selected aircraft always visible
+      const cs = (ac.state.callsign || '').trim().toUpperCase();
+      const visible = airportFilterCallsigns.has(cs);
+      ac.entity.show = visible;
+      if (ac.extrapolationTrail) ac.extrapolationTrail.show = visible;
+      for (const trail of ac.trailEntities) trail.show = visible;
+    }
+  } finally {
+    viewer.entities.resumeEvents();
+  }
+}
+
+function clearAirportFilter() {
+  // Restore highlighted airport entity to its original style
+  if (selectedAirport) {
+    const aptId = `apt-${selectedAirport.icao}`;
+    const aptEntity = viewer.entities.getById(aptId);
+    if (aptEntity && aptEntity.point && aptEntity._origPointColor) {
+      aptEntity.point.color = aptEntity._origPointColor;
+      aptEntity.point.pixelSize = aptEntity._origPointSize;
+      aptEntity.point.outlineColor = getAirportOutlineColor();
+      aptEntity.point.outlineWidth = getAirportOutlineWidth();
+      delete aptEntity._origPointColor;
+      delete aptEntity._origPointSize;
+    }
+  }
+
+  const hadFilter = airportFilterCallsigns !== null;
+  selectedAirport = null;
+  airportFilterCallsigns = null;
+  airportFlightsData = null;
+
+  // Re-show all aircraft if a filter was active
+  if (hadFilter) {
+    viewer.entities.suspendEvents();
+    try {
+      for (const [, ac] of aircraft) {
+        if (!ac.entity) continue;
+        ac.entity.show = true;
+        if (ac.extrapolationTrail) ac.extrapolationTrail.show = true;
+        for (const trail of ac.trailEntities) trail.show = true;
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+  }
 }
 
 function showTurbInfo(entity) {
@@ -340,6 +610,9 @@ function hideAircraftInfo() {
 }
 
 document.getElementById('info-close').addEventListener('click', () => {
+  if (selectedAirport) {
+    clearAirportFilter();
+  }
   clearFlightPlanRoute();
   hideAircraftInfo();
   hideFlightResults();
@@ -1529,5 +1802,10 @@ window.searchFlightPlan = searchFlightPlan;
 window.addSearchHistory = addSearchHistory;
 window.showSearchHistory = showSearchHistory;
 window.stopTracking = stopTracking;
+window.showAirportInfo = showAirportInfo;
+window.fetchAirportFlights = fetchAirportFlights;
+window.haversineKm = haversineKm;
+window.applyAirportFilter = applyAirportFilter;
+window.clearAirportFilter = clearAirportFilter;
 
 export {}

@@ -50,6 +50,7 @@ function initAirports(airports) {
     const dotScale = new Cesium.NearFarScalar(1e5, 1.0, 6e6, farScale);
 
     const entity = viewer.entities.add({
+      id: `apt-${ap.icao}`,
       // Slight altitude keeps dots above the globe surface at oblique angles
       position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 10),
       point: {
@@ -73,6 +74,14 @@ function initAirports(airports) {
         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, labelRange),
       },
       show: CONFIG.airportsEnabled,
+      properties: {
+        icao: ap.icao,
+        iata: ap.iata || '',
+        name: ap.name || '',
+        type: ap.type,
+        lat: ap.lat,
+        lon: ap.lon,
+      },
     });
     airportEntities.push(entity);
   }
@@ -99,6 +108,7 @@ function initSmallAirports(airports) {
     const dotScale = new Cesium.NearFarScalar(5e4, 1.0, 2e5, farScale);
 
     const entity = viewer.entities.add({
+      id: `apt-${ap.icao}`,
       position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 10),
       point: {
         pixelSize: dotSize,
@@ -122,6 +132,14 @@ function initSmallAirports(airports) {
         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, smallRange),
       },
       show: CONFIG.airportsEnabled,
+      properties: {
+        icao: ap.icao,
+        iata: ap.iata || '',
+        name: ap.name || '',
+        type: ap.type,
+        lat: ap.lat,
+        lon: ap.lon,
+      },
     });
     smallAirportEntities.push(entity);
   }

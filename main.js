@@ -335,6 +335,32 @@ ipcMain.handle('search-flights', async (event, advQuery) => {
   }
 });
 
+// IPC handler: get airport flights from FlightAware
+// Makes two parallel calls to /airports/{id}/flights/arrivals and /departures
+// to get both en-route inbound and recently departed outbound flights.
+ipcMain.handle('get-airport-flights', async (event, airportCode) => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) {
+    return { error: 'FlightAware API key not configured' };
+  }
+
+  try {
+    const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
+    const data = await httpGetFA(`${FA_AEROAPI_BASE}/airports/${safeCode}/flights`, apiKey);
+    // Log all response keys and array sizes for debugging
+    for (const key of Object.keys(data)) {
+      if (Array.isArray(data[key])) {
+        console.log(`[FlightAware] ${safeCode} response: ${key} = ${data[key].length} flights`);
+      }
+    }
+    return data;
+  } catch (err) {
+    console.error(`[FlightAware] Airport flights error for ${airportCode}:`, err.message);
+    return { error: err.message };
+  }
+});
+
 // --- Help Window ---
 let helpWindow = null;
 
