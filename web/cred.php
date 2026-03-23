@@ -6,25 +6,54 @@ header('Content-Type: application/json');
 
 $TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 $CRED_FILE = __DIR__ . '/creds.json';
+
+// Accept all three key name variants (matching shared/settings.js drag-and-drop logic)
+function extractId($arr) {
+    return $arr['client_id'] ?? $arr['clientId'] ?? $arr['openskyClientId'] ?? null;
+}
+function extractSecret($arr) {
+    return $arr['client_secret'] ?? $arr['clientSecret'] ?? $arr['openskyClientSecret'] ?? null;
+}
+
 // Load credentials: prefer POST body, fall back to creds.json
 $input = json_decode(file_get_contents('php://input'), true);
-$clientId     = !empty($input['client_id'])     ? $input['client_id']     : null;
-$clientSecret = !empty($input['client_secret']) ? $input['client_secret'] : null;
+$clientId     = !empty($input) ? extractId($input)     : null;
+$clientSecret = !empty($input) ? extractSecret($input) : null;
 
 if (!$clientId || !$clientSecret) {
     // Fall back to server-side creds.json
     if (file_exists($CRED_FILE)) {
         $creds = json_decode(file_get_contents($CRED_FILE), true);
         if ($creds) {
-            $clientId     = $clientId     ?: ($creds['client_id']     ?? null);
-            $clientSecret = $clientSecret ?: ($creds['client_secret'] ?? null);
+            $clientId     = $clientId     ?: extractId($creds);
+            $clientSecret = $clientSecret ?: extractSecret($creds);
         }
     }
 }
 
 if (empty($clientId) || empty($clientSecret)) {
+    $detail = '';
+    if (!file_exists($CRED_FILE)) {
+        $detail = 'creds.json not found';
+    } else {
+        $raw = json_decode(file_get_contents($CRED_FILE), true);
+        if (!$raw) {
+            $detail = 'creds.json is not valid JSON';
+        } else {
+            $hasId = extractId($raw);
+            $hasSecret = extractSecret($raw);
+            if (!$hasId && !$hasSecret) {
+                $detail = 'creds.json has no OpenSky credentials (expected client_id/client_secret, clientId/clientSecret, or openskyClientId/openskyClientSecret)';
+            } else {
+                $missing = [];
+                if (!$hasId) $missing[] = 'client ID';
+                if (!$hasSecret) $missing[] = 'client secret';
+                $detail = 'creds.json missing: ' . implode(', ', $missing);
+            }
+        }
+    }
     http_response_code(400);
-    echo json_encode(['error' => 'No credentials provided or configured']);
+    echo json_encode(['error' => 'No credentials provided or configured', 'detail' => $detail]);
     exit;
 }
 
