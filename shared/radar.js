@@ -185,10 +185,7 @@ async function loadAndApplySettings() {
           disableTurbForecast();
           enableTurbForecast();
         }
-        if (CONFIG.pirepsEnabled) {
-          removePirepEntities();
-          fetchPireps();
-        }
+        updateWeatherAltitudes();
       }
       if (prevSmallAirports !== CONFIG.showSmallAirports && cachedAirportData) {
         if (CONFIG.showSmallAirports) {
