@@ -45,10 +45,7 @@ window.flightAPI.onAltGainPreview((factor) => {
     disableTurbForecast();
     enableTurbForecast();
   }
-  if (CONFIG.pirepsEnabled) {
-    removePirepEntities();
-    fetchPireps();
-  }
+  updateWeatherAltitudes();
 });
 
 // ============================================================
