@@ -14,7 +14,7 @@ function getAirportColor() {
 
 function getAirportOutlineColor() {
   if (CONFIG.theme === 'light') {
-    return Cesium.Color.BLACK;
+    return Cesium.Color.fromCssColorString('#999999');
   }
   return Cesium.Color.fromCssColorString('#333333');
 }

@@ -1,6 +1,10 @@
 // Aircraft selection, info panel, flight plan search, and route display.
 // Depends on radar-core.js, radar-aircraft.js.
 
+function fmtZulu(iso) {
+  if (!iso || iso === '?') return '?';
+  return iso.replace('T', ' ').replace(/:\d{2}(\.\d+)?Z$/, 'Z');
+}
 
 // ============================================================
 // Aircraft Selection (click to inspect)
@@ -268,9 +272,9 @@ function showTurbInfo(entity) {
   }
 
   if (type === 'PIREP') {
-    document.getElementById('info-callsign').textContent = `PIREP — ${p.intensity.getValue()} TURB`;
+    document.getElementById('info-callsign').textContent = 'PIREP';
     document.getElementById('info-details').innerHTML = `
-      <div><span class="label">TYPE</span><span>Pilot Report</span></div>
+      <div><span class="label">TYPE</span><span>TURB</span></div>
       <div><span class="label">INTENSITY</span><span>${p.intensity.getValue()}</span></div>
       <div><span class="label">FL</span><span>${p.fltlvl.getValue()}</span></div>
       <div><span class="label">ACFT</span><span>${p.acType.getValue()}</span></div>
@@ -278,27 +282,25 @@ function showTurbInfo(entity) {
     `;
   } else if (type === 'SIGMET' || type === 'CONVECTIVE SIGMET') {
     const hazard = p.hazard.getValue();
-    const label = type === 'CONVECTIVE SIGMET' ? 'CONVECTIVE SIGMET' : 'SIGMET — TURBULENCE';
-    document.getElementById('info-callsign').textContent = label;
+    document.getElementById('info-callsign').textContent = 'SIGMET';
     const from = p.validFrom.getValue();
     const to = p.validTo.getValue();
     document.getElementById('info-details').innerHTML = `
-      <div><span class="label">TYPE</span><span>${type}</span></div>
       <div><span class="label">HAZARD</span><span>${hazard}</span></div>
       <div><span class="label">SEVERITY</span><span>${p.severity.getValue()}</span></div>
       <div><span class="label">BASE</span><span>${p.base.getValue()}</span></div>
       <div><span class="label">TOP</span><span>${p.top.getValue()}</span></div>
-      <div><span class="label">VALID</span><span>${from} — ${to}</span></div>
+      <div><span class="label">FROM</span><span>${fmtZulu(from)}</span></div>
+      <div><span class="label">TO</span><span>${fmtZulu(to)}</span></div>
     `;
   } else if (type === 'G-AIRMET') {
-    document.getElementById('info-callsign').textContent = `G-AIRMET — ${p.hazard.getValue()}`;
+    document.getElementById('info-callsign').textContent = 'AIRMET';
     document.getElementById('info-details').innerHTML = `
-      <div><span class="label">TYPE</span><span>G-AIRMET</span></div>
       <div><span class="label">HAZARD</span><span>${p.hazard.getValue()}</span></div>
       <div><span class="label">SEVERITY</span><span>${p.severity.getValue()}</span></div>
       <div><span class="label">BASE</span><span>${p.base.getValue()}</span></div>
       <div><span class="label">TOP</span><span>FL${p.top.getValue()}</span></div>
-      <div><span class="label">VALID</span><span>${p.validFrom.getValue()}</span></div>
+      <div><span class="label">VALID</span><span>${fmtZulu(p.validFrom.getValue())}</span></div>
     `;
   }
 }
