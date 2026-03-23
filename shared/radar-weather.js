@@ -640,14 +640,15 @@ async function fetchSigmets() {
           for (const rings of polygons) {
             if (!rings || !rings[0] || rings[0].length < 3) continue;
             const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
+            const edgesOn = CONFIG.airspaceEdges;
             const entity = viewer.entities.add({
               id: `turb-sigmet-${count}`,
               polygon: {
                 hierarchy: new Cesium.PolygonHierarchy(positions),
                 material: fillColor,
-                outline: true,
-                outlineColor: edgeColor,
-                outlineWidth: 1,
+                outline: edgesOn,
+                outlineColor: edgesOn ? edgeColor : undefined,
+                outlineWidth: edgesOn ? 1 : undefined,
                 height: baseMeters,
                 extrudedHeight: topMeters,
               },
@@ -707,14 +708,15 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
       for (const rings of polygons) {
         if (!rings || !rings[0] || rings[0].length < 3) continue;
         const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
+        const edgesOn = CONFIG.airspaceEdges;
         const entity = viewer.entities.add({
           id: `${idPrefix}-${count}`,
           polygon: {
             hierarchy: new Cesium.PolygonHierarchy(positions),
             material: new Cesium.Color(1.0, 0.5, 0.0, 0.10),
-            outline: true,
-            outlineColor: new Cesium.Color(1.0, 0.5, 0.0, 0.7),
-            outlineWidth: 1,
+            outline: edgesOn,
+            outlineColor: edgesOn ? new Cesium.Color(1.0, 0.5, 0.0, 0.7) : undefined,
+            outlineWidth: edgesOn ? 1 : undefined,
             height: baseMeters,
             extrudedHeight: topMeters,
           },
@@ -1456,6 +1458,34 @@ function updateWeatherAltitudes() {
   }
 }
 
+// Toggle outline edges on SIGMET/AIRMET volume polygons to match CONFIG.airspaceEdges.
+function updateWeatherEdges() {
+  const edgesOn = CONFIG.airspaceEdges;
+  for (const entity of sigmetEntities) {
+    if (!entity.polygon) continue;
+    entity.polygon.outline = edgesOn;
+    if (edgesOn) {
+      const p = entity.properties;
+      const hazard = p && p.hazard ? p.hazard.getValue() : 'TURB';
+      const isConvective = hazard === 'CONVECTIVE' || hazard === 'TS';
+      entity.polygon.outlineColor = isConvective
+        ? new Cesium.Color(1.0, 0.85, 0.0, 0.6)
+        : new Cesium.Color(1.0, 0.0, 0.0, 0.6);
+      entity.polygon.outlineWidth = 1;
+    }
+  }
+  const allAirmets = airmetEntities.concat(_scrubAirmetEntities);
+  for (const entity of allAirmets) {
+    if (!entity.polygon) continue;
+    entity.polygon.outline = edgesOn;
+    if (edgesOn) {
+      entity.polygon.outlineColor = new Cesium.Color(1.0, 0.5, 0.0, 0.7);
+      entity.polygon.outlineWidth = 1;
+    }
+  }
+}
+
+window.updateWeatherEdges = updateWeatherEdges;
 window.updateWeatherAltitudes = updateWeatherAltitudes;
 window.removePirepEntities = removePirepEntities;
 window.removeSigmetEntities = removeSigmetEntities;
