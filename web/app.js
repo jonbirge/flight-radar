@@ -341,6 +341,34 @@ const settingsPanel = initSettingsPanel({
     saveSettings({ ...existing, ...form });
     await loadAndApplySettings();
   },
+  onQuietSave: (form) => {
+    const existing = loadSettings();
+    saveSettings({ ...existing, ...form });
+  },
+  onFontSizePreview: (size) => {
+    CONFIG.fontSize = size;
+    updateLabelFontSize();
+  },
+  onRotationSpeedPreview: (speed) => {
+    CONFIG.rotationSpeed = speed;
+  },
+  onWeatherOpacityPreview: (opacity) => {
+    CONFIG.weatherOverlayOpacity = opacity;
+    const alpha = opacity / 100;
+    if (radarLayer) radarLayer.alpha = alpha;
+    if (satelliteIRLayer) satelliteIRLayer.alpha = alpha;
+    if (turbLayer) turbLayer.alpha = alpha;
+  },
+  onAltGainPreview: (factor) => {
+    CONFIG.exaggerateAltitudes = factor;
+    renderAircraft();
+    updateAirspaceAltitudes();
+    if (CONFIG.turbForecastEnabled && CONFIG.turb3D) {
+      disableTurbForecast();
+      enableTurbForecast();
+    }
+    updateWeatherAltitudes();
+  },
   onClose: () => closeSettings(),
   onDefaults: () => {
     if (confirm('Reset all settings to defaults? This cannot be undone.')) {
