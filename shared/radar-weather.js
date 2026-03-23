@@ -1158,7 +1158,7 @@ function refreshTurbForecast() {
 // If a flight plan with a filed altitude exists, snap to the nearest available FL.
 // Otherwise default to 'maxa' (MAX HI).
 // Only levels that the AWC GTG API actually serves (others return 204 No Content).
-window.TURB_LEVELS = [180, 210, 240, 270, 300, 360, 420];
+window.TURB_LEVELS = [120, 180, 210, 240, 270, 300, 360, 420, 480];
 
 function computeTurbLevel() {
   if (activeFlightPlan) {
