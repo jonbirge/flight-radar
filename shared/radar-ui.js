@@ -352,13 +352,60 @@ contextMenuHandler.setInputAction(async (click) => {
   else if (action === 'save-view') saveView();
 }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
-// North Up — rotate heading to 0 while keeping current position and pitch
+// North Up — rotate earth around the camera boresight so north faces up,
+// keeping the viewed ground point stationary in the center of the screen.
 document.getElementById('btn-north').addEventListener('click', () => {
-  viewer.camera.flyTo({
-    destination: viewer.camera.positionWC,
-    orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 },
-    duration: 0.5,
-  });
+  // Find where the camera boresight intersects the globe
+  const ray = viewer.camera.getPickRay(new Cesium.Cartesian2(
+    viewer.canvas.clientWidth / 2, viewer.canvas.clientHeight / 2
+  ));
+  const groundPoint = viewer.scene.globe.pick(ray, viewer.scene);
+  if (!groundPoint) {
+    // Fallback: if no ground intersection (e.g. looking at sky), just reset heading
+    viewer.camera.flyTo({
+      destination: viewer.camera.positionWC,
+      orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 },
+      duration: 0.5,
+    });
+    return;
+  }
+
+  // Compute range and pitch relative to the ground point's local frame
+  const range = Cesium.Cartesian3.distance(viewer.camera.position, groundPoint);
+  const direction = Cesium.Cartesian3.subtract(
+    viewer.camera.position, groundPoint, new Cesium.Cartesian3()
+  );
+  const dirNormalized = Cesium.Cartesian3.normalize(direction, new Cesium.Cartesian3());
+  const targetNormal = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(
+    groundPoint, new Cesium.Cartesian3()
+  );
+  const pitch = -Math.asin(Cesium.Cartesian3.dot(dirNormalized, targetNormal));
+
+  // Animate heading to 0 (north) while orbiting around the ground point
+  const startHeading = viewer.camera.heading;
+  const duration = 0.5; // seconds
+  const startTime = Date.now();
+
+  // Compute shortest rotation direction
+  let delta = -startHeading; // target is 0
+  if (delta > Math.PI) delta -= Cesium.Math.TWO_PI;
+  if (delta < -Math.PI) delta += Cesium.Math.TWO_PI;
+
+  function animateNorth() {
+    const elapsed = (Date.now() - startTime) / 1000;
+    const t = Math.min(elapsed / duration, 1);
+    // Smooth ease-in-out
+    const ease = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+    const heading = startHeading + delta * ease;
+    viewer.camera.lookAt(groundPoint, new Cesium.HeadingPitchRange(heading, pitch, range));
+    if (t < 1) {
+      requestAnimationFrame(animateNorth);
+    } else {
+      // Unlock the camera transform so user can navigate freely again
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+  }
+  animateNorth();
 });
 
 // CONUS button (Electron only — absent from web HTML, so guard with null check)
