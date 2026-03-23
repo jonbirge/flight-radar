@@ -284,8 +284,7 @@ function styleMapLayer(layer, layerId) {
   } else {
     if (!CONFIG.muteMapColors) return;
     if (NO_STYLE_LAYERS.has(layerId) || NO_MUTE_LAYERS.has(layerId)) return;
-    layer.brightness = 1.2;
-    layer.saturation = 0.35;
+    layer.saturation = 0.25;
   }
 }
 
