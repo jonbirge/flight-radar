@@ -170,8 +170,13 @@ function cloudSaveSettings(settings) {
 
 /** Immediate cloud save (used internally after debounce). */
 async function _doCloudSave(settings) {
-  const sanitized = { ...settings };
-  CLOUD_EXCLUDE_KEYS.forEach(k => delete sanitized[k]);
+  // Only save keys that exist in DEFAULT_SETTINGS, minus excluded keys
+  const sanitized = {};
+  for (const k of Object.keys(DEFAULT_SETTINGS)) {
+    if (!CLOUD_EXCLUDE_KEYS.includes(k) && settings[k] !== undefined) {
+      sanitized[k] = settings[k];
+    }
+  }
 
   const userId = pb.authStore.record?.id;
   if (!userId) return;
