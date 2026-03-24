@@ -7,39 +7,198 @@ function aircraftActive() {
   return CONFIG.aircraftEnabled || !!airportFilterCallsigns;
 }
 
-// ==== Label offset helpers ==================================================
+// ==== Label offset helpers & deconfliction ==================================
+
+const LABEL_DECONFLICT = true; // enable dynamic label deconfliction
+const LABEL_DIST = 12;
+const LABEL_PAD = 4; // padding around label bounding boxes
 
 // Compute label pixel offset and origin anchors accounting for camera heading.
 // Returns { offsetX, offsetY, hOrigin, vOrigin }.
-const LABEL_DIST = 12;
-
 function computeLabelLayout(aircraftHeadingDeg) {
-  // Subtract camera heading so the offset is relative to screen, not world north
   const cameraHeading = viewer ? Cesium.Math.toDegrees(viewer.camera.heading) : 0;
   const screenRad = Cesium.Math.toRadians((aircraftHeadingDeg || 0) - cameraHeading);
   const offsetX = Math.sin(screenRad) * LABEL_DIST;
   const offsetY = -Math.cos(screenRad) * LABEL_DIST;
+  return _layoutFromOffset(offsetX, offsetY);
+}
+
+function _layoutFromOffset(offsetX, offsetY) {
   const hOrigin = offsetX >= 0 ? Cesium.HorizontalOrigin.LEFT : Cesium.HorizontalOrigin.RIGHT;
-  // Anchor bottom when label is above icon, top when below, center when beside
   let vOrigin;
-  if (offsetY < -4) {
-    vOrigin = Cesium.VerticalOrigin.BOTTOM;
-  } else if (offsetY > 4) {
-    vOrigin = Cesium.VerticalOrigin.TOP;
-  } else {
-    vOrigin = Cesium.VerticalOrigin.CENTER;
-  }
+  if (offsetY < -4) vOrigin = Cesium.VerticalOrigin.BOTTOM;
+  else if (offsetY > 4) vOrigin = Cesium.VerticalOrigin.TOP;
+  else vOrigin = Cesium.VerticalOrigin.CENTER;
   return { offsetX, offsetY, hOrigin, vOrigin };
 }
 
-// Recompute label offsets for all aircraft — called on camera rotation
+// Measure monospace character metrics via offscreen canvas. Called at init and
+// when font size changes.
+function measureLabelMetrics() {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = labelFont(CONFIG.fontSize, 700);
+  _labelCharWidth = ctx.measureText('M').width;
+  _labelLineHeight = CONFIG.fontSize * 1.2;
+}
+
+// Generate up to 8 candidate label positions. First is the heading-based
+// default; remaining are fixed compass directions (N, NE, E, SE, S, SW, W, NW).
+const _COMPASS_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+
+function getCandidateLayouts(aircraftHeadingDeg) {
+  const preferred = computeLabelLayout(aircraftHeadingDeg);
+  const candidates = [preferred];
+  for (const angleDeg of _COMPASS_ANGLES) {
+    const rad = Cesium.Math.toRadians(angleDeg);
+    const ox = Math.sin(rad) * LABEL_DIST;
+    const oy = -Math.cos(rad) * LABEL_DIST;
+    // Skip if too similar to the heading-based candidate
+    if (Math.abs(ox - preferred.offsetX) < 3 && Math.abs(oy - preferred.offsetY) < 3) continue;
+    candidates.push(_layoutFromOffset(ox, oy));
+  }
+  return candidates;
+}
+
+// Convert anchor + offset to a screen-space rectangle {x, y, w, h}.
+function labelScreenRect(sx, sy, layout, textW, textH) {
+  let x = sx + layout.offsetX;
+  let y = sy + layout.offsetY;
+  if (layout.hOrigin === Cesium.HorizontalOrigin.RIGHT) x -= textW;
+  else if (layout.hOrigin === Cesium.HorizontalOrigin.CENTER) x -= textW / 2;
+  if (layout.vOrigin === Cesium.VerticalOrigin.BOTTOM) y -= textH;
+  else if (layout.vOrigin === Cesium.VerticalOrigin.CENTER) y -= textH / 2;
+  return { x: x - LABEL_PAD, y: y - LABEL_PAD, w: textW + LABEL_PAD * 2, h: textH + LABEL_PAD * 2 };
+}
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function isOccupied(rect, occupied) {
+  for (let i = 0; i < occupied.length; i++) {
+    if (rectsOverlap(rect, occupied[i])) return true;
+  }
+  return false;
+}
+
+function estimateLabelWidth(ac) {
+  const line1Len = (ac.state.callsign || '').length || 6; // ICAO hex is 6 chars
+  // Line 2 is altitude + indicator + speed, roughly 10-12 chars
+  const maxChars = Math.max(line1Len, 12);
+  return maxChars * _labelCharWidth + 6;
+}
+
+// Core deconfliction pass — assigns label positions to avoid overlaps, hides
+// labels with no valid placement. Selected aircraft always gets priority.
+function deconflictLabels() {
+  if (!LABEL_DECONFLICT || !viewer || !viewer.scene) return;
+  const camHeight = viewer.camera.positionCartographic
+    ? viewer.camera.positionCartographic.height : 0;
+  const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
+  if (!showLabels && !selectedIcao) return;
+
+  // Labels globally off — only handle selected aircraft, skip the full loop
+  if (!showLabels && selectedIcao) {
+    const ac = aircraft.get(selectedIcao);
+    if (ac && ac.entity && ac.entity.label) {
+      const layout = computeLabelLayout(ac.state.heading);
+      ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
+      ac.entity.label.horizontalOrigin = layout.hOrigin;
+      ac.entity.label.verticalOrigin = layout.vOrigin;
+      ac.entity.label.show = true;
+    }
+    return;
+  }
+
+  const scene = viewer.scene;
+  const canvasW = scene.canvas.clientWidth;
+  const canvasH = scene.canvas.clientHeight;
+  const occupied = [];
+  const textH = 2 * _labelLineHeight;
+  const now = viewer.clock.currentTime;
+
+  // Helper to place a single aircraft label
+  function placeLabel(ac, mustShow) {
+    if (!ac.entity || !ac.entity.label) return;
+    const pos = ac.entity.position;
+    if (!pos) { ac.entity.label.show = false; return; }
+    const cartesian = typeof pos.getValue === 'function' ? pos.getValue(now) : pos;
+    if (!cartesian) { ac.entity.label.show = false; return; }
+    const screenPos = scene.cartesianToCanvasCoordinates(cartesian);
+    if (!screenPos) { ac.entity.label.show = false; return; }
+    // Off-screen check
+    if (screenPos.x < -50 || screenPos.y < -50 ||
+        screenPos.x > canvasW + 50 || screenPos.y > canvasH + 50) {
+      ac.entity.label.show = false;
+      return;
+    }
+
+    const textW = estimateLabelWidth(ac);
+    const candidates = getCandidateLayouts(ac.state.heading);
+
+    for (const layout of candidates) {
+      const rect = labelScreenRect(screenPos.x, screenPos.y, layout, textW, textH);
+      if (!isOccupied(rect, occupied)) {
+        occupied.push(rect);
+        ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
+        ac.entity.label.horizontalOrigin = layout.hOrigin;
+        ac.entity.label.verticalOrigin = layout.vOrigin;
+        ac.entity.label.show = true;
+        return;
+      }
+    }
+
+    // No clear spot found
+    if (mustShow) {
+      // Selected aircraft: use preferred position anyway
+      const layout = candidates[0];
+      const rect = labelScreenRect(screenPos.x, screenPos.y, layout, textW, textH);
+      occupied.push(rect);
+      ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
+      ac.entity.label.horizontalOrigin = layout.hOrigin;
+      ac.entity.label.verticalOrigin = layout.vOrigin;
+      ac.entity.label.show = true;
+    } else {
+      ac.entity.label.show = false;
+    }
+  }
+
+  viewer.entities.suspendEvents();
+  try {
+    // Phase 1: Selected aircraft gets priority
+    if (selectedIcao) {
+      const ac = aircraft.get(selectedIcao);
+      if (ac) placeLabel(ac, true);
+    }
+
+    // Phase 2: All other aircraft
+    for (const [icao, ac] of aircraft) {
+      if (icao === selectedIcao) continue;
+      if (!ac.entity || !ac.entity.show) continue;
+      if (!showLabels) {
+        if (ac.entity.label) ac.entity.label.show = false;
+        continue;
+      }
+      placeLabel(ac, false);
+    }
+  } finally {
+    viewer.entities.resumeEvents();
+  }
+}
+
 function updateLabelOffsets() {
-  for (const [, ac] of aircraft) {
-    if (!ac.entity || !ac.entity.label || !ac.entity.label.show) continue;
-    const layout = computeLabelLayout(ac.state.heading);
-    ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
-    ac.entity.label.horizontalOrigin = layout.hOrigin;
-    ac.entity.label.verticalOrigin = layout.vOrigin;
+  if (LABEL_DECONFLICT) {
+    deconflictLabels();
+  } else {
+    for (const [, ac] of aircraft) {
+      if (!ac.entity || !ac.entity.label || !ac.entity.label.show) continue;
+      const layout = computeLabelLayout(ac.state.heading);
+      ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
+      ac.entity.label.horizontalOrigin = layout.hOrigin;
+      ac.entity.label.verticalOrigin = layout.vOrigin;
+    }
   }
 }
 
@@ -598,6 +757,12 @@ function extrapolatePositions() {
   // If any positions were updated, trigger a scene render
   if (updated && viewer.scene) {
     viewer.scene.requestRender();
+    // Throttled deconfliction during extrapolation (max every 500ms)
+    const now_ms = Date.now();
+    if (now_ms - _lastDeconflictMs > 500) {
+      _lastDeconflictMs = now_ms;
+      deconflictLabels();
+    }
   }
 }
 
@@ -673,7 +838,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
             verticalOrigin: layout.vOrigin,
             showBackground: false,
             scale: 1.0,
-            show: isSelected || showLabels,
+            show: LABEL_DECONFLICT ? false : (isSelected || showLabels),
             distanceDisplayCondition: acDisplayCond,
           };
         })() : undefined,
@@ -723,7 +888,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
         ac.entity.label.horizontalOrigin = layout.hOrigin;
         ac.entity.label.verticalOrigin = layout.vOrigin;
-        ac.entity.label.show = isSelected || showLabels;
+        ac.entity.label.show = LABEL_DECONFLICT ? false : (isSelected || showLabels);
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
       }
@@ -909,6 +1074,7 @@ function renderAircraft(filterIcaos) {
       for (const [icao, ac] of entries) {
         _renderOneAircraft(icao, ac, camHeight, useDot, showLabels);
       }
+      deconflictLabels();
     } finally {
       viewer.entities.resumeEvents();
     }
@@ -935,6 +1101,8 @@ function renderAircraft(filterIcaos) {
 
     if (idx < entries.length && gen === _renderGeneration) {
       requestAnimationFrame(renderChunk);
+    } else {
+      deconflictLabels();
     }
   }
 
@@ -961,7 +1129,7 @@ function resizeAircraftIcons() {
         ac.entity.billboard.distanceDisplayCondition = acDisplayCond;
       }
       if (ac.entity.label) {
-        ac.entity.label.show = (icao === selectedIcao) || showLabels;
+        ac.entity.label.show = LABEL_DECONFLICT ? false : ((icao === selectedIcao) || showLabels);
         ac.entity.label.distanceDisplayCondition = acDisplayCond;
       }
     }
@@ -970,6 +1138,7 @@ function resizeAircraftIcons() {
         entity.billboard.distanceDisplayCondition = acDisplayCond;
       }
     }
+    deconflictLabels();
   } finally {
     viewer.entities.resumeEvents();
   }
@@ -1188,6 +1357,7 @@ function startPolling() {
 
 // Lightweight font-size-only update — used during slider drag to avoid full reload
 function updateLabelFontSize() {
+  measureLabelMetrics();
   const font = labelFont(CONFIG.fontSize, 700);
   for (const [, ac] of aircraft) {
     if (ac.entity && ac.entity.label) {
@@ -1220,6 +1390,8 @@ window.renderAircraft = renderAircraft;
 window.resizeAircraftIcons = resizeAircraftIcons;
 window.updateLabelFontSize = updateLabelFontSize;
 window.updateLabelOffsets = updateLabelOffsets;
+window.deconflictLabels = deconflictLabels;
+window.measureLabelMetrics = measureLabelMetrics;
 window.smoothTrailPositions = smoothTrailPositions;
 window.buildTrailPositions = buildTrailPositions;
 window.padBounds = padBounds;

@@ -117,15 +117,17 @@ viewer.camera.changed.addEventListener(() => {
       }
     }
 
-    // Update label offsets when camera heading changes
-    const camHeadingDeg = Cesium.Math.toDegrees(viewer.camera.heading);
-    if (Math.abs(camHeadingDeg - _lastCameraHeading) > 0.5) {
-      _lastCameraHeading = camHeadingDeg;
-      if (!_labelOffsetRAF) {
-        _labelOffsetRAF = requestAnimationFrame(() => {
-          _labelOffsetRAF = null;
-          updateLabelOffsets();
-        });
+    // Update label offsets when camera heading changes (skip if labels disabled and nothing selected)
+    if (CONFIG.labelsEnabled || selectedIcao) {
+      const camHeadingDeg = Cesium.Math.toDegrees(viewer.camera.heading);
+      if (Math.abs(camHeadingDeg - _lastCameraHeading) > 0.5) {
+        _lastCameraHeading = camHeadingDeg;
+        if (!_labelOffsetRAF) {
+          _labelOffsetRAF = requestAnimationFrame(() => {
+            _labelOffsetRAF = null;
+            updateLabelOffsets();
+          });
+        }
       }
     }
 
