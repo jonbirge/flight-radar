@@ -51,7 +51,7 @@ const CONFIG = window.CONFIG = {
   turbForecastEnabled: DEFAULT_SETTINGS.turbForecastEnabled,
   turb3D: DEFAULT_SETTINGS.turb3D,
   exaggerateAltitudes: DEFAULT_SETTINGS.exaggerateAltitudes,
-  turbulenceLevel: DEFAULT_SETTINGS.turbulenceLevel,
+  turbulenceLevel: 'none',  // runtime-only: computed from altitude, not persisted
   weatherOverlayOpacity: DEFAULT_SETTINGS.weatherOverlayOpacity,
   radarThinning: DEFAULT_SETTINGS.radarThinning,
   awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
