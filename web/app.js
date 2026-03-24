@@ -42,8 +42,9 @@ function saveSettings(settings) {
 
 const OPENSKY_BASE = 'https://opensky-network.org/api';
 
-// Rate limiting state
-let lastStatesCall = 0;
+// Rate limiting state — separate trackers for bulk and selected-aircraft polls
+let lastBulkStatesCall = 0;
+let lastSelectedStatesCall = 0;
 let lastTrackCall = 0;
 const STATES_MIN_INTERVAL = 10000;
 const TRACK_MIN_INTERVAL = 10000;
@@ -106,12 +107,17 @@ async function getOpenSkyToken() {
   return null;
 }
 
-async function apiGetStates(bounds) {
+async function apiGetStates(bounds, type) {
   const now = Date.now();
-  if (now - lastStatesCall < STATES_MIN_INTERVAL) {
-    return { error: 'Rate limited', retryIn: STATES_MIN_INTERVAL - (now - lastStatesCall) };
+  const lastCall = type === 'selected' ? lastSelectedStatesCall : lastBulkStatesCall;
+  if (now - lastCall < STATES_MIN_INTERVAL) {
+    return { error: 'Rate limited', retryIn: STATES_MIN_INTERVAL - (now - lastCall) };
   }
-  lastStatesCall = now;
+  if (type === 'selected') {
+    lastSelectedStatesCall = now;
+  } else {
+    lastBulkStatesCall = now;
+  }
 
   try {
     const { south, west, north, east } = bounds;
@@ -264,7 +270,7 @@ async function apiSearchFlights(advQuery) {
 // ============================================================
 
 window.flightAPI = {
-  getStates: (bounds) => apiGetStates(bounds),
+  getStates: (bounds, type) => apiGetStates(bounds, type),
   getTrack: (icao24) => apiGetTrack(icao24),
   getFlightPlan: (ident) => apiGetFlightPlan(ident),
   getFlightRoute: (faFlightId) => apiGetFlightRoute(faFlightId),

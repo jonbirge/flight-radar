@@ -66,9 +66,12 @@ nativeTheme.on('updated', () => {
 const OPENSKY_BASE = 'https://opensky-network.org/api';
 const OPENSKY_TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 
-// Rate limiting state
-let lastStatesCall = 0;
-const STATES_MIN_INTERVAL = 10000;  // 10s minimum between state requests
+// Rate limiting state — separate trackers for bulk and selected-aircraft polls
+// so a selected-aircraft poll doesn't block the first bulk poll when enabling
+// "All aircraft" (and vice versa).
+let lastBulkStatesCall = 0;
+let lastSelectedStatesCall = 0;
+const STATES_MIN_INTERVAL = 10000;  // 10s minimum between state requests (per type)
 
 // OAuth2 token cache
 let cachedToken = null;
@@ -191,14 +194,19 @@ async function getOpenSkyToken() {
 }
 
 // IPC handler: get flight states within a bounding box
-ipcMain.handle('get-states', async (event, bounds) => {
+ipcMain.handle('get-states', async (event, bounds, type) => {
   const now = Date.now();
-  if (now - lastStatesCall < STATES_MIN_INTERVAL) {
-    const retryIn = STATES_MIN_INTERVAL - (now - lastStatesCall);
-    console.log(`[OpenSky] IPC rate limited, retryIn=${retryIn}ms`);
+  const lastCall = type === 'selected' ? lastSelectedStatesCall : lastBulkStatesCall;
+  if (now - lastCall < STATES_MIN_INTERVAL) {
+    const retryIn = STATES_MIN_INTERVAL - (now - lastCall);
+    console.log(`[OpenSky] IPC rate limited (${type || 'bulk'}), retryIn=${retryIn}ms`);
     return { error: 'Rate limited', retryIn };
   }
-  lastStatesCall = now;
+  if (type === 'selected') {
+    lastSelectedStatesCall = now;
+  } else {
+    lastBulkStatesCall = now;
+  }
 
   try {
     const { south, west, north, east } = bounds;

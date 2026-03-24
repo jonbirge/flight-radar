@@ -132,7 +132,7 @@ async function pollSelectedAircraft() {
   try {
     console.log(`[Poll] Selected aircraft poll for ${selectedIcao}...`);
     const t0 = Date.now();
-    const data = await window.flightAPI.getStates(bounds);
+    const data = await window.flightAPI.getStates(bounds, 'selected');
     console.log(`[Poll] Selected poll IPC returned in ${Date.now() - t0}ms`);
     if (data.error) {
       if (data.retryIn) {
@@ -1067,7 +1067,7 @@ async function pollStates() {
     const bounds = padBounds(viewBounds, 0.5);
     console.log(`[OpenSky] Polling states: ${bounds.south.toFixed(1)},${bounds.west.toFixed(1)} → ${bounds.north.toFixed(1)},${bounds.east.toFixed(1)}`);
     const t0 = Date.now();
-    const data = await window.flightAPI.getStates(bounds);
+    const data = await window.flightAPI.getStates(bounds, 'bulk');
     console.log(`[OpenSky] IPC returned in ${Date.now() - t0}ms`);
     const warningEl = document.getElementById('throttle-warning');
 

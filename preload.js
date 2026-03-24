@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch flight states within a geographic bounding box
-  getStates: (bounds) => ipcRenderer.invoke('get-states', bounds),
+  getStates: (bounds, type) => ipcRenderer.invoke('get-states', bounds, type),
 
   // Fetch granular track/trajectory for a specific aircraft
   getTrack: (icao24) => ipcRenderer.invoke('get-track', icao24),
