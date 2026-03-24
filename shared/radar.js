@@ -22,12 +22,15 @@ async function loadDataJSON(path) {
   }
 }
 
-async function loadAndApplySettings() {
+async function loadAndApplySettings(overrideSettings) {
   try {
-    let saved = await window.flightAPI.getSettings();
+    // When called with overrideSettings (e.g. from onChanged), use them directly
+    // to avoid a cloud-sync race where the async cloud save hasn't finished yet
+    // and cloudLoadSettings() returns stale data that overwrites the local change.
+    let saved = overrideSettings || await window.flightAPI.getSettings();
 
     // Merge cloud settings if logged in (cloud wins, preserve local-only keys)
-    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+    if (!overrideSettings && typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
       try {
         const cloudSettings = await cloudLoadSettings();
         if (cloudSettings) {
@@ -47,7 +50,7 @@ async function loadAndApplySettings() {
       CONFIG.darkColor = saved.darkColor || DEFAULT_SETTINGS.darkColor;
       CONFIG.lightColor = saved.lightColor || DEFAULT_SETTINGS.lightColor;
       CONFIG.colorByAltitude = saved.colorByAltitude !== undefined ? saved.colorByAltitude : DEFAULT_SETTINGS.colorByAltitude;
-      CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude || DEFAULT_SETTINGS.thickTrailsByAltitude;
+      CONFIG.thickTrailsByAltitude = saved.thickTrailsByAltitude !== undefined ? saved.thickTrailsByAltitude : DEFAULT_SETTINGS.thickTrailsByAltitude;
       // Trail mode: new unified setting; fall back to legacy booleans
       if (saved.trailMode) {
         CONFIG.trailMode = saved.trailMode;
@@ -66,15 +69,15 @@ async function loadAndApplySettings() {
       const prevEdges = CONFIG.airspaceEdges;
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : DEFAULT_SETTINGS.airspaceEdges;
       const prev3D = CONFIG.airspace3D;
-      CONFIG.airspace3D = saved.airspace3D || DEFAULT_SETTINGS.airspace3D;
+      CONFIG.airspace3D = saved.airspace3D !== undefined ? saved.airspace3D : DEFAULT_SETTINGS.airspace3D;
       const prevSmallAirports = CONFIG.showSmallAirports;
-      CONFIG.showSmallAirports = saved.showSmallAirports || DEFAULT_SETTINGS.showSmallAirports;
+      CONFIG.showSmallAirports = saved.showSmallAirports !== undefined ? saved.showSmallAirports : DEFAULT_SETTINGS.showSmallAirports;
       CONFIG.mapLayer = saved.mapLayer || DEFAULT_SETTINGS.mapLayer;
       CONFIG.muteMapColors = saved.muteMapColors !== undefined ? saved.muteMapColors : DEFAULT_SETTINGS.muteMapColors;
       const prevNavaids = CONFIG.navaidsEnabled;
-      CONFIG.navaidsEnabled = saved.navaidsEnabled || DEFAULT_SETTINGS.navaidsEnabled;
+      CONFIG.navaidsEnabled = saved.navaidsEnabled !== undefined ? saved.navaidsEnabled : DEFAULT_SETTINGS.navaidsEnabled;
       const prevShowFixes = CONFIG.showFixes;
-      CONFIG.showFixes = saved.showFixes || DEFAULT_SETTINGS.showFixes;
+      CONFIG.showFixes = saved.showFixes !== undefined ? saved.showFixes : DEFAULT_SETTINGS.showFixes;
       CONFIG.openskyClientId = saved.openskyClientId || DEFAULT_SETTINGS.openskyClientId;
       CONFIG.openskyClientSecret = saved.openskyClientSecret || DEFAULT_SETTINGS.openskyClientSecret;
       CONFIG.aircraftEnabled = saved.aircraftEnabled !== undefined ? saved.aircraftEnabled : DEFAULT_SETTINGS.aircraftEnabled;
@@ -83,13 +86,13 @@ async function loadAndApplySettings() {
       CONFIG.airportsEnabled = saved.airportsEnabled !== undefined ? saved.airportsEnabled : DEFAULT_SETTINGS.airportsEnabled;
       const prevAirspace = CONFIG.airspaceEnabled;
       CONFIG.airspaceEnabled = saved.airspaceEnabled !== undefined ? saved.airspaceEnabled : DEFAULT_SETTINGS.airspaceEnabled;
-      CONFIG.radarEnabled = saved.radarEnabled || DEFAULT_SETTINGS.radarEnabled;
-      CONFIG.sigmetsEnabled = saved.sigmetsEnabled || DEFAULT_SETTINGS.sigmetsEnabled;
-      CONFIG.airmetsEnabled = saved.airmetsEnabled || DEFAULT_SETTINGS.airmetsEnabled;
-      CONFIG.pirepsEnabled = saved.pirepsEnabled || DEFAULT_SETTINGS.pirepsEnabled;
-      CONFIG.satelliteIREnabled = saved.satelliteIREnabled || DEFAULT_SETTINGS.satelliteIREnabled;
+      CONFIG.radarEnabled = saved.radarEnabled !== undefined ? saved.radarEnabled : DEFAULT_SETTINGS.radarEnabled;
+      CONFIG.sigmetsEnabled = saved.sigmetsEnabled !== undefined ? saved.sigmetsEnabled : DEFAULT_SETTINGS.sigmetsEnabled;
+      CONFIG.airmetsEnabled = saved.airmetsEnabled !== undefined ? saved.airmetsEnabled : DEFAULT_SETTINGS.airmetsEnabled;
+      CONFIG.pirepsEnabled = saved.pirepsEnabled !== undefined ? saved.pirepsEnabled : DEFAULT_SETTINGS.pirepsEnabled;
+      CONFIG.satelliteIREnabled = saved.satelliteIREnabled !== undefined ? saved.satelliteIREnabled : DEFAULT_SETTINGS.satelliteIREnabled;
       const prevTurb3D = CONFIG.turb3D;
-      CONFIG.turb3D = saved.turb3D || DEFAULT_SETTINGS.turb3D;
+      CONFIG.turb3D = saved.turb3D !== undefined ? saved.turb3D : DEFAULT_SETTINGS.turb3D;
       const prevExAlt = CONFIG.exaggerateAltitudes;
       // Migrate old boolean setting: false → 1, true → 10
       if (saved.exaggerateAltitudes === true) {

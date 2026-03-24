@@ -514,10 +514,10 @@ ipcMain.handle('update-settings', (event, settings) => {
   saveSettings(settings);
   syncNativeTheme();
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('settings-changed');
+    mainWindow.webContents.send('settings-changed', settings);
   }
   if (helpWindow && !helpWindow.isDestroyed()) {
-    helpWindow.webContents.send('settings-changed');
+    helpWindow.webContents.send('settings-changed', settings);
   }
   return true;
 });
