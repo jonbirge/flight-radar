@@ -131,7 +131,7 @@ viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 // Limit scroll-wheel zoom speed so high-DPI mice / "multiple lines" Windows
 // scroll settings don't jump several zoom levels per notch.
 viewer.scene.canvas.addEventListener('wheel', (e) => {
-  const MAX_DELTA = 40;          // px — one "normal" notch ≈ 100-120; cap well below that
+  const MAX_DELTA = 80;          // px — one "normal" notch ≈ 100-120
   if (Math.abs(e.deltaY) > MAX_DELTA) {
     e.preventDefault();
     e.stopImmediatePropagation();
