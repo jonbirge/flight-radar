@@ -24,7 +24,23 @@ async function loadDataJSON(path) {
 
 async function loadAndApplySettings() {
   try {
-    const saved = await window.flightAPI.getSettings();
+    let saved = await window.flightAPI.getSettings();
+
+    // Merge cloud settings if logged in (cloud wins, preserve local-only keys)
+    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+      try {
+        const cloudSettings = await cloudLoadSettings();
+        if (cloudSettings) {
+          const LOCAL_ONLY_KEYS = ['credentialsExpanded'];
+          const localOnly = {};
+          LOCAL_ONLY_KEYS.forEach(k => { if (saved && saved[k] !== undefined) localOnly[k] = saved[k]; });
+          saved = { ...saved, ...cloudSettings, ...localOnly };
+        }
+      } catch (err) {
+        console.warn('[Cloud] Failed to load cloud settings, using local:', err.message);
+      }
+    }
+
     if (saved) {
       CONFIG.fontSize = saved.fontSize || DEFAULT_SETTINGS.fontSize;
       CONFIG.themePref = saved.theme || DEFAULT_SETTINGS.theme;
@@ -225,31 +241,35 @@ async function loadAndApplySettings() {
     console.warn('[Settings] Could not load:', err);
   }
 
-  // Load data files
-  const [airports, airspace, waypoints] = await Promise.all([
-    loadDataJSON('../data/airports.json'),
-    loadDataJSON('../data/airspace.json'),
-    loadDataJSON('../data/waypoints.json'),
-  ]);
+  // Load data files (only on first call — skip if already loaded)
+  if (airportEntities.length === 0 || airspaceEntities.length === 0 || !cachedWaypointData) {
+    const [airports, airspace, waypoints] = await Promise.all([
+      airportEntities.length === 0 ? loadDataJSON('../data/airports.json') : null,
+      airspaceEntities.length === 0 ? loadDataJSON('../data/airspace.json') : null,
+      !cachedWaypointData ? loadDataJSON('../data/waypoints.json') : null,
+    ]);
 
-  // Initialize airport markers (after theme is applied so colors are correct)
-  // Note: small→medium promotion for airports inside Class B/C/D airspace is
-  // handled at build time by scripts/promote-airports.js (run via npm run pull-data).
-  if (airportEntities.length === 0 && airports) {
-    initAirports(airports);
-  }
-
-  // Initialize airspace boundaries
-  if (airspaceEntities.length === 0 && airspace) {
-    initAirspace(airspace);
-  }
-
-  // Cache waypoint data (entities created on-demand when enabled)
-  if (waypoints) {
-    cachedWaypointData = waypoints;
-    if (CONFIG.navaidsEnabled && navaidEntities.length === 0) {
-      initNavaids();
+    // Initialize airport markers (after theme is applied so colors are correct)
+    // Note: small→medium promotion for airports inside Class B/C/D airspace is
+    // handled at build time by scripts/promote-airports.js (run via npm run pull-data).
+    if (airportEntities.length === 0 && airports) {
+      initAirports(airports);
     }
+
+    // Initialize airspace boundaries
+    if (airspaceEntities.length === 0 && airspace) {
+      initAirspace(airspace);
+    }
+
+    // Cache waypoint data (entities created on-demand when enabled)
+    if (waypoints) {
+      cachedWaypointData = waypoints;
+    }
+  }
+
+  // Initialize navaids if enabled and not yet created
+  if (CONFIG.navaidsEnabled && navaidEntities.length === 0 && cachedWaypointData) {
+    initNavaids();
   }
 
   // Register system theme change listener (once)

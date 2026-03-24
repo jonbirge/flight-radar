@@ -32,7 +32,6 @@ const DEFAULT_SETTINGS = {
   turbForecastEnabled: false,
   turb3D: false,
   exaggerateAltitudes: 1,
-  turbulenceLevel: 'none',
   weatherOverlayOpacity: 25,
   radarThinning: true,
   rotationSpeed: 6,

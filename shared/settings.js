@@ -165,6 +165,51 @@ const SETTINGS_CSS = window.SETTINGS_CSS = `
   padding-top: 10px;
 }
 
+.settings-cloud-section {
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
+}
+.settings-cloud-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#cloud-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
+}
+#cloud-user-name {
+  font-size: 14px;
+  flex: 1;
+  color: var(--md-on-surface, var(--settings-text-color, #333));
+  font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
+}
+.cloud-hint {
+  font-size: 13px;
+  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
+  flex: 1;
+}
+#btn-cloud-login,
+#btn-cloud-logout {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--md-outline, var(--settings-border, #ccc));
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--md-on-surface, var(--settings-text-color, #333));
+  font-family: 'Roboto Flex', system-ui, sans-serif;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+#btn-cloud-login:hover,
+#btn-cloud-logout:hover {
+  background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.06)));
+}
+
 .settings-seg-group {
   display: inline-flex;
   border-radius: 9999px;
@@ -336,6 +381,19 @@ function createSettingsFormHTML() {
   ).join('\n          ');
 
   return `
+    <div class="settings-cloud-section" id="cloud-section">
+      <div class="settings-label">Cloud sync</div>
+      <div class="settings-cloud-row" id="cloud-logged-out">
+        <span class="cloud-hint">Sign in with Google to sync settings across devices</span>
+        <button type="button" id="btn-cloud-login">Sign in with Google</button>
+      </div>
+      <div class="settings-cloud-row" id="cloud-logged-in" style="display:none;">
+        <img id="cloud-avatar" src="" alt="">
+        <span id="cloud-user-name"></span>
+        <button type="button" id="btn-cloud-logout">Sign out</button>
+      </div>
+    </div>
+
     <div class="settings-columns">
       <div class="settings-column">
         <div class="settings-section">
@@ -627,6 +685,34 @@ function populateSettingsForm(container, settings) {
   // Credentials collapsed/expanded
   const credDetails = container.querySelector('#cred-details');
   if (credDetails) credDetails.open = !!s.credentialsExpanded;
+
+  // Cloud sync UI
+  updateCloudUI(container);
+}
+
+// ============================================================
+// Cloud UI helper
+// ============================================================
+
+function updateCloudUI(container) {
+  const loggedOut = container.querySelector('#cloud-logged-out');
+  const loggedIn = container.querySelector('#cloud-logged-in');
+  if (!loggedOut || !loggedIn) return;
+
+  const authenticated = typeof isCloudLoggedIn === 'function' && isCloudLoggedIn();
+  loggedOut.style.display = authenticated ? 'none' : 'flex';
+  loggedIn.style.display = authenticated ? 'flex' : 'none';
+
+  if (authenticated) {
+    const user = typeof getCloudUser === 'function' ? getCloudUser() : null;
+    const avatar = container.querySelector('#cloud-avatar');
+    const name = container.querySelector('#cloud-user-name');
+    if (avatar) {
+      avatar.src = user?.avatarUrl || '';
+      avatar.style.display = user?.avatarUrl ? '' : 'none';
+    }
+    if (name) name.textContent = user?.name || user?.email || 'Signed in';
+  }
 }
 
 // ============================================================
@@ -643,7 +729,7 @@ function populateSettingsForm(container, settings) {
  * @returns {{ populate: (settings) => void }}
  */
 function initSettingsPanel(options) {
-  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onAltGainPreview, onQuietSave } = options;
+  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onAltGainPreview, onQuietSave, onCloudLogin, onCloudLogout } = options;
 
   // Inject shared CSS into this document
   injectSettingsCSS(container.ownerDocument);
@@ -935,6 +1021,34 @@ function initSettingsPanel(options) {
     btnDefaults.addEventListener('click', onDefaults);
   }
 
+  // --- Cloud sync buttons ---
+  const btnCloudLogin = container.querySelector('#btn-cloud-login');
+  const btnCloudLogout = container.querySelector('#btn-cloud-logout');
+
+  if (btnCloudLogin) {
+    btnCloudLogin.addEventListener('click', async () => {
+      if (onCloudLogin) {
+        btnCloudLogin.disabled = true;
+        btnCloudLogin.textContent = 'Signing in\u2026';
+        try {
+          await onCloudLogin();
+        } catch (err) {
+          console.error('[Cloud] Login failed:', err);
+        } finally {
+          btnCloudLogin.disabled = false;
+          btnCloudLogin.textContent = 'Sign in with Google';
+          updateCloudUI(container);
+        }
+      }
+    });
+  }
+
+  if (btnCloudLogout) {
+    btnCloudLogout.addEventListener('click', async () => {
+      if (onCloudLogout) await onCloudLogout();
+    });
+  }
+
   // --- Credential JSON drag-and-drop ---
   const credDropZone = container.querySelector('#cred-drop-zone');
   if (credDropZone) {
@@ -1006,5 +1120,6 @@ function initSettingsPanel(options) {
 window.createSettingsFormHTML = createSettingsFormHTML;
 window.initSettingsPanel = initSettingsPanel;
 window.populateSettingsForm = populateSettingsForm;
+window.updateCloudUI = updateCloudUI;
 
 export {}

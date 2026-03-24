@@ -13,6 +13,8 @@ npm run pack             # Build + electron-builder --dir (unpacked)
 npm run dist             # Build + electron-builder (installer)
 ```
 
+**Testing/running:** When asked to test or run the app, always run `npm install` first (to ensure dependencies and postinstall assets are up to date), then `npm run dev` to launch the Electron dev server.
+
 Build system: **electron-vite** (Vite-based Electron tooling). Config in `electron.vite.config.mjs`. Packaging via **electron-builder** (config in `package.json` `"build"` field). The build requires `vendor/cesium/` and `shared/fonts/` which are created by postinstall — run `npm install` before first build.
 
 There are no tests or linting configured.
@@ -87,7 +89,7 @@ The Electron and web versions must maintain feature and UI parity. Every feature
 
 - For shared functionality, edit the appropriate `shared/` module — changes apply to both platforms. For platform-specific behavior, edit `src/renderer.js` (Electron) or `web/app.js` (web).
 - `src/index.html` and `web/index.html` share the same controls panel HTML and must be kept in sync.
-- When adding a new user-facing feature, always update `src/help.html` to document it.
+- **Help documentation is mandatory**: When adding or changing any user-facing feature, you **must** update `src/help.html` to document it. This includes new toggles, settings, UI controls, keyboard shortcuts, behavior changes, and any functionality the user can see or interact with. Do not consider a feature complete until the help documentation is updated.
 - When adding a new persisted setting, update all three locations:
   1. `DEFAULT_SETTINGS` in `shared/defaults.js`
   2. `CONFIG` defaults in `shared/config.js`

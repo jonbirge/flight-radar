@@ -52,6 +52,27 @@ window.flightAPI.onAltGainPreview((factor) => {
 // Start
 // ============================================================
 
+// Cloud sync: when a local save happens (control panel toggles, etc.),
+// also push to PocketBase if the user is logged in.
+if (window.flightAPI.onCloudSyncSettings) {
+  window.flightAPI.onCloudSyncSettings((settings) => {
+    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+      cloudSaveSettings(settings);
+    }
+  });
+}
+
+// Listen for cloud settings changes from the settings window
+if (window.flightAPI.onCloudSettingsChanged) {
+  window.flightAPI.onCloudSettingsChanged(async () => {
+    try {
+      await loadAndApplySettings();
+    } catch (err) {
+      console.warn('[Cloud] Could not reload settings:', err);
+    }
+  });
+}
+
 async function init() {
   // In dev mode (Vite dev server), route AWC API calls through the proxy
   // to avoid CORS. In production (file:// protocol), calls go direct.
@@ -59,6 +80,8 @@ async function init() {
     CONFIG.awcProxyUrl = '/awc-api';
     CONFIG.vfrMapProxyUrl = '/vfrmap-tiles';
   }
+  // Initialize cloud sync (restores session from localStorage if exists)
+  if (typeof initCloud === 'function') await initCloud();
   await loadAndApplySettings();
   applySavedView();
   startPolling();
