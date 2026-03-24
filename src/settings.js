@@ -154,9 +154,6 @@ initSettingsPanel({
       // Cloud wins — merge, preserving local-only keys
       const local = await window.settingsAPI.getSettings();
       const merged = { ...local, ...cloudSettings,
-        openskyClientId: local.openskyClientId,
-        openskyClientSecret: local.openskyClientSecret,
-        flightawareApiKey: local.flightawareApiKey,
         credentialsExpanded: local.credentialsExpanded,
       };
       await window.settingsAPI.updateSettings(merged);

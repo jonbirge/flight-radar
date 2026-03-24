@@ -31,7 +31,7 @@ async function loadAndApplySettings() {
       try {
         const cloudSettings = await cloudLoadSettings();
         if (cloudSettings) {
-          const LOCAL_ONLY_KEYS = ['openskyClientId', 'openskyClientSecret', 'flightawareApiKey', 'credentialsExpanded'];
+          const LOCAL_ONLY_KEYS = ['credentialsExpanded'];
           const localOnly = {};
           LOCAL_ONLY_KEYS.forEach(k => { if (saved && saved[k] !== undefined) localOnly[k] = saved[k]; });
           saved = { ...saved, ...cloudSettings, ...localOnly };

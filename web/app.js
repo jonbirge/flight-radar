@@ -390,9 +390,6 @@ const settingsPanel = initSettingsPanel({
       // Cloud wins — merge into local (preserve local-only keys)
       const local = loadSettings();
       saveSettings({ ...local, ...cloudSettings,
-        openskyClientId: local.openskyClientId,
-        openskyClientSecret: local.openskyClientSecret,
-        flightawareApiKey: local.flightawareApiKey,
         credentialsExpanded: local.credentialsExpanded,
       });
       await loadAndApplySettings();

@@ -8,11 +8,8 @@
 
 const POCKETBASE_URL = 'https://nyc.birgefuller.com/pb/';
 
-// Keys that are never synced to cloud (device-specific credentials)
-const CLOUD_SENSITIVE_KEYS = [
-  'openskyClientId',
-  'openskyClientSecret',
-  'flightawareApiKey',
+// Keys that are never synced to cloud (UI state or runtime-only)
+const CLOUD_EXCLUDE_KEYS = [
   'credentialsExpanded',
   'turbulenceLevel',  // runtime-only: computed from altitude, not a user setting
 ];
@@ -174,7 +171,7 @@ function cloudSaveSettings(settings) {
 /** Immediate cloud save (used internally after debounce). */
 async function _doCloudSave(settings) {
   const sanitized = { ...settings };
-  CLOUD_SENSITIVE_KEYS.forEach(k => delete sanitized[k]);
+  CLOUD_EXCLUDE_KEYS.forEach(k => delete sanitized[k]);
 
   const userId = pb.authStore.record?.id;
   if (!userId) return;
