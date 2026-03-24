@@ -84,6 +84,15 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', asy
 // Settings panel initialization
 // ============================================================
 
+// Initialize cloud sync so the settings panel can show login state.
+// Do not block UI rendering — fire and forget, then update cloud UI once auth is restored.
+if (typeof initCloud === 'function') {
+  initCloud().then(() => {
+    const container = document.getElementById('settings-container');
+    if (container) updateCloudUI(container);
+  }).catch(err => console.warn('[Cloud] Init failed in settings:', err.message));
+}
+
 const container = document.getElementById('settings-container');
 container.innerHTML = createSettingsFormHTML();
 
@@ -99,7 +108,11 @@ initSettingsPanel({
   },
   onChanged: (form) => {
     applySettingsTheme(form);
-    window.settingsAPI.updateSettings({ ...originalSettings, ...form });
+    const merged = { ...originalSettings, ...form };
+    window.settingsAPI.updateSettings(merged);
+    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+      cloudSaveSettings(merged);
+    }
   },
   onClose: () => {
     window.settingsAPI.close();
@@ -118,7 +131,11 @@ initSettingsPanel({
   },
   onQuietSave: (form) => {
     applySettingsTheme(form);
-    window.settingsAPI.updateSettingsQuiet({ ...originalSettings, ...form });
+    const merged = { ...originalSettings, ...form };
+    window.settingsAPI.updateSettingsQuiet(merged);
+    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+      cloudSaveSettings(merged);
+    }
   },
   onDefaults: async () => {
     const result = await window.settingsAPI.resetSettings();
@@ -128,6 +145,35 @@ initSettingsPanel({
       applySettingsTheme(DEFAULT_SETTINGS);
       window.settingsAPI.resizeToContent();
     }
+  },
+  onCloudLogin: async () => {
+    await cloudLogin();
+    // Check for existing cloud settings
+    const cloudSettings = await cloudLoadSettings();
+    if (cloudSettings) {
+      // Cloud wins — merge, preserving local-only keys
+      const local = await window.settingsAPI.getSettings();
+      const merged = { ...local, ...cloudSettings,
+        openskyClientId: local.openskyClientId,
+        openskyClientSecret: local.openskyClientSecret,
+        flightawareApiKey: local.flightawareApiKey,
+        credentialsExpanded: local.credentialsExpanded,
+      };
+      await window.settingsAPI.updateSettings(merged);
+      originalSettings = merged;
+    } else {
+      // First-time cloud user — upload current settings
+      const local = await window.settingsAPI.getSettings();
+      await cloudSaveSettings(local);
+    }
+    populateSettingsForm(container, originalSettings);
+    applySettingsTheme(originalSettings);
+    window.settingsAPI.cloudSettingsChanged();
+  },
+  onCloudLogout: async () => {
+    await cloudLogout();
+    populateSettingsForm(container, originalSettings);
+    applySettingsTheme(originalSettings);
   },
 });
 

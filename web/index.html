@@ -171,11 +171,15 @@
     </div>
   </div>
 
+  <!-- PocketBase SDK (IIFE — sets window.PocketBase before modules execute) -->
+  <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.25.0/dist/pocketbase.iife.js"></script>
+
   <!-- Shared modules (type="module" required — Vite migration added export statements) -->
   <script type="module" src="../shared/defaults.js?v=2.14.2"></script>
   <script type="module" src="../shared/config.js?v=2.14.2"></script>
   <script type="module" src="../shared/data.js?v=2.14.2"></script>
   <script type="module" src="../shared/icons.js?v=2.14.2"></script>
+  <script type="module" src="../shared/cloud.js?v=2.14.2"></script>
   <script type="module" src="../shared/settings.js?v=2.14.2"></script>
   <script type="module" src="../shared/radar-core.js?v=2.14.2"></script>
   <script type="module" src="../shared/radar-weather.js?v=2.14.2"></script>

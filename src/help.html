@@ -45,6 +45,7 @@
     <li>
       <a href="#settings" class="nav-h2">Settings</a>
       <ul>
+        <li><a href="#cloud-sync" class="nav-h3">Cloud Sync</a></li>
         <li><a href="#display-mode" class="nav-h3">Display Mode</a></li>
         <li><a href="#ui-color" class="nav-h3">UI Color</a></li>
         <li><a href="#aircraft-display" class="nav-h3">Aircraft Display</a></li>
@@ -80,29 +81,29 @@
   </table>
 
   <h2 id="controls-panel">Controls Panel</h2>
-  <p>The controls panel is located at the bottom-left of the screen. Click the arrow tab on its
-    right edge to collapse the panel off-screen; click again to expand it.</p>
+  <p>The controls panel is located at the bottom-left of the screen. Drag the handle on its
+    right edge to collapse or expand the panel.</p>
 
   <h3 id="toggles">Toggles</h3>
   <ul>
-    <li><strong>Aircraft</strong> — Show/hide all aircraft icons, trails, and data blocks.</li>
+    <li><strong>All aircraft</strong> — Show/hide all aircraft icons, trails, and data blocks.
+      A selected aircraft always remains visible even when this toggle is off.</li>
     <li><strong>Data blocks</strong> — Show/hide callsign and flight data labels on aircraft.</li>
-    <li><strong>Airports</strong> — Show/hide airport marker dots and IATA/ICAO labels.</li>
-    <li><strong>Airspace</strong> — Show/hide Class B, C, and D airspace boundaries.</li>
-    <li><strong>Navaids</strong> — Show/hide VOR, NDB, and other navigation aids.</li>
     <li><strong>IR</strong> — Toggle the GOES satellite infrared (IR) imagery overlay.
       Shows cloud-top temperatures from the GOES Clean Longwave Infrared Window (Band 13),
       useful for identifying cloud cover and estimating cloud-top heights.
       Data is provided by NOAA GOES via the Iowa State Mesonet and refreshes every 10 minutes.</li>
     <li><strong>Radar</strong> — Toggle the NEXRAD weather radar overlay (composite reflectivity).
       Data is provided by the Iowa State Mesonet and refreshes every 5 minutes.</li>
-    <li><strong>SIGMETs</strong> — Toggle turbulence and convective SIGMET polygon overlays.
-      Data refreshes every 5 minutes.</li>
-    <li><strong>AIRMETs</strong> — Toggle G-AIRMET turbulence polygon overlays (TURB-HI and TURB-LO).
+    <li><strong>SIGMETs</strong> — Toggle turbulence and convective SIGMET 3D volume overlays.
+      When altitude data is available, SIGMETs are rendered as extruded 3D volumes showing
+      their vertical extent. Data refreshes every 5 minutes.</li>
+    <li><strong>AIRMETs</strong> — Toggle G-AIRMET turbulence 3D volume overlays (TURB-HI and TURB-LO).
+      Like SIGMETs, these are rendered as 3D volumes when altitude bounds are available.
       Data refreshes every 5 minutes.</li>
     <li><strong>PIREPs</strong> — Toggle Pilot Report (PIREP) turbulence dot overlays.
       Data refreshes every 5 minutes.</li>
-    <li><strong>Turbulence</strong> — Toggle the GTG (Graphical Turbulence Guidance) forecast
+    <li><strong>GTG</strong> — Toggle the GTG (Graphical Turbulence Guidance) forecast
       heatmap. When a selected flight has a filed altitude, the forecast is shown at that
       cruise level. Otherwise the MAX (HI) forecast is displayed. The layer refreshes
       every 15 minutes.</li>
@@ -111,9 +112,7 @@
 
   <h3 id="dropdowns">Dropdowns</h3>
   <ul>
-    <li><strong>Poll interval</strong> — How often aircraft positions are refreshed (10s&ndash;60s).
-      This adjusts automatically based on zoom level.</li>
-    <li><strong>Map</strong> — Base map layer. Choose from Simple, Simple (No Labels), Gray Canvas,
+    <li><strong>Map</strong> — Base map layer. Choose from Simple, Simple (Labels), Gray Canvas,
       Satellite, OpenStreetMap, Topographic, Night Lights,
       or VFRMap.com VFR/IFR charts with multi-zoom support.</li>
   </ul>
@@ -127,10 +126,10 @@
 
   <h3 id="buttons">Buttons</h3>
   <ul>
-    <li><strong>North up</strong> — Rotate the view so that north is up.</li>
+    <li><strong>North &uarr;</strong> — Rotate the view so that north is up.</li>
     <li><strong>CONUS</strong> — Zoom out to show the continental United States.</li>
     <li><strong>2D / 3D</strong> — Switch between 2D map and 3D globe view.</li>
-    <li><strong>Rotate</strong> — Toggle automatic camera rotation around the current viewpoint (3D only).</li>
+    <li><strong>Auto rotate</strong> — Toggle automatic camera rotation around the current viewpoint (3D only).</li>
     <li><strong>Settings</strong> — Open the settings window.</li>
   </ul>
 
@@ -264,13 +263,14 @@
   </p>
   <ul>
     <li><strong>PIREPs (Pilot Reports)</strong> — Colored dots indicating pilot-reported
-      turbulence intensity. Click a dot to see the full report.</li>
-    <li><strong>Turbulence SIGMETs</strong> — Semi-transparent red polygons marking areas under
-      active turbulence SIGMETs.</li>
-    <li><strong>Convective SIGMETs</strong> — Semi-transparent yellow polygons marking areas of
+      turbulence intensity, positioned at the reported altitude. Click a dot to see the full report.</li>
+    <li><strong>Turbulence SIGMETs</strong> — Semi-transparent red 3D volumes marking areas under
+      active turbulence SIGMETs. When altitude bounds are available, volumes are extruded
+      to show their vertical extent; otherwise they are displayed as flat polygons.</li>
+    <li><strong>Convective SIGMETs</strong> — Semi-transparent yellow volumes marking areas of
       severe thunderstorm activity (severe TS, tornadoes, hail, high winds).</li>
-    <li><strong>G-AIRMETs</strong> — Semi-transparent orange polygons marking areas under
-      graphical turbulence AIRMETs (TURB-HI and TURB-LO).</li>
+    <li><strong>G-AIRMETs</strong> — Semi-transparent orange volumes marking areas under
+      graphical turbulence AIRMETs (TURB-HI and TURB-LO), extruded to their altitude bounds.</li>
   </ul>
 
   <h3 id="pirep-legend">PIREP Color Legend</h3>
@@ -345,6 +345,8 @@
     en route to or from that airport and filters the map to show only those aircraft.
     While the airport info panel is open, only matching flights are visible on the map.
     Close the panel to clear the filter and restore all aircraft.
+    The airport filter works independently of the All aircraft toggle &mdash; clicking an
+    airport will display matching flights even if the aircraft toggle is off.
     A FlightAware API key is required for this feature (configure in Settings).
   </p>
 
@@ -392,10 +394,30 @@
   <h2 id="settings">Settings</h2>
   <p>Open via <strong>Edit &gt; Settings</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) or the Settings button.</p>
 
+  <h3 id="cloud-sync">Cloud Sync</h3>
+  <p>
+    Sign in with your Google account to sync settings across devices. When signed in,
+    all your preferences (display mode, colors, toggles, saved view, etc.) are automatically
+    saved to the cloud whenever you make a change. If you sign in on a new device, your
+    cloud settings are applied automatically.
+  </p>
+  <ul>
+    <li><strong>Sign in with Google</strong> &mdash; Click to authenticate via Google OAuth.
+      A popup window will open for Google sign-in.</li>
+    <li><strong>Sign out</strong> &mdash; Disconnects cloud sync. Settings continue to be
+      saved locally on this device.</li>
+  </ul>
+  <p>
+    Cloud sync is entirely optional. API credentials (OpenSky, FlightAware) are never
+    synced to the cloud and remain local to each device.
+  </p>
+
   <h3 id="display-mode">Display Mode</h3>
   <ul>
     <li><strong>Dark / System / Light</strong> — Dark mode uses a custom accent color aesthetic;
       light mode uses a clean white basemap. System mode automatically follows your OS dark/light preference.</li>
+    <li><strong>Mute map colors</strong> — Desaturate the base map to reduce visual noise so
+      aircraft, weather overlays, and airspace boundaries stand out more clearly.</li>
   </ul>
 
   <h3 id="ui-color">UI Color</h3>
@@ -422,8 +444,8 @@
   <ul>
     <li><strong>Volume Edges</strong> — Draw outline edges on airspace, SIGMET, and AIRMET volume polygons.</li>
     <li><strong>3D Airspace</strong> — Extrude airspace boundaries to their floor and ceiling altitudes.</li>
-    <li><strong>Show Small Airports</strong> — Include smaller airports in the airport layer.</li>
-    <li><strong>Include Waypoint Fixes</strong> — Show named waypoint fixes along with navaids.</li>
+    <li><strong>Small airports</strong> — Include smaller airports in the airport layer.</li>
+    <li><strong>Nav fixes</strong> — Show named waypoint fixes along with navaids.</li>
   </ul>
 
   <h3 id="other">Other</h3>
@@ -435,7 +457,7 @@
       ground clutter and non-precipitation blues/grays, keeping only saturated weather colors
       (green, yellow, orange, red). Disable to see the full unfiltered radar imagery.</li>
     <li><strong>3D Turbulence</strong> — When enabled, the GTG turbulence forecast is displayed as
-      stacked semi-transparent surfaces at each flight level altitude (FL100&ndash;FL450) instead of a
+      stacked semi-transparent surfaces at each flight level altitude (FL180&ndash;FL420) instead of a
       single flat overlay. Each layer is shown at 10% opacity to create a volumetric 3D effect.</li>
     <li><strong>Height Gain (1&ndash;10&times;)</strong> — Scales all entity altitudes by the chosen factor to make
       vertical separation more visible. Affects aircraft, trails, airspace volumes, turbulence surfaces,

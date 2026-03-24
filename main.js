@@ -1,7 +1,7 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import https from 'https'
@@ -27,6 +27,7 @@ function loadSettings() {
 function saveSettings(settings) {
   try {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+    console.log('[Settings] Saved to local file:', SETTINGS_FILE);
   } catch (err) {
     console.error('[Settings] Save error:', err.message);
   }
@@ -36,6 +37,10 @@ function saveSettings(settings) {
 ipcMain.handle('get-settings', () => loadSettings());
 ipcMain.handle('save-settings', (event, settings) => {
   saveSettings(settings);
+  // Notify renderer to sync settings to cloud (if logged in)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('cloud-sync-settings', settings);
+  }
   return true;
 });
 
@@ -419,6 +424,31 @@ function openSettingsWindow() {
     },
   });
   settingsWindow.setMenu(null);
+  // Allow OAuth popups for PocketBase cloud sync (Google sign-in).
+  // The OAuth flow opens a popup that navigates through Google → PocketBase → back,
+  // so allow all HTTPS popups from the settings window.
+  settingsWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 600,
+          height: 700,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        },
+      };
+    }
+    return { action: 'deny' };
+  });
+  // Forward settings window console output to terminal for debugging
+  settingsWindow.webContents.on('console-message', (event, level, message) => {
+    if (level <= 1) console.log('[Settings]', message);
+    else console.warn('[Settings]', message);
+  });
   if (process.env.ELECTRON_RENDERER_URL) {
     settingsWindow.loadURL(process.env.ELECTRON_RENDERER_URL + '/src/settings.html');
   } else {
@@ -555,6 +585,13 @@ ipcMain.on('preview-alt-gain', (event, factor) => {
   }
 });
 
+// IPC: forward cloud settings changes from settings window to renderer
+ipcMain.on('cloud-settings-changed', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('cloud-settings-changed');
+  }
+});
+
 // --- Window Creation ---
 let mainWindow;
 
@@ -578,6 +615,25 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/src/index.html'));
   }
+
+  // Allow OAuth popups for PocketBase cloud sync (Google sign-in)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 600,
+          height: 700,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        },
+      };
+    }
+    return { action: 'deny' };
+  });
 
   // Forward renderer console output to terminal
   mainWindow.webContents.on('console-message', (event, level, message) => {

@@ -25,6 +25,12 @@ function saveSettings(settings) {
   try {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     console.log('[Settings] Saved to localStorage');
+    // Cloud sync: also save to PocketBase if logged in
+    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+      cloudSaveSettings(settings).catch(err =>
+        console.warn('[Cloud] Save failed:', err.message)
+      );
+    }
   } catch (err) {
     console.error('[Settings] Save error:', err.message);
   }
@@ -376,6 +382,30 @@ const settingsPanel = initSettingsPanel({
       location.reload();
     }
   },
+  onCloudLogin: async () => {
+    await cloudLogin();
+    // Check for existing cloud settings
+    const cloudSettings = await cloudLoadSettings();
+    if (cloudSettings) {
+      // Cloud wins — merge into local (preserve local-only keys)
+      const local = loadSettings();
+      saveSettings({ ...local, ...cloudSettings,
+        openskyClientId: local.openskyClientId,
+        openskyClientSecret: local.openskyClientSecret,
+        flightawareApiKey: local.flightawareApiKey,
+        credentialsExpanded: local.credentialsExpanded,
+      });
+      await loadAndApplySettings();
+    } else {
+      // First-time cloud user — upload current local settings
+      await cloudSaveSettings(loadSettings());
+    }
+    settingsPanel.populate(loadSettings());
+  },
+  onCloudLogout: async () => {
+    await cloudLogout();
+    settingsPanel.populate(loadSettings());
+  },
 });
 
 async function openSettings() {
@@ -403,6 +433,8 @@ async function init() {
   CONFIG.awcProxyUrl = 'awc-proxy.php';
   // Route VFRMap.com tile requests through local caching proxy to avoid CORS
   CONFIG.vfrMapProxyUrl = 'vfrmap-proxy.php';
+  // Initialize cloud sync (restores session from localStorage if exists)
+  if (typeof initCloud === 'function') await initCloud();
   await loadAndApplySettings();
   applySavedView();
   startPolling();

@@ -45,6 +45,9 @@
       "maintainer": "Jonathan Birge"
     }
   },
+  "dependencies": {
+    "pocketbase": "^0.25.0"
+  },
   "devDependencies": {
     "cesium": "*",
     "electron": "*",
