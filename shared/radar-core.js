@@ -229,18 +229,6 @@ function makeTopoTiles() {
   });
 }
 
-function makeNightTiles() {
-  return new Cesium.WebMapTileServiceImageryProvider({
-    url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi',
-    layer: 'VIIRS_Black_Marble',
-    style: 'default',
-    format: 'image/png',
-    tileMatrixSetID: 'GoogleMapsCompatible_Level8',
-    maximumLevel: 8,
-    credit: new Cesium.Credit('NASA EOSDIS GIBS'),
-  });
-}
-
 // VFRMap.com chart tiles — date folder changes each FAA chart cycle
 // Uses TMS (y-flipped); CesiumJS handles this via {reverseY}
 const VFRMAP_DATE = '20251225';
@@ -270,10 +258,6 @@ function styleMapLayer(layer, layerId) {
   const isDark = CONFIG.theme === 'dark';
   if (isDark) {
     if (NO_STYLE_LAYERS.has(layerId)) return;
-    if (layerId === 'night') {
-      layer.brightness = 0.7;
-      return;
-    }
     if (NO_MUTE_LAYERS.has(layerId)) {
       if (OVERLAY_LAYERS.has(layerId)) layer.alpha = 0.8;
       return;
@@ -295,7 +279,6 @@ async function makeMapTiles(layerId) {
     case 'satellite':  return makeSatelliteTiles();
     case 'osm':        return makeOsmTiles();
     case 'topo':       return makeTopoTiles();
-    case 'night':      return makeNightTiles();
     case 'vfrHybrid':  return makeVfrMapTiles('vfrc', 12);
     case 'vfrIfrLow':  return makeVfrMapTiles('ifrlc', 11);
     case 'vfrIfrHigh': return makeVfrMapTiles('ehc', 10);
@@ -434,7 +417,6 @@ window.makeEsriGrayTiles = makeEsriGrayTiles;
 window.makeSatelliteTiles = makeSatelliteTiles;
 window.makeOsmTiles = makeOsmTiles;
 window.makeTopoTiles = makeTopoTiles;
-window.makeNightTiles = makeNightTiles;
 window.makeVfrMapTiles = makeVfrMapTiles;
 window.styleMapLayer = styleMapLayer;
 window.makeMapTiles = makeMapTiles;
