@@ -62,7 +62,7 @@ function initAirports(airports) {
       },
       label: {
         text: label,
-        font: '14px Roboto Flex, sans-serif',
+        font: labelFont(CONFIG.fontSize),
         fillColor: labelColor,
         outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
         outlineWidth: 2,
@@ -120,7 +120,7 @@ function initSmallAirports(airports) {
       },
       label: {
         text: label,
-        font: '12px Roboto Flex, sans-serif',
+        font: labelFont(CONFIG.fontSize),
         fillColor: labelColor,
         outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
         outlineWidth: 2,
@@ -355,7 +355,7 @@ function initNavaids(data) {
       },
       label: {
         text: labelText,
-        font: '11px Roboto Flex, sans-serif',
+        font: labelFont(11),
         fillColor: color,
         outlineColor: outlineColor,
         outlineWidth: 2,
@@ -400,7 +400,7 @@ function initFixes() {
       },
       label: {
         text: fix.id,
-        font: '10px Roboto Flex, sans-serif',
+        font: labelFont(10),
         fillColor: fixLabelColor,
         outlineColor: outlineColor,
         outlineWidth: 1,

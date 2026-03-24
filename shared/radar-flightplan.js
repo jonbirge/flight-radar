@@ -800,7 +800,7 @@ function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointC
         point: { pixelSize: 10, color: Cesium.Color.LIME, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
         label: {
           text: originLabel,
-          font: 'bold 13px Roboto Flex, sans-serif',
+          font: labelFont(13, 700),
           fillColor: waypointColor,
           outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
           outlineWidth: 3,
@@ -817,7 +817,7 @@ function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointC
         point: { pixelSize: 10, color: Cesium.Color.RED, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
         label: {
           text: destLabel,
-          font: 'bold 13px Roboto Flex, sans-serif',
+          font: labelFont(13, 700),
           fillColor: waypointColor,
           outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
           outlineWidth: 3,
