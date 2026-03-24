@@ -633,7 +633,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           const hOrigin = offsetX >= 0 ? Cesium.HorizontalOrigin.LEFT : Cesium.HorizontalOrigin.RIGHT;
           return {
             text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
-            font: `bold ${CONFIG.fontSize}px Roboto Flex, sans-serif`,
+            font: labelFont(CONFIG.fontSize, 700),
             fillColor: labelColor,
             style: Cesium.LabelStyle.FILL,
             pixelOffset: new Cesium.Cartesian2(offsetX, offsetY),
@@ -677,7 +677,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         if (!ac.entity.label) {
           ac.entity.label = new Cesium.LabelGraphics({
             text: '',
-            font: `bold ${CONFIG.fontSize}px Roboto Flex, sans-serif`,
+            font: labelFont(CONFIG.fontSize, 700),
             fillColor: labelColor,
             style: Cesium.LabelStyle.FILL,
             pixelOffset: new Cesium.Cartesian2(offsetX, offsetY),
@@ -1159,7 +1159,7 @@ function startPolling() {
 
 // Lightweight font-size-only update — used during slider drag to avoid full reload
 function updateLabelFontSize() {
-  const font = `bold ${CONFIG.fontSize}px Roboto Flex, sans-serif`;
+  const font = labelFont(CONFIG.fontSize, 700);
   for (const [, ac] of aircraft) {
     if (ac.entity && ac.entity.label) {
       ac.entity.label.font = font;

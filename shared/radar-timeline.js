@@ -354,7 +354,7 @@ function updateOrCreateTimelineMarker(position) {
       },
       label: {
         text: 'T',
-        font: 'bold 11px Roboto Flex, sans-serif',
+        font: labelFont(11, 700),
         fillColor: Cesium.Color.BLACK,
         style: Cesium.LabelStyle.FILL,
         verticalOrigin: Cesium.VerticalOrigin.CENTER,

@@ -5,6 +5,13 @@
 // Configuration
 // ============================================================
 
+const LABEL_FONT = window.LABEL_FONT = 'JetBrains Mono, monospace';
+
+function labelFont(size, weight = 500) {
+  return `${weight} ${size}px ${LABEL_FONT}`;
+}
+window.labelFont = labelFont;
+
 const CONFIG = window.CONFIG = {
   // CONUS center
   startLon: -98.6,
