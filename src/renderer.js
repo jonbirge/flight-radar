@@ -14,9 +14,9 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 // Electron-specific: React to settings changes from external window
 // ============================================================
 
-window.flightAPI.onSettingsChanged(async () => {
+window.flightAPI.onSettingsChanged(async (settings) => {
   try {
-    await loadAndApplySettings();
+    await loadAndApplySettings(settings);
   } catch (err) {
     console.warn('[Settings] Could not reload:', err);
   }

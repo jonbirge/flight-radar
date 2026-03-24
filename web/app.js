@@ -341,11 +341,13 @@ const settingsPanel = initSettingsPanel({
   getSettings: () => window.flightAPI.getSettings(),
   onChanged: async (form) => {
     // Merge with existing settings to preserve savedView and other non-form fields,
-    // then let loadAndApplySettings handle all CONFIG updates and side effects
-    // (same flow as Electron: save → reload)
+    // then pass directly to loadAndApplySettings to avoid cloud-sync race condition
+    // (cloudSaveSettings is async fire-and-forget, so cloudLoadSettings inside
+    // loadAndApplySettings would return stale data and overwrite the local change)
     const existing = loadSettings();
-    saveSettings({ ...existing, ...form });
-    await loadAndApplySettings();
+    const merged = { ...existing, ...form };
+    saveSettings(merged);
+    await loadAndApplySettings(merged);
   },
   onQuietSave: (form) => {
     const existing = loadSettings();

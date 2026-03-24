@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('flightAPI', {
   openSettings: () => ipcRenderer.invoke('open-settings-window'),
 
   // Listen for settings changes applied from the settings window
-  onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', callback),
+  onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', (_, settings) => callback(settings)),
 
   // Listen for lightweight previews during slider drag
   onFontSizePreview: (callback) => ipcRenderer.on('font-size-preview', (_, size) => callback(size)),
