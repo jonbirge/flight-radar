@@ -117,6 +117,18 @@ viewer.camera.changed.addEventListener(() => {
       }
     }
 
+    // Update label offsets when camera heading changes
+    const camHeadingDeg = Cesium.Math.toDegrees(viewer.camera.heading);
+    if (Math.abs(camHeadingDeg - _lastCameraHeading) > 0.5) {
+      _lastCameraHeading = camHeadingDeg;
+      if (!_labelOffsetRAF) {
+        _labelOffsetRAF = requestAnimationFrame(() => {
+          _labelOffsetRAF = null;
+          updateLabelOffsets();
+        });
+      }
+    }
+
     // Poll when viewport shows area we haven't fetched yet
     const currentBounds = getViewBounds();
     if (!boundsContain(lastPollBounds, currentBounds)) {

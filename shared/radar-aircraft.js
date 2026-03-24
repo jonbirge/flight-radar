@@ -7,6 +7,42 @@ function aircraftActive() {
   return CONFIG.aircraftEnabled || !!airportFilterCallsigns;
 }
 
+// ==== Label offset helpers ==================================================
+
+// Compute label pixel offset and origin anchors accounting for camera heading.
+// Returns { offsetX, offsetY, hOrigin, vOrigin }.
+const LABEL_DIST = 12;
+
+function computeLabelLayout(aircraftHeadingDeg) {
+  // Subtract camera heading so the offset is relative to screen, not world north
+  const cameraHeading = viewer ? Cesium.Math.toDegrees(viewer.camera.heading) : 0;
+  const screenRad = Cesium.Math.toRadians((aircraftHeadingDeg || 0) - cameraHeading);
+  const offsetX = Math.sin(screenRad) * LABEL_DIST;
+  const offsetY = -Math.cos(screenRad) * LABEL_DIST;
+  const hOrigin = offsetX >= 0 ? Cesium.HorizontalOrigin.LEFT : Cesium.HorizontalOrigin.RIGHT;
+  // Anchor bottom when label is above icon, top when below, center when beside
+  let vOrigin;
+  if (offsetY < -4) {
+    vOrigin = Cesium.VerticalOrigin.BOTTOM;
+  } else if (offsetY > 4) {
+    vOrigin = Cesium.VerticalOrigin.TOP;
+  } else {
+    vOrigin = Cesium.VerticalOrigin.CENTER;
+  }
+  return { offsetX, offsetY, hOrigin, vOrigin };
+}
+
+// Recompute label offsets for all aircraft — called on camera rotation
+function updateLabelOffsets() {
+  for (const [, ac] of aircraft) {
+    if (!ac.entity || !ac.entity.label || !ac.entity.label.show) continue;
+    const layout = computeLabelLayout(ac.state.heading);
+    ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
+    ac.entity.label.horizontalOrigin = layout.hOrigin;
+    ac.entity.label.verticalOrigin = layout.vOrigin;
+  }
+}
+
 // ==== Entity Cleanup & Toggling ============================================
 
 // Destroy and re-create all aircraft entities to pick up new theme
@@ -626,19 +662,15 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           distanceDisplayCondition: acDisplayCond,
         },
         label: (CONFIG.labelsEnabled || isSelected) ? (() => {
-          const headingRad = Cesium.Math.toRadians(s.heading || 0);
-          const labelDist = 24;
-          const offsetX = Math.sin(headingRad) * labelDist;
-          const offsetY = -Math.cos(headingRad) * labelDist;
-          const hOrigin = offsetX >= 0 ? Cesium.HorizontalOrigin.LEFT : Cesium.HorizontalOrigin.RIGHT;
+          const layout = computeLabelLayout(s.heading);
           return {
             text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
             font: labelFont(CONFIG.fontSize, 700),
             fillColor: labelColor,
             style: Cesium.LabelStyle.FILL,
-            pixelOffset: new Cesium.Cartesian2(offsetX, offsetY),
-            horizontalOrigin: hOrigin,
-            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            pixelOffset: new Cesium.Cartesian2(layout.offsetX, layout.offsetY),
+            horizontalOrigin: layout.hOrigin,
+            verticalOrigin: layout.vOrigin,
             showBackground: false,
             scale: 1.0,
             show: isSelected || showLabels,
@@ -669,20 +701,16 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       ac.entity.billboard.height = iconSize;
 
       if (CONFIG.labelsEnabled || isSelected) {
-        const headingRad = Cesium.Math.toRadians(s.heading || 0);
-        const labelDist = 24;
-        const offsetX = Math.sin(headingRad) * labelDist;
-        const offsetY = -Math.cos(headingRad) * labelDist;
-        const hOrigin = offsetX >= 0 ? Cesium.HorizontalOrigin.LEFT : Cesium.HorizontalOrigin.RIGHT;
+        const layout = computeLabelLayout(s.heading);
         if (!ac.entity.label) {
           ac.entity.label = new Cesium.LabelGraphics({
             text: '',
             font: labelFont(CONFIG.fontSize, 700),
             fillColor: labelColor,
             style: Cesium.LabelStyle.FILL,
-            pixelOffset: new Cesium.Cartesian2(offsetX, offsetY),
-            horizontalOrigin: hOrigin,
-            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            pixelOffset: new Cesium.Cartesian2(layout.offsetX, layout.offsetY),
+            horizontalOrigin: layout.hOrigin,
+            verticalOrigin: layout.vOrigin,
             distanceDisplayCondition: acDisplayCond,
           });
         }
@@ -692,8 +720,9 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           ac.entity.label.text = labelText;
           ac.entity.label.fillColor = labelColor;
         }
-        ac.entity.label.pixelOffset = new Cesium.Cartesian2(offsetX, offsetY);
-        ac.entity.label.horizontalOrigin = hOrigin;
+        ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
+        ac.entity.label.horizontalOrigin = layout.hOrigin;
+        ac.entity.label.verticalOrigin = layout.vOrigin;
         ac.entity.label.show = isSelected || showLabels;
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
@@ -1190,6 +1219,7 @@ window._renderOneAircraft = _renderOneAircraft;
 window.renderAircraft = renderAircraft;
 window.resizeAircraftIcons = resizeAircraftIcons;
 window.updateLabelFontSize = updateLabelFontSize;
+window.updateLabelOffsets = updateLabelOffsets;
 window.smoothTrailPositions = smoothTrailPositions;
 window.buildTrailPositions = buildTrailPositions;
 window.padBounds = padBounds;
