@@ -251,6 +251,9 @@ function makeVfrMapTiles(chartType, maxZoom) {
     url,
     credit: new Cesium.Credit('VFRMap.com'),
     minimumLevel: 1, maximumLevel: maxZoom,
+    // Restrict to US coverage area (CONUS + Alaska + Hawaii + territories)
+    // so the CartoDB base map shows through outside the coverage area
+    rectangle: Cesium.Rectangle.fromDegrees(-180, 15, -60, 75),
   });
 }
 
