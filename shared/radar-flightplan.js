@@ -180,7 +180,7 @@ function showAircraftInfo(icao) {
     <div><span class="label">GND SPD</span><span>${knots != null ? knots + ' kts' : '---'}</span></div>
     <div><span class="label">HDG</span><span>${s.heading != null ? Math.round(s.heading) + '°' : '---'}</span></div>
     <div><span class="label">VS</span><span>${fpm != null ? (fpm > 0 ? '+' : '') + fpm + ' fpm' : '---'}</span></div>
-    <div><span class="label">POS</span><span data-field="lat">${s.lat.toFixed(4)}</span>, <span data-field="lon">${s.lon.toFixed(4)}</span></div>
+    <div><span class="label">POS</span><span><span data-field="lat">${s.lat.toFixed(4)}</span>/<span data-field="lon">${s.lon.toFixed(4)}</span></span></div>
     <div><span class="label">LAST POLL</span><span>${lastPollTime ? lastPollTime.toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
     <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
   `;
@@ -1328,6 +1328,11 @@ async function searchForLiveAircraft(result) {
 // If the flight came from an advanced search (sparse data), re-fetches full
 // flight details via /flights/{ident} before displaying.
 async function selectFlightFromResults(flight, flightData) {
+  // Add the selected flight's ident to search history so the user can
+  // return to it directly without repeating the original search.
+  const ident = (flight.ident || '').trim().toUpperCase();
+  if (ident) addSearchHistory(ident);
+
   // Advanced search results lack fields like scheduled_out, filed_altitude, route, etc.
   // Detect this and fetch full data using the flight ident.
   if (flight.scheduled_out == null && flight.ident && window.flightAPI.getFlightPlan) {
@@ -1647,7 +1652,7 @@ document.addEventListener('click', (e) => {
 // Search History
 // ============================================================
 
-window.MAX_SEARCH_HISTORY = 10;
+window.MAX_SEARCH_HISTORY = 15;
 
 async function addSearchHistory(ident) {
   if (!ident || !window.flightAPI) return;
