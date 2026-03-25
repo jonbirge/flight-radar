@@ -349,8 +349,8 @@ ipcMain.handle('search-flights', async (event, advQuery) => {
 });
 
 // IPC handler: get airport flights from FlightAware
-// Makes two parallel calls to /airports/{id}/flights/arrivals and /departures
-// to get both en-route inbound and recently departed outbound flights.
+// Fetches all pages of /airports/{id}/flights (up to 3 pages) and merges the
+// per-category arrays so the renderer receives the full combined result.
 ipcMain.handle('get-airport-flights', async (event, airportCode) => {
   const s = loadSettings();
   const apiKey = s.flightawareApiKey;
@@ -360,14 +360,32 @@ ipcMain.handle('get-airport-flights', async (event, airportCode) => {
 
   try {
     const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
-    const data = await httpGetFA(`${FA_AEROAPI_BASE}/airports/${safeCode}/flights`, apiKey);
-    // Log all response keys and array sizes for debugging
-    for (const key of Object.keys(data)) {
-      if (Array.isArray(data[key])) {
-        console.log(`[FlightAware] ${safeCode} response: ${key} = ${data[key].length} flights`);
+    // Max pages to fetch (~15 flights per category per page)
+    const maxPages = 3;
+    const merged = {};
+    let url = `${FA_AEROAPI_BASE}/airports/${safeCode}/flights`;
+
+    for (let page = 0; page < maxPages; page++) {
+      const data = await httpGetFA(url, apiKey);
+      // Merge array fields across pages
+      for (const key of Object.keys(data)) {
+        if (Array.isArray(data[key])) {
+          if (!merged[key]) merged[key] = [];
+          merged[key].push(...data[key]);
+        }
+      }
+      // Follow cursor link if present
+      if (data.links && data.links.next) {
+        url = `${FA_AEROAPI_BASE}${data.links.next}`;
+      } else {
+        break;
       }
     }
-    return data;
+
+    for (const key of Object.keys(merged)) {
+      console.log(`[FlightAware] ${safeCode} response: ${key} = ${merged[key].length} flights`);
+    }
+    return merged;
   } catch (err) {
     console.error(`[FlightAware] Airport flights error for ${airportCode}:`, err.message);
     return { error: err.message };

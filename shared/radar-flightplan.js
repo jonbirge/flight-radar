@@ -21,17 +21,21 @@ handler.setInputAction((click) => {
   // activation clicks that the user intended to bring the window to front,
   // not to deselect the current aircraft.
   if (Date.now() - focusTime < 300) return;
-  const picked = viewer.scene.pick(click.position);
-  if (Cesium.defined(picked) && picked.id && picked.id.id) {
+  const picks = viewer.scene.drillPick(click.position);
+  for (const picked of picks) {
+    if (!Cesium.defined(picked) || !picked.id || !picked.id.id) continue;
     const id = picked.id.id;
     if (id.startsWith('ac-')) {
       showAircraftInfo(id.replace('ac-', ''));
+      break;
     } else if (id.startsWith('apt-')) {
       showAirportInfo(picked.id);
+      break;
     } else if (id.startsWith('turb-') && !selectedIcao) {
       // Only show turbulence info when no aircraft is selected —
       // the close button is the only way to deselect an aircraft.
       showTurbInfo(picked.id);
+      break;
     }
   }
   // Clicking empty space or non-aircraft entities does NOT deselect;
@@ -176,8 +180,7 @@ function showAircraftInfo(icao) {
     <div><span class="label">GND SPD</span><span>${knots != null ? knots + ' kts' : '---'}</span></div>
     <div><span class="label">HDG</span><span>${s.heading != null ? Math.round(s.heading) + '°' : '---'}</span></div>
     <div><span class="label">VS</span><span>${fpm != null ? (fpm > 0 ? '+' : '') + fpm + ' fpm' : '---'}</span></div>
-    <div><span class="label">LAT</span><span data-field="lat">${s.lat.toFixed(4)}</span></div>
-    <div><span class="label">LON</span><span data-field="lon">${s.lon.toFixed(4)}</span></div>
+    <div><span class="label">POS</span><span data-field="lat">${s.lat.toFixed(4)}</span>, <span data-field="lon">${s.lon.toFixed(4)}</span></div>
     <div><span class="label">LAST POLL</span><span>${lastPollTime ? lastPollTime.toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
     <div><span class="label">ADS-B</span><span>${s.lastContact ? new Date(s.lastContact * 1000).toLocaleTimeString('en-US', { hour12: false }) : '---'}</span></div>
   `;
@@ -312,8 +315,6 @@ function showAirportInfo(entity) {
   document.getElementById('info-details').innerHTML = `
     <div><span class="label">AIRPORT</span><span>${name || icao}</span></div>
     <div><span class="label">TYPE</span><span>${typeLabel}</span></div>
-    <div><span class="label">LAT</span><span>${lat.toFixed(4)}</span></div>
-    <div><span class="label">LON</span><span>${lon.toFixed(4)}</span></div>
     <div class="airport-flights-status"><span class="label">FLIGHTS</span><span>Loading...</span></div>
   `;
 
@@ -331,8 +332,6 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Max flights to keep per direction (arriving / departing)
-window.AIRPORT_FILTER_MAX = 16;
 
 async function fetchAirportFlights(icao) {
   if (!window.flightAPI.getAirportFlights) {
@@ -399,10 +398,6 @@ async function fetchAirportFlights(icao) {
 
     arrivals.sort((a, b) => distanceFromAirport(a) - distanceFromAirport(b));
     departures.sort((a, b) => distanceFromAirport(a) - distanceFromAirport(b));
-
-    // Limit to top N per direction
-    arrivals = arrivals.slice(0, AIRPORT_FILTER_MAX);
-    departures = departures.slice(0, AIRPORT_FILTER_MAX);
 
     airportFlightsData = { arrivals, departures };
 
