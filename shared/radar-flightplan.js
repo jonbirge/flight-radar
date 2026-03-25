@@ -884,13 +884,16 @@ document.getElementById('info-close').addEventListener('click', () => {
 // that all selected aircraft receive the same treatment.  Current position and
 // trail history always come from OpenSky — FlightAware only provides the route.
 async function enrichSelectedWithFlightAware(icao, callsign) {
-  if (!window.flightAPI.getFlightPlan || !flightAwareAvailable) return;
+  if (!window.flightAPI.getFlightPlan || !flightAwareAvailable) {
+    flyToTrackHistory(icao);
+    return;
+  }
 
   try {
     const data = await window.flightAPI.getFlightPlan(callsign.trim());
-    if (data.error) { setFlightAwareAvailable(false); return; }
+    if (data.error) { setFlightAwareAvailable(false); flyToTrackHistory(icao); return; }
     setFlightAwareAvailable(true);
-    if (!data.flights || data.flights.length === 0) return;
+    if (!data.flights || data.flights.length === 0) { flyToTrackHistory(icao); return; }
 
     // Bail if user deselected or selected a different aircraft while we were fetching
     if (selectedIcao !== icao) return;
@@ -905,6 +908,7 @@ async function enrichSelectedWithFlightAware(icao, callsign) {
     console.log(`[FlightPlan] Enriched selected aircraft ${icao} (${callsign}) with FlightAware data`);
   } catch (err) {
     console.warn('[FlightPlan] Enrichment error:', err);
+    flyToTrackHistory(icao);
   }
 }
 
@@ -967,6 +971,24 @@ function pickBestFlight(flights) {
   // 4. Fallback to most recent (first in the array — AeroAPI returns reverse-chronological)
   console.log(`[FlightPlan] Fallback to most recent flight: ${flights[0].fa_flight_id}`);
   return flights[0];
+}
+
+// Fly the camera to show the aircraft's track history (trail entities) from above.
+// Falls back to zooming to the aircraft entity itself if no trail data is available yet.
+function flyToTrackHistory(icao) {
+  const ac = aircraft.get(icao);
+  if (!ac) return;
+  if (ac.trailEntities && ac.trailEntities.length > 0) {
+    viewer.flyTo(ac.trailEntities, {
+      duration: 1.5,
+      offset: new Cesium.HeadingPitchRange(0, -Math.PI / 2, 0),
+    });
+  } else if (ac.entity) {
+    viewer.flyTo(ac.entity, {
+      duration: 1.5,
+      offset: new Cesium.HeadingPitchRange(0, -Math.PI / 2, 50000),
+    });
+  }
 }
 
 // Fly the camera to show the entire route from directly above (top-down view).
@@ -2068,13 +2090,7 @@ if (showRouteBtn) {
     if (flightPlanEntities.length > 0) {
       flyToRouteOverview();
     } else if (selectedIcao) {
-      const ac = aircraft.get(selectedIcao);
-      if (ac && ac.trailEntities && ac.trailEntities.length > 0) {
-        viewer.flyTo(ac.trailEntities, {
-          duration: 1.5,
-          offset: new Cesium.HeadingPitchRange(0, -Math.PI / 2, 0),
-        });
-      }
+      flyToTrackHistory(selectedIcao);
     }
   });
 }
@@ -2087,6 +2103,7 @@ window.showTurbInfo = showTurbInfo;
 window.hideAircraftInfo = hideAircraftInfo;
 window.enrichSelectedWithFlightAware = enrichSelectedWithFlightAware;
 window.pickBestFlight = pickBestFlight;
+window.flyToTrackHistory = flyToTrackHistory;
 window.flyToRouteOverview = flyToRouteOverview;
 window.clearFlightPlanRoute = clearFlightPlanRoute;
 window.lookupAirportCoords = lookupAirportCoords;
