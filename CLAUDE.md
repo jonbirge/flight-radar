@@ -72,6 +72,10 @@ Static JSON loaded at startup by `shared/radar.js`: `airports.json`, `airspace.j
 - **Theme system**: Single hex color (dark mode) → derives all CSS variables and Cesium entity colors. Light mode uses a separate fixed palette.
 - **Weather overlays**: NEXRAD radar via Iowa State Mesonet WMS; turbulence data (PIREPs, SIGMETs, G-AIRMETs) and GTG forecast heatmap from FAA AWC API (`aviationweather.gov/api/data/`). GTG images are Mercator-projected and reprojected to geographic via canvas pixel manipulation.
 
+## Platform priority
+
+The **web version is the primary platform**. All new features and bug fixes should target the web version first (`web/` and `shared/` modules). Once working on web, bring the Electron version (`src/`, `main.js`) to parity. When time or scope is limited, the web version takes precedence.
+
 ## Platform parity
 
 The Electron and web versions must maintain feature and UI parity. Every feature implemented for one platform must also work on the other. The shared `shared/` modules are the mechanism for achieving this — new features belong there, not in platform-specific files.
