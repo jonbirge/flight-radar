@@ -625,7 +625,6 @@ async function fetchAirportDelays(icao) {
       details.appendChild(row);
     } else {
       for (const d of delays) {
-        const type = (d.category || '').replace(/_/g, ' ').toUpperCase();
         const avg = d.delay_secs != null ? Math.round(d.delay_secs / 60) : null;
         const reason = d.reason || '';
         const color = avg != null && avg > 0 ? delayColor(avg) : null;
@@ -633,7 +632,7 @@ async function fetchAirportDelays(icao) {
 
         const row = document.createElement('div');
         row.className = 'airport-delay-row';
-        let html = `<span class="label">${type || 'DELAY'}</span>`;
+        let html = `<span class="label">DELAY</span>`;
         const parts = [];
         if (avg != null) parts.push(`<span style="color:${cssColor};font-weight:600">${formatDelayMinutes(avg)}</span>`);
         if (reason) parts.push(reason);
