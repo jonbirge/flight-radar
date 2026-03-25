@@ -213,7 +213,9 @@
   <p>
     <strong>Note:</strong> Flight plan search requires a FlightAware AeroAPI key. In the web
     version, the key is stored server-side in <code>creds.json</code>. In the Electron version,
-    configure it in Settings under <em>API credentials</em>.
+    configure it in Settings under <em>API credentials</em>. When FlightAware is not
+    configured or unavailable, the search bar, airport delays, and airport flight
+    filtering are automatically hidden. They reappear once the API becomes available.
   </p>
 
   <h3 id="flight-plan-timeline">Flight Plan Timeline</h3>
