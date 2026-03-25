@@ -169,10 +169,16 @@ if ($endpoint === 'flights') {
     echo $body;
     exit;
 } else if ($endpoint === 'airports/delays') {
-    // System-wide delays endpoint — filtering done client-side
-    unset($params['airport']); // ignore if passed
+    $airport = $params['airport'] ?? '';
+    unset($params['airport']);
+    if (empty($airport)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing airport parameter']);
+        exit;
+    }
+    $airport = preg_replace('/[^a-zA-Z0-9]/', '', $airport);
     $query = http_build_query($params);
-    $upstreamUrl = "$AEROAPI_BASE/airports/delays" . ($query ? "?$query" : '');
+    $upstreamUrl = "$AEROAPI_BASE/airports/$airport/delays" . ($query ? "?$query" : '');
 } else {
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/$endpoint" . ($query ? "?$query" : '');

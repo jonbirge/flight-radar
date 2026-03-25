@@ -294,19 +294,21 @@ async function apiGetAirportDelays(airportCode) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const url = `flightaware-proxy.php?endpoint=airports/delays`;
+    const url = `flightaware-proxy.php?endpoint=airports/delays&airport=${encodeURIComponent(airportCode)}`;
     const resp = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
     if (!resp.ok) {
+      // 404 means no delays reported for this airport
+      if (resp.status === 404) {
+        console.log(`[Airport] No delays for ${airportCode} (404)`);
+        return { delays: [] };
+      }
       return { error: `HTTP ${resp.status}` };
     }
     const data = await resp.json();
-    // Filter the system-wide delays for the requested airport
-    const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
-    const delays = (data.delays || []).filter(d => {
-      const code = d.airport || d.airport_code || '';
-      return code === safeCode || code === safeCode.replace(/^K/, '') || code === 'K' + safeCode;
-    });
+    console.log(`[Airport] Delays response for ${airportCode}:`, JSON.stringify(data));
+    // Per-airport endpoint returns a single delay object with a reasons array
+    const delays = data.reasons || [];
     return { delays };
   } catch (err) {
     return { error: err.message };
