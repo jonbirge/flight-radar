@@ -351,6 +351,7 @@ function showAirportInfo(entity) {
     <div><span class="label">AIRPORT</span><span>${name || icao}</span></div>
     <div><span class="label">TYPE</span><span>${typeLabel}</span></div>
     ${flightAwareAvailable ? '<div class="airport-flights-status"><span class="label">FLIGHTS</span><span>Loading...</span></div>' : ''}
+    ${flightAwareAvailable ? '<div class="airport-delay-status"><span class="label">DELAYS</span><span>Loading...</span></div>' : ''}
   `;
 
   // Fetch flights and delays from FlightAware (skipped if unavailable)
@@ -596,6 +597,9 @@ async function fetchAirportDelays(icao) {
     if (data.error) {
       console.warn(`[Airport] Delays error: ${data.error}`);
       setFlightAwareAvailable(false);
+      // Remove the loading row on error
+      const loadingRow = document.querySelector('.airport-delay-status');
+      if (loadingRow) loadingRow.remove();
       return null;
     }
     setFlightAwareAvailable(true);
@@ -603,6 +607,10 @@ async function fetchAirportDelays(icao) {
     const delays = data.delays || [];
     const details = document.getElementById('info-details');
     if (!details) return delays;
+
+    // Remove the loading row
+    const loadingRow = details.querySelector('.airport-delay-status');
+    if (loadingRow) loadingRow.remove();
 
     if (delays.length === 0) {
       // Show "No delays" row
@@ -644,6 +652,9 @@ async function fetchAirportDelays(icao) {
     return delays;
   } catch (err) {
     console.error('[Airport] Delays fetch error:', err);
+    // Remove the loading row on error
+    const loadingRow = document.querySelector('.airport-delay-status');
+    if (loadingRow) loadingRow.remove();
     return null;
   }
 }

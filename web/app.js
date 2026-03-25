@@ -294,13 +294,20 @@ async function apiGetAirportDelays(airportCode) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const url = `flightaware-proxy.php?endpoint=airports/delays&airport=${encodeURIComponent(airportCode)}`;
+    const url = `flightaware-proxy.php?endpoint=airports/delays`;
     const resp = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
     if (!resp.ok) {
       return { error: `HTTP ${resp.status}` };
     }
-    return await resp.json();
+    const data = await resp.json();
+    // Filter the system-wide delays for the requested airport
+    const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
+    const delays = (data.delays || []).filter(d => {
+      const code = d.airport || d.airport_code || '';
+      return code === safeCode || code === safeCode.replace(/^K/, '') || code === 'K' + safeCode;
+    });
+    return { delays };
   } catch (err) {
     return { error: err.message };
   }
