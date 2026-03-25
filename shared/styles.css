@@ -867,6 +867,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
   height: 8px;
 }
 
+#timeline-slider::-webkit-slider-thumb {
+  background: transparent;
+  border: 3px solid var(--md-primary);
+  box-shadow: none;
+}
+
+#timeline-slider::-moz-range-thumb {
+  background: transparent;
+  border: 3px solid var(--md-primary);
+  box-shadow: none;
+}
+
 #timeline-info {
   display: flex;
   align-items: center;
