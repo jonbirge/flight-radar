@@ -11,7 +11,7 @@ $CREDS_FILE = __DIR__ . '/creds.json';
 $CACHE_DIR = __DIR__ . '/cache/flightaware';
 $CACHE_TTL = 300; // 5 minutes
 // Max pages to fetch for airport flights (~15 flights per category per page)
-$FA_AIRPORT_FLIGHTS_PAGES = 3;
+$FA_AIRPORT_FLIGHTS_PAGES = 2;
 
 // ---------- Load API key ----------
 

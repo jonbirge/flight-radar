@@ -361,7 +361,7 @@ ipcMain.handle('get-airport-flights', async (event, airportCode) => {
   try {
     const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
     // Max pages to fetch (~15 flights per category per page)
-    const maxPages = 3;
+    const maxPages = 2;
     const merged = {};
     let url = `${FA_AEROAPI_BASE}/airports/${safeCode}/flights`;
 
