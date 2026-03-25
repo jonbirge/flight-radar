@@ -42,9 +42,10 @@ function saveSettings(settings) {
 
 const OPENSKY_BASE = 'https://opensky-network.org/api';
 
-// Rate limiting state — separate trackers for bulk and selected-aircraft polls
+// Rate limiting state — separate trackers for bulk, selected-aircraft, and priority polls
 let lastBulkStatesCall = 0;
 let lastSelectedStatesCall = 0;
+let lastPriorityStatesCall = 0;
 let lastTrackCall = 0;
 const STATES_MIN_INTERVAL = 10000;
 const TRACK_MIN_INTERVAL = 10000;
@@ -122,6 +123,46 @@ async function apiGetStates(bounds, type) {
   try {
     const { south, west, north, east } = bounds;
     const url = `${OPENSKY_BASE}/states/all?lamin=${south}&lomin=${west}&lamax=${north}&lomax=${east}`;
+
+    const token = await getOpenSkyToken();
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const resp = await fetch(url, { headers, signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (resp.status === 429) {
+      return { error: 'Rate limited by OpenSky API' };
+    }
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+
+    const data = await resp.json();
+    return data;
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function apiGetStatesByIcao(icao24s, type) {
+  const now = Date.now();
+  const lastCall = type === 'priority' ? lastPriorityStatesCall : lastSelectedStatesCall;
+  if (now - lastCall < STATES_MIN_INTERVAL) {
+    return { error: 'Rate limited', retryIn: STATES_MIN_INTERVAL - (now - lastCall) };
+  }
+  if (type === 'priority') {
+    lastPriorityStatesCall = now;
+  } else {
+    lastSelectedStatesCall = now;
+  }
+
+  try {
+    const params = icao24s.map(id => `icao24=${encodeURIComponent(id)}`).join('&');
+    const url = `${OPENSKY_BASE}/states/all?${params}`;
 
     const token = await getOpenSkyToken();
     const headers = {};
@@ -288,6 +329,7 @@ async function apiSearchFlights(advQuery) {
 
 window.flightAPI = {
   getStates: (bounds, type) => apiGetStates(bounds, type),
+  getStatesByIcao: (icao24s, type) => apiGetStatesByIcao(icao24s, type),
   getTrack: (icao24) => apiGetTrack(icao24),
   getFlightPlan: (ident) => apiGetFlightPlan(ident),
   getFlightRoute: (faFlightId) => apiGetFlightRoute(faFlightId),
