@@ -153,6 +153,9 @@ function showAircraftInfo(icao) {
   const prevSelected = selectedIcao;
   selectedIcao = icao;
 
+  // Add to priority list so it gets dedicated ICAO24-based polling
+  priorityIcaos.add(icao);
+
   const s = ac.state;
   const panel = document.getElementById('aircraft-info');
   const wasHidden = panel.classList.contains('hidden');
@@ -426,16 +429,87 @@ async function fetchAirportFlights(icao) {
       }
     }
 
-    // Apply filter
+    // Apply filter and populate priority ICAO24 list
     if (callsigns.size > 0) {
       airportFilterCallsigns = callsigns;
-      // If aircraft display is off, start polling so filtered flights appear
-      // (aircraftActive() now returns true because airportFilterCallsigns is set)
-      if (!CONFIG.aircraftEnabled) {
-        startPolling();
-      } else {
+      priorityIcaos.clear();
+
+      // Scan existing aircraft Map for immediate callsign→ICAO24 matches
+      for (const [existingIcao, ac] of aircraft) {
+        const cs = (ac.state.callsign || '').trim().toUpperCase();
+        if (cs && callsigns.has(cs)) {
+          priorityIcaos.add(existingIcao);
+        }
+      }
+
+      // Discovery poll: fetch a region around the airport to find more ICAO24s
+      // for airport flights not already in the aircraft Map
+      if (priorityIcaos.size < callsigns.size && selectedAirport) {
+        const apLat = selectedAirport.lat;
+        const apLon = selectedAirport.lon;
+        const pad = 8; // ~500nm radius around airport
+        const discoveryBounds = {
+          south: Math.max(apLat - pad, -90), north: Math.min(apLat + pad, 90),
+          west: Math.max(apLon - pad, -180), east: Math.min(apLon + pad, 180),
+        };
+        try {
+          const dData = await window.flightAPI.getStates(discoveryBounds, 'bulk');
+          // Bail if user closed the airport panel during discovery
+          if (!selectedAirport || selectedAirport.icao !== icao) return;
+          if (!dData.error && dData.states) {
+            const nowS = Date.now() / 1000;
+            viewer.entities.suspendEvents();
+            try {
+              for (const raw of dData.states) {
+                const s = parseState(raw);
+                if (s.lon == null || s.lat == null || s.onGround) continue;
+                const cs = (s.callsign || '').trim().toUpperCase();
+                if (cs && callsigns.has(cs)) {
+                  priorityIcaos.add(s.icao24);
+                  // Create aircraft entry if it doesn't exist
+                  let ac = aircraft.get(s.icao24);
+                  if (!ac) {
+                    ac = {
+                      state: s, entity: null, trailEntities: [], extrapolationTrail: null,
+                      history: [], granularTrack: null, lastTrackFetch: 0,
+                      lastKnownAlt: s.altitude || 0, lastServerUpdate: nowS,
+                      extrapolatedPos: null, _trailHash: '', _iconKey: '', _labelText: '',
+                    };
+                    aircraft.set(s.icao24, ac);
+                  } else {
+                    ac.state = s;
+                    ac.lastServerUpdate = nowS;
+                  }
+                  const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
+                  if (s.altitude != null) ac.lastKnownAlt = s.altitude;
+                  ac.history.push({ lon: s.lon, lat: s.lat, alt, time: nowS });
+                }
+              }
+            } finally {
+              viewer.entities.resumeEvents();
+            }
+          }
+        } catch (e) {
+          console.warn('[Airport] Discovery poll error:', e);
+        }
+      }
+
+      console.log(`[Airport] Discovered ${priorityIcaos.size}/${callsigns.size} priority ICAO24s`);
+
+      // Update HUD
+      lastPollTime = new Date();
+      document.getElementById('track-count').textContent = priorityIcaos.size;
+      document.getElementById('last-update').textContent =
+        lastPollTime.toLocaleTimeString('en-US', { hour12: false });
+
+      // Render discovered priority aircraft and hide non-priority
+      renderAircraft();
+      if (CONFIG.aircraftEnabled) {
         applyAirportFilter();
       }
+
+      // Start tick for ongoing priority polling
+      startPolling();
     } else {
       updateAirportFlightsStatus('No en-route flights found');
     }
@@ -558,15 +632,14 @@ async function getAirportDelayMinutes(airportCode) {
 }
 
 function applyAirportFilter() {
-  if (!airportFilterCallsigns) return;
+  if (priorityIcaos.size === 0) return;
   viewer.entities.suspendEvents();
   try {
     for (const [icao, ac] of aircraft) {
       if (!ac.entity) continue;
       const isSelected = icao === selectedIcao;
       if (isSelected) continue; // selected aircraft always visible
-      const cs = (ac.state.callsign || '').trim().toUpperCase();
-      const visible = airportFilterCallsigns.has(cs);
+      const visible = priorityIcaos.has(icao);
       ac.entity.show = visible;
       if (ac.extrapolationTrail) ac.extrapolationTrail.show = visible;
       for (const trail of ac.trailEntities) trail.show = visible;
@@ -592,13 +665,21 @@ function clearAirportFilter() {
   }
 
   const hadFilter = airportFilterCallsigns !== null;
+  const hadPriority = priorityIcaos.size > 0;
   const wasAircraftOff = !CONFIG.aircraftEnabled;
   selectedAirport = null;
   airportFilterCallsigns = null;
   airportFlightsData = null;
 
-  // If aircraft toggle is off, clean up the filtered aircraft (restore "off" state)
-  if (hadFilter && wasAircraftOff) {
+  // Clear priority list but keep selected/searched aircraft
+  const keepSelected = selectedIcao;
+  const keepSearched = searchedIcao;
+  priorityIcaos.clear();
+  if (keepSelected) priorityIcaos.add(keepSelected);
+  if (keepSearched) priorityIcaos.add(keepSearched);
+
+  // If aircraft toggle is off, clean up the filtered/priority aircraft (restore "off" state)
+  if ((hadFilter || hadPriority) && wasAircraftOff) {
     _renderGeneration++;
     _pollInFlight = false;
     const keepIcao = selectedIcao || searchedIcao;
@@ -622,8 +703,8 @@ function clearAirportFilter() {
     } else {
       stopTick();
     }
-  } else if (hadFilter) {
-    // Re-show all aircraft if a filter was active and aircraft toggle is on
+  } else if (hadFilter || hadPriority) {
+    // Re-show all aircraft if a filter/priority was active and aircraft toggle is on
     viewer.entities.suspendEvents();
     try {
       for (const [, ac] of aircraft) {
@@ -710,6 +791,14 @@ function hideAircraftInfo() {
   stopTracking();
   const prevIcao = selectedIcao;
   selectedIcao = null;
+
+  // Remove deselected aircraft from priority list (unless airport filter keeps it)
+  if (prevIcao) {
+    if (!airportFilterCallsigns) {
+      priorityIcaos.delete(prevIcao);
+    }
+  }
+
   document.getElementById('aircraft-info').classList.add('hidden');
   const infoButtons = document.getElementById('info-buttons');
   if (infoButtons) infoButtons.classList.add('hidden');
@@ -725,7 +814,7 @@ function hideAircraftInfo() {
     } finally {
       viewer.entities.resumeEvents();
     }
-    // If aircraft toggle is off (and no airport filter), remove the deselected
+    // If aircraft toggle is off (and no priority/filter), remove the deselected
     // aircraft entirely (it was only kept because it was selected). Otherwise re-render.
     if (!aircraftActive()) {
       aircraft.delete(prevIcao);

@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch flight states within a geographic bounding box
   getStates: (bounds, type) => ipcRenderer.invoke('get-states', bounds, type),
 
+  // Fetch flight states for specific ICAO24 addresses (no bounding box)
+  getStatesByIcao: (icao24s, type) => ipcRenderer.invoke('get-states-by-icao', icao24s, type),
+
   // Fetch granular track/trajectory for a specific aircraft
   getTrack: (icao24) => ipcRenderer.invoke('get-track', icao24),
 

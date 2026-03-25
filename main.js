@@ -71,6 +71,7 @@ const OPENSKY_TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-
 // "All aircraft" (and vice versa).
 let lastBulkStatesCall = 0;
 let lastSelectedStatesCall = 0;
+let lastPriorityStatesCall = 0;
 const STATES_MIN_INTERVAL = 10000;  // 10s minimum between state requests (per type)
 
 // OAuth2 token cache
@@ -220,6 +221,37 @@ ipcMain.handle('get-states', async (event, bounds, type) => {
     return data;
   } catch (err) {
     console.error('[OpenSky] States error:', err.message);
+    return { error: err.message };
+  }
+});
+
+// IPC handler: get flight states for specific ICAO24 addresses (no bounding box)
+ipcMain.handle('get-states-by-icao', async (event, icao24s, type) => {
+  const now = Date.now();
+  const lastCall = type === 'priority' ? lastPriorityStatesCall : lastSelectedStatesCall;
+  if (now - lastCall < STATES_MIN_INTERVAL) {
+    const retryIn = STATES_MIN_INTERVAL - (now - lastCall);
+    console.log(`[OpenSky] IPC rate limited (${type || 'icao'}), retryIn=${retryIn}ms`);
+    return { error: 'Rate limited', retryIn };
+  }
+  if (type === 'priority') {
+    lastPriorityStatesCall = now;
+  } else {
+    lastSelectedStatesCall = now;
+  }
+
+  try {
+    const params = icao24s.map(id => `icao24=${encodeURIComponent(id)}`).join('&');
+    const url = `${OPENSKY_BASE}/states/all?${params}`;
+    console.log(`[OpenSky] Fetching states for ${icao24s.length} ICAO24s...`);
+    const t0 = Date.now();
+    const token = await getOpenSkyToken();
+    const data = await httpGet(url, token);
+    const stateCount = data && data.states ? data.states.length : 0;
+    console.log(`[OpenSky] Got ${stateCount} states by ICAO24 in ${Date.now() - t0}ms`);
+    return data;
+  } catch (err) {
+    console.error('[OpenSky] States-by-ICAO error:', err.message);
     return { error: err.message };
   }
 });

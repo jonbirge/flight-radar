@@ -74,6 +74,9 @@ window.TRACK_FETCH_INTERVAL = 12000;   // process track queue every 12s
 window.selectedAirport = null;           // { icao, iata, name, type, lat, lon } of clicked airport
 window.airportFilterCallsigns = null;    // Set of callsigns (uppercase) to show, null = no filter
 window.airportFlightsData = null;        // Raw FlightAware response for the selected airport
+window.priorityIcaos = new Set();        // ICAO24s of priority aircraft (airport flights / selected)
+window._priorityPollInFlight = false;    // guard: true while pollPriorityAircraft() is running
+window._lastPriorityPollMs = 0;          // timestamp of last priority poll API call
 
 // ============================================================
 // Cesium Viewer Initialization

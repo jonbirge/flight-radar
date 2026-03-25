@@ -4,7 +4,7 @@
 // Returns true when aircraft polling/rendering should be active — either the
 // Aircraft toggle is on, or an airport filter is showing filtered flights.
 function aircraftActive() {
-  return CONFIG.aircraftEnabled || !!airportFilterCallsigns;
+  return CONFIG.aircraftEnabled || priorityIcaos.size > 0;
 }
 
 // ==== Label offset helpers & deconfliction ==================================
@@ -97,10 +97,11 @@ function deconflictLabels() {
   const camHeight = viewer.camera.positionCartographic
     ? viewer.camera.positionCartographic.height : 0;
   const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
-  if (!showLabels && !selectedIcao) return;
+  const hasPriority = priorityIcaos.size > 0;
+  if (!showLabels && !selectedIcao && !hasPriority) return;
 
-  // Labels globally off — only handle selected aircraft, skip the full loop
-  if (!showLabels && selectedIcao) {
+  // Labels globally off — only handle selected + priority aircraft, skip the full loop
+  if (!showLabels && !hasPriority && selectedIcao) {
     const ac = aircraft.get(selectedIcao);
     if (ac && ac.entity && ac.entity.label) {
       const layout = computeLabelLayout(ac.state.heading);
@@ -167,15 +168,25 @@ function deconflictLabels() {
 
   viewer.entities.suspendEvents();
   try {
-    // Phase 1: Selected aircraft gets priority
+    // Phase 1: Selected aircraft gets top priority
     if (selectedIcao) {
       const ac = aircraft.get(selectedIcao);
       if (ac) placeLabel(ac, true);
     }
 
-    // Phase 2: All other aircraft
+    // Phase 2: Priority aircraft get forced labels (after selected)
+    if (hasPriority) {
+      for (const icao of priorityIcaos) {
+        if (icao === selectedIcao) continue;
+        const ac = aircraft.get(icao);
+        if (!ac || !ac.entity || !ac.entity.show) continue;
+        placeLabel(ac, true);
+      }
+    }
+
+    // Phase 3: All other aircraft
     for (const [icao, ac] of aircraft) {
-      if (icao === selectedIcao) continue;
+      if (icao === selectedIcao || priorityIcaos.has(icao)) continue;
       if (!ac.entity || !ac.entity.show) continue;
       if (!showLabels) {
         if (ac.entity.label) ac.entity.label.show = false;
@@ -233,9 +244,9 @@ function refreshAllEntities() {
 function toggleAircraft(show) {
   CONFIG.aircraftEnabled = show;
   if (!show) {
-    // If an airport filter is active, keep polling for filtered flights —
-    // just hide non-matching aircraft instead of wiping everything.
-    if (airportFilterCallsigns) {
+    // If priority aircraft exist, keep polling them —
+    // just hide non-priority aircraft instead of wiping everything.
+    if (priorityIcaos.size > 0) {
       applyAirportFilter();
       return;
     }
@@ -370,6 +381,132 @@ async function pollSelectedAircraft() {
   }
 }
 
+// Poll priority aircraft by ICAO24 address — no bounding box, queries globally.
+// Used for airport-filtered flights and individually selected aircraft.
+async function pollPriorityAircraft() {
+  if (_priorityPollInFlight) return;
+  if (priorityIcaos.size === 0) return;
+  const now = Date.now();
+  if (now - _lastPriorityPollMs < RATE_LIMIT_MS) return;
+  _priorityPollInFlight = true;
+  _lastPriorityPollMs = now;
+
+  try {
+    const icaoList = Array.from(priorityIcaos);
+    console.log(`[Poll] Priority poll for ${icaoList.length} aircraft...`);
+    const t0 = Date.now();
+    const data = await window.flightAPI.getStatesByIcao(icaoList, 'priority');
+    console.log(`[Poll] Priority poll returned in ${Date.now() - t0}ms`);
+
+    if (data.error) {
+      if (data.retryIn) {
+        _lastPriorityPollMs = now - RATE_LIMIT_MS + data.retryIn;
+        console.log(`[Poll] Priority poll rate limited, retryIn=${data.retryIn}ms`);
+      } else {
+        console.warn('[Poll] Priority poll error:', data.error);
+        if (/429/.test(data.error) || /rate.?limit/i.test(data.error)) {
+          rateLimitedUntil = Date.now() + 60000;
+        }
+      }
+      return;
+    }
+
+    if (!aircraftActive()) {
+      console.log('[Poll] Discarding priority results: aircraft disabled during poll');
+      return;
+    }
+
+    const states = data.states || [];
+    const seen = new Set();
+    const nowS = Date.now() / 1000;
+
+    viewer.entities.suspendEvents();
+    try {
+      for (const raw of states) {
+        const s = parseState(raw);
+        if (s.lon == null || s.lat == null) continue;
+        if (s.onGround) continue;
+
+        seen.add(s.icao24);
+        let ac = aircraft.get(s.icao24);
+
+        if (!ac) {
+          ac = {
+            state: s, entity: null, trailEntities: [], extrapolationTrail: null,
+            history: [], granularTrack: null, lastTrackFetch: 0,
+            lastKnownAlt: s.altitude || 0, lastServerUpdate: nowS,
+            extrapolatedPos: null, _trailHash: '', _iconKey: '', _labelText: '',
+          };
+          aircraft.set(s.icao24, ac);
+        }
+
+        ac.state = s;
+        ac.lastServerUpdate = nowS;
+        ac.extrapolatedPos = computeExtrapolatedPosition(s, s.timePosition || nowS, nowS);
+
+        const alt = s.altitude != null ? s.altitude : (ac.lastKnownAlt || 0);
+        if (s.altitude != null) ac.lastKnownAlt = s.altitude;
+        const last = ac.history.length > 0 ? ac.history[ac.history.length - 1] : null;
+        const moved = !last
+          || Math.abs(s.lon - last.lon) > 0.0005
+          || Math.abs(s.lat - last.lat) > 0.0005
+          || Math.abs(alt - last.alt) > 30;
+        if (moved) ac.history.push({ lon: s.lon, lat: s.lat, alt, time: nowS });
+
+        const currentPos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, exAlt(alt));
+        updateExtrapolationTrail(s.icao24, ac, currentPos);
+
+        // Trim old history (keep all for selected aircraft)
+        if (s.icao24 !== selectedIcao) {
+          ac.history = ac.history.filter(p => nowS - p.time < CONFIG.trailMaxAge);
+        }
+      }
+
+      // Drop priority ICAOs not seen (aircraft landed/disappeared)
+      for (const icao of [...priorityIcaos]) {
+        if (!seen.has(icao) && icao !== selectedIcao) {
+          const ac = aircraft.get(icao);
+          if (ac) {
+            const age = nowS - (ac.state.lastContact || 0);
+            if (age > CONFIG.staleThreshold) {
+              priorityIcaos.delete(icao);
+              // If aircraft toggle is off, remove from scene
+              if (!CONFIG.aircraftEnabled) {
+                if (ac.entity) viewer.entities.remove(ac.entity);
+                removeTrailEntities(ac);
+                aircraft.delete(icao);
+              }
+            }
+          } else {
+            priorityIcaos.delete(icao);
+          }
+        }
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+
+    // Update HUD
+    lastPollTime = new Date();
+    const totalVisible = CONFIG.aircraftEnabled ? aircraft.size : seen.size;
+    document.getElementById('track-count').textContent = totalVisible;
+    document.getElementById('last-update').textContent =
+      lastPollTime.toLocaleTimeString('en-US', { hour12: false });
+
+    renderAircraft();
+
+    // Live-update the info panel if a selected aircraft still exists
+    if (selectedIcao && aircraft.has(selectedIcao)) {
+      showAircraftInfo(selectedIcao);
+      updateLiveAltitudeFilter();
+    }
+  } catch (err) {
+    console.error('[Poll] Priority poll error:', err);
+  } finally {
+    _priorityPollInFlight = false;
+  }
+}
+
 // Unified tick: extrapolate positions, check if any polls or track fetches are due.
 function tick() {
   const now = Date.now();
@@ -387,26 +524,36 @@ function tick() {
     console.warn('[Poll] Force-resetting _selectedPollInFlight (stuck >30s)');
     _selectedPollInFlight = false;
   }
+  if (_priorityPollInFlight && now - _lastPriorityPollMs > 30000) {
+    console.warn('[Poll] Force-resetting _priorityPollInFlight (stuck >30s)');
+    _priorityPollInFlight = false;
+  }
 
   // Skip all OpenSky polling while rate-limited
   if (now < rateLimitedUntil) {
     return;
   }
 
-  // 2. Bulk poll when aircraft display is on (or airport filter active) and poll interval has elapsed
-  if (aircraftActive()) {
+  // 2. Priority poll — when priority aircraft exist, poll them by ICAO24.
+  //    This covers both airport-filtered flights and individually selected aircraft.
+  if (priorityIcaos.size > 0 && now - _lastPriorityPollMs >= SELECTED_POLL_INTERVAL) {
+    pollPriorityAircraft();
+  }
+
+  // 3. Bulk region poll — only when aircraft display toggle is on.
+  if (CONFIG.aircraftEnabled) {
     const elapsed = lastPollTime ? now - lastPollTime.getTime() : Infinity;
     if (elapsed >= CONFIG.pollInterval) {
       pollStates();
     }
   }
 
-  // 3. Selected aircraft poll — always, regardless of display toggle or viewport.
+  // 4. Selected aircraft poll — only when selected aircraft is NOT in priority list.
   //    Skip if the most recent bulk poll already covered this aircraft's position.
-  if (selectedIcao && now - lastSelectedPollMs >= SELECTED_POLL_INTERVAL) {
+  if (selectedIcao && !priorityIcaos.has(selectedIcao) && now - lastSelectedPollMs >= SELECTED_POLL_INTERVAL) {
     lastSelectedPollMs = now;
     const ac = aircraft.get(selectedIcao);
-    const coveredByBulk = aircraftActive() && ac && lastPollBounds
+    const coveredByBulk = CONFIG.aircraftEnabled && ac && lastPollBounds
       && ac.state.lat >= lastPollBounds.south && ac.state.lat <= lastPollBounds.north
       && ac.state.lon >= lastPollBounds.west && ac.state.lon <= lastPollBounds.east;
     if (!coveredByBulk) {
@@ -498,6 +645,15 @@ function updateAircraft(states) {
       if (s.onGround) continue; // skip ground traffic for cleaner display
 
       seen.add(s.icao24);
+
+      // Discover priority ICAOs: match callsigns from airport filter to ICAO24 addresses
+      if (airportFilterCallsigns) {
+        const cs = (s.callsign || '').trim().toUpperCase();
+        if (cs && airportFilterCallsigns.has(cs)) {
+          priorityIcaos.add(s.icao24);
+        }
+      }
+
       let ac = aircraft.get(s.icao24);
 
       if (!ac) {
@@ -558,9 +714,10 @@ function updateAircraft(states) {
 
     }
 
-    // Remove stale aircraft (but never remove the selected or searched flight)
+    // Remove stale aircraft (but never remove selected, searched, or priority flights)
     for (const [icao, ac] of aircraft) {
-      if (!seen.has(icao) && icao !== searchedIcao && icao !== selectedIcao) {
+      if (!seen.has(icao) && icao !== searchedIcao && icao !== selectedIcao
+          && !priorityIcaos.has(icao)) {
         const age = now - (ac.state.lastContact || 0);
         if (age > CONFIG.staleThreshold) {
           if (ac.entity) viewer.entities.remove(ac.entity);
@@ -794,6 +951,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     // Use extrapolated position if available, otherwise compute from state
     const pos = ac.extrapolatedPos || Cesium.Cartesian3.fromDegrees(s.lon, s.lat, exAlt(s.altitude || 0));
     const isSelected = icao === selectedIcao;
+    const isPriority = priorityIcaos.has(icao);
 
     // Altitude-based color computation
     let altColor = null;
@@ -826,7 +984,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           eyeOffset: new Cesium.Cartesian3(0, 0, -100),
           distanceDisplayCondition: acDisplayCond,
         },
-        label: (CONFIG.labelsEnabled || isSelected) ? (() => {
+        label: (CONFIG.labelsEnabled || isSelected || isPriority) ? (() => {
           const layout = computeLabelLayout(s.heading);
           return {
             text: `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`,
@@ -838,14 +996,14 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
             verticalOrigin: layout.vOrigin,
             showBackground: false,
             scale: 1.0,
-            show: LABEL_DECONFLICT ? false : (isSelected || showLabels),
+            show: LABEL_DECONFLICT ? false : (isSelected || isPriority || showLabels),
             distanceDisplayCondition: acDisplayCond,
           };
         })() : undefined,
         properties: { icao24: icao },
       });
       ac._iconKey = iconKey;
-      ac._labelText = (CONFIG.labelsEnabled || isSelected)
+      ac._labelText = (CONFIG.labelsEnabled || isSelected || isPriority)
         ? `${s.callsign || icao}\n${formatAltitude(s.altitude)}${verticalIndicator(s.verticalRate)} ${formatSpeed(s.velocity)}`
         : '';
       // Re-attach tracking after entity recreation (e.g. theme change, refreshAllEntities)
@@ -865,7 +1023,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
       ac.entity.billboard.width = iconSize;
       ac.entity.billboard.height = iconSize;
 
-      if (CONFIG.labelsEnabled || isSelected) {
+      if (CONFIG.labelsEnabled || isSelected || isPriority) {
         const layout = computeLabelLayout(s.heading);
         if (!ac.entity.label) {
           ac.entity.label = new Cesium.LabelGraphics({
@@ -888,7 +1046,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
         ac.entity.label.horizontalOrigin = layout.hOrigin;
         ac.entity.label.verticalOrigin = layout.vOrigin;
-        ac.entity.label.show = LABEL_DECONFLICT ? false : (isSelected || showLabels);
+        ac.entity.label.show = LABEL_DECONFLICT ? false : (isSelected || isPriority || showLabels);
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
       }
@@ -1041,10 +1199,11 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
     }
     ac._trailHash = _th;
 
-    // Airport filter: hide aircraft not in the filter set (selected aircraft always visible)
-    if (airportFilterCallsigns && !isSelected) {
-      const cs = (s.callsign || '').trim().toUpperCase();
-      const visible = airportFilterCallsigns.has(cs);
+    // Priority filter: when priority list is active, hide non-priority aircraft
+    // unless the aircraft toggle is on (showing all aircraft).
+    // Selected aircraft are always visible regardless.
+    if (priorityIcaos.size > 0 && !isSelected) {
+      const visible = isPriority || CONFIG.aircraftEnabled;
       ac.entity.show = visible;
       if (ac.extrapolationTrail) ac.extrapolationTrail.show = visible;
       for (const trail of ac.trailEntities) trail.show = visible;
@@ -1129,7 +1288,7 @@ function resizeAircraftIcons() {
         ac.entity.billboard.distanceDisplayCondition = acDisplayCond;
       }
       if (ac.entity.label) {
-        ac.entity.label.show = LABEL_DECONFLICT ? false : ((icao === selectedIcao) || showLabels);
+        ac.entity.label.show = LABEL_DECONFLICT ? false : ((icao === selectedIcao) || priorityIcaos.has(icao) || showLabels);
         ac.entity.label.distanceDisplayCondition = acDisplayCond;
       }
     }
@@ -1349,8 +1508,12 @@ function startPolling() {
   setTickInterval(tickMs);
   console.log(`[Poll] startPolling: camHeight=${Math.round(camHeight)}m, pollInterval=${pollMs}ms, tickInterval=${tickMs}ms`);
 
-  // Initial fetch
-  pollStates();
+  // Initial fetch: region poll if aircraft enabled, priority poll if only priority active
+  if (CONFIG.aircraftEnabled) {
+    pollStates();
+  } else if (priorityIcaos.size > 0) {
+    pollPriorityAircraft();
+  }
 
   ensureTick();
 }
@@ -1374,6 +1537,7 @@ window.toggleAircraft = toggleAircraft;
 window.setPollInterval = setPollInterval;
 window.setTickInterval = setTickInterval;
 window.pollSelectedAircraft = pollSelectedAircraft;
+window.pollPriorityAircraft = pollPriorityAircraft;
 window.tick = tick;
 window.ensureTick = ensureTick;
 window.stopTick = stopTick;
