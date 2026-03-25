@@ -586,9 +586,13 @@ function formatDelayMinutes(mins) {
 // Fetch and display airport delays in the info panel.
 // Returns the delay data for reuse (e.g., by flight plan marker coloring).
 async function fetchAirportDelays(icao) {
-  if (!window.flightAPI.getAirportDelays || !flightAwareAvailable) return null;
+  if (!window.flightAPI.getAirportDelays || !flightAwareAvailable) {
+    console.log(`[Airport] Skipping delay fetch for ${icao} (API ${!window.flightAPI.getAirportDelays ? 'missing' : 'unavailable'})`);
+    return null;
+  }
 
   try {
+    console.log(`[Airport] Fetching delays for ${icao}...`);
     const data = await window.flightAPI.getAirportDelays(icao);
 
     // Bail if user closed or switched airport
@@ -605,6 +609,7 @@ async function fetchAirportDelays(icao) {
     setFlightAwareAvailable(true);
 
     const delays = data.delays || [];
+    console.log(`[Airport] Delays for ${icao}: ${delays.length} reason(s)`, delays);
     const details = document.getElementById('info-details');
     if (!details) return delays;
 
@@ -620,8 +625,8 @@ async function fetchAirportDelays(icao) {
       details.appendChild(row);
     } else {
       for (const d of delays) {
-        const type = (d.type || '').replace(/_/g, ' ').toUpperCase();
-        const avg = d.delay_seconds != null ? Math.round(d.delay_seconds / 60) : null;
+        const type = (d.category || '').replace(/_/g, ' ').toUpperCase();
+        const avg = d.delay_secs != null ? Math.round(d.delay_secs / 60) : null;
         const reason = d.reason || '';
         const color = avg != null && avg > 0 ? delayColor(avg) : null;
         const cssColor = color ? color.toCssColorString() : 'var(--md-on-surface-variant)';
@@ -642,7 +647,7 @@ async function fetchAirportDelays(icao) {
     if (selectedAirport && selectedAirport._entity && selectedAirport._entity.point) {
       let worstMins = 0;
       for (const d of delays) {
-        if (d.delay_seconds != null) worstMins = Math.max(worstMins, d.delay_seconds / 60);
+        if (d.delay_secs != null) worstMins = Math.max(worstMins, d.delay_secs / 60);
       }
       worstMins = Math.round(worstMins);
       const markerColor = worstMins > 0 ? delayColor(worstMins) : Cesium.Color.LIME;
@@ -669,7 +674,7 @@ async function getAirportDelayMinutes(airportCode) {
     if (!data.delays || data.delays.length === 0) return 0;
     let worst = 0;
     for (const d of data.delays) {
-      if (d.delay_seconds != null) worst = Math.max(worst, d.delay_seconds / 60);
+      if (d.delay_secs != null) worst = Math.max(worst, d.delay_secs / 60);
     }
     return Math.round(worst);
   } catch {

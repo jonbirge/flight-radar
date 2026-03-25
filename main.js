@@ -434,15 +434,19 @@ ipcMain.handle('get-airport-delays', async (event, airportCode) => {
 
   try {
     const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
-    const url = `${FA_AEROAPI_BASE}/airports/delays`;
+    const url = `${FA_AEROAPI_BASE}/airports/${safeCode}/delays`;
+    console.log(`[FlightAware] Fetching delays for ${safeCode}: ${url}`);
     const data = await httpGetFA(url, apiKey);
-    // Filter the system-wide delays for the requested airport
-    const delays = (data.delays || []).filter(d => {
-      const code = d.airport || d.airport_code || '';
-      return code === safeCode || code === safeCode.replace(/^K/, '') || code === 'K' + safeCode;
-    });
+    console.log(`[FlightAware] Delays response for ${safeCode}:`, JSON.stringify(data));
+    // Per-airport endpoint returns a single delay object with a reasons array
+    const delays = data.reasons || [];
     return { delays };
   } catch (err) {
+    // 404 means no delays reported for this airport
+    if (err.message && err.message.includes('HTTP 404')) {
+      console.log(`[FlightAware] No delays for ${airportCode} (404)`);
+      return { delays: [] };
+    }
     console.error(`[FlightAware] Airport delays error for ${airportCode}:`, err.message);
     return { error: err.message };
   }
