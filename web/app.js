@@ -248,6 +248,23 @@ async function apiGetAirportFlights(airportCode) {
   }
 }
 
+// Fetch current delays for an airport from FlightAware AeroAPI
+async function apiGetAirportDelays(airportCode) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `flightaware-proxy.php?endpoint=airports/delays&airport=${encodeURIComponent(airportCode)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      return { error: `HTTP ${resp.status}` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
 // Search flights by advanced query (origin, destination, date/time window)
 async function apiSearchFlights(advQuery) {
   try {
@@ -277,6 +294,7 @@ window.flightAPI = {
   getFlightTrack: (faFlightId) => apiGetFlightTrack(faFlightId),
   searchFlights: (advQuery) => apiSearchFlights(advQuery),
   getAirportFlights: (airportCode) => apiGetAirportFlights(airportCode),
+  getAirportDelays: (airportCode) => apiGetAirportDelays(airportCode),
   getSettings: () => Promise.resolve(loadSettings()),
   saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
   onOpenSettings: () => {},  // no-op
