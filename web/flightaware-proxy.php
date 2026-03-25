@@ -34,7 +34,7 @@ if (empty($apiKey)) {
 
 $endpoint = $_GET['endpoint'] ?? '';
 // Allowed endpoints (whitelist for security)
-$ALLOWED_ENDPOINTS = ['flights', 'flights/search/advanced', 'flights/route', 'flights/track', 'airports/flights'];
+$ALLOWED_ENDPOINTS = ['flights', 'flights/search/advanced', 'flights/route', 'flights/track', 'airports/flights', 'airports/delays'];
 if (!in_array($endpoint, $ALLOWED_ENDPOINTS, true)) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid or missing endpoint parameter']);
@@ -168,6 +168,17 @@ if ($endpoint === 'flights') {
     header('X-Cache: MISS');
     echo $body;
     exit;
+} else if ($endpoint === 'airports/delays') {
+    $airport = $params['airport'] ?? '';
+    unset($params['airport']);
+    if (empty($airport)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing airport parameter']);
+        exit;
+    }
+    $airport = preg_replace('/[^a-zA-Z0-9]/', '', $airport);
+    $query = http_build_query($params);
+    $upstreamUrl = "$AEROAPI_BASE/airports/$airport/delays" . ($query ? "?$query" : '');
 } else {
     $query = http_build_query($params);
     $upstreamUrl = "$AEROAPI_BASE/$endpoint" . ($query ? "?$query" : '');

@@ -186,6 +186,9 @@ function showTimeline(flight) {
   _weatherAbortCtrl = new AbortController();
   fetchAirportWeather(flight.origin, dep, 'origin-weather');
   fetchAirportWeather(flight.destination, arr, 'dest-weather');
+
+  // Fetch delay status and color the endpoint dots
+  updateTimelineDelayDots(flight.origin, flight.destination);
 }
 
 function hideTimeline() {
@@ -197,6 +200,7 @@ function hideTimeline() {
   resumeWeatherRefresh();
   clearTurbCache();
   clearSliderGradient();
+  resetTimelineDelayDots();
   _timelineFlight = null;
   if (_weatherAbortCtrl) { _weatherAbortCtrl.abort(); _weatherAbortCtrl = null; }
   for (const id of ['origin-weather', 'dest-weather']) {
@@ -454,6 +458,40 @@ function clearSliderGradient() {
 }
 
 // ============================================================
+// Timeline Delay Dots
+// ============================================================
+
+// Fetch delays for origin/destination and update the dot colors in the timeline bar.
+async function updateTimelineDelayDots(origin, dest) {
+  const originCode = origin && (origin.code_icao || origin.code || '');
+  const destCode = dest && (dest.code_icao || dest.code || '');
+
+  const [originMins, destMins] = await Promise.all([
+    getAirportDelayMinutes(originCode),
+    getAirportDelayMinutes(destCode),
+  ]);
+
+  const originDot = document.getElementById('timeline-dot-origin');
+  const destDot = document.getElementById('timeline-dot-dest');
+
+  if (originDot) {
+    const color = originMins > 0 ? delayColor(originMins) : Cesium.Color.LIME;
+    originDot.style.background = color.toCssColorString();
+  }
+  if (destDot) {
+    const color = destMins > 0 ? delayColor(destMins) : Cesium.Color.LIME;
+    destDot.style.background = color.toCssColorString();
+  }
+}
+
+function resetTimelineDelayDots() {
+  const originDot = document.getElementById('timeline-dot-origin');
+  const destDot = document.getElementById('timeline-dot-dest');
+  if (originDot) originDot.style.background = '';
+  if (destDot) destDot.style.background = '';
+}
+
+// ============================================================
 // Event Wiring
 // ============================================================
 
@@ -539,5 +577,7 @@ window.computeSliderGradient = computeSliderGradient;
 window.applySliderGradient = applySliderGradient;
 window.clearSliderGradient = clearSliderGradient;
 window.positionTimeline = positionTimeline;
+window.updateTimelineDelayDots = updateTimelineDelayDots;
+window.resetTimelineDelayDots = resetTimelineDelayDots;
 
 export {}
