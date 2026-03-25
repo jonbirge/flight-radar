@@ -84,6 +84,8 @@ async function init() {
   if (typeof initCloud === 'function') await initCloud();
   await loadAndApplySettings();
   applySavedView();
+  // Probe FlightAware availability (hides search bar etc. if unavailable)
+  checkFlightAwareAvailability();
   startPolling();
 }
 

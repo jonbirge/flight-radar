@@ -1,6 +1,36 @@
 // Aircraft selection, info panel, flight plan search, and route display.
 // Depends on radar-core.js, radar-aircraft.js.
 
+// ============================================================
+// FlightAware Availability Detection
+// ============================================================
+
+// Update FlightAware availability flag and toggle dependent UI.
+// Called after every FlightAware API response to reactively show/hide features.
+function setFlightAwareAvailable(available) {
+  const changed = flightAwareAvailable !== available;
+  window.flightAwareAvailable = available;
+  if (!changed) return;
+  const wrap = document.getElementById('flight-search-wrap');
+  if (wrap) wrap.style.display = available ? '' : 'none';
+  console.log(`[FlightAware] API ${available ? 'available' : 'unavailable'}`);
+}
+
+// Probe FlightAware API to determine initial availability.
+// Uses a lightweight airport delays call; result also updates the flag.
+async function checkFlightAwareAvailability() {
+  if (!window.flightAPI || !window.flightAPI.getAirportDelays) {
+    setFlightAwareAvailable(false);
+    return;
+  }
+  try {
+    const data = await window.flightAPI.getAirportDelays('KJFK');
+    setFlightAwareAvailable(!data.error);
+  } catch {
+    setFlightAwareAvailable(false);
+  }
+}
+
 function fmtZulu(iso) {
   if (!iso || iso === '?') return '?';
   return iso.replace('T', ' ').replace(/:\d{2}(\.\d+)?Z$/, 'Z');
@@ -320,10 +350,10 @@ function showAirportInfo(entity) {
   document.getElementById('info-details').innerHTML = `
     <div><span class="label">AIRPORT</span><span>${name || icao}</span></div>
     <div><span class="label">TYPE</span><span>${typeLabel}</span></div>
-    <div class="airport-flights-status"><span class="label">FLIGHTS</span><span>Loading...</span></div>
+    ${flightAwareAvailable ? '<div class="airport-flights-status"><span class="label">FLIGHTS</span><span>Loading...</span></div>' : ''}
   `;
 
-  // Fetch flights and delays from FlightAware
+  // Fetch flights and delays from FlightAware (skipped if unavailable)
   fetchAirportFlights(icao);
   fetchAirportDelays(icao);
 }
@@ -340,8 +370,7 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 
 async function fetchAirportFlights(icao) {
-  if (!window.flightAPI.getAirportFlights) {
-    updateAirportFlightsStatus('FlightAware API not available');
+  if (!window.flightAPI.getAirportFlights || !flightAwareAvailable) {
     return;
   }
 
@@ -358,9 +387,11 @@ async function fetchAirportFlights(icao) {
 
     if (data.error) {
       console.warn(`[Airport] Flights error: ${data.error}`);
+      setFlightAwareAvailable(false);
       updateAirportFlightsStatus(data.error);
       return;
     }
+    setFlightAwareAvailable(true);
 
     // Filter to en-route only (progress > 0 and < 100, or departed but not arrived)
     const enRouteFilter = f => {
@@ -554,7 +585,7 @@ function formatDelayMinutes(mins) {
 // Fetch and display airport delays in the info panel.
 // Returns the delay data for reuse (e.g., by flight plan marker coloring).
 async function fetchAirportDelays(icao) {
-  if (!window.flightAPI.getAirportDelays) return null;
+  if (!window.flightAPI.getAirportDelays || !flightAwareAvailable) return null;
 
   try {
     const data = await window.flightAPI.getAirportDelays(icao);
@@ -564,8 +595,10 @@ async function fetchAirportDelays(icao) {
 
     if (data.error) {
       console.warn(`[Airport] Delays error: ${data.error}`);
+      setFlightAwareAvailable(false);
       return null;
     }
+    setFlightAwareAvailable(true);
 
     const delays = data.delays || [];
     const details = document.getElementById('info-details');
@@ -617,10 +650,12 @@ async function fetchAirportDelays(icao) {
 
 // Fetch delays for a single airport code.  Returns the worst delay in minutes, or 0.
 async function getAirportDelayMinutes(airportCode) {
-  if (!airportCode || !window.flightAPI.getAirportDelays) return 0;
+  if (!airportCode || !window.flightAPI.getAirportDelays || !flightAwareAvailable) return 0;
   try {
     const data = await window.flightAPI.getAirportDelays(airportCode);
-    if (data.error || !data.delays || data.delays.length === 0) return 0;
+    if (data.error) { setFlightAwareAvailable(false); return 0; }
+    setFlightAwareAvailable(true);
+    if (!data.delays || data.delays.length === 0) return 0;
     let worst = 0;
     for (const d of data.delays) {
       if (d.delay_seconds != null) worst = Math.max(worst, d.delay_seconds / 60);
@@ -849,11 +884,13 @@ document.getElementById('info-close').addEventListener('click', () => {
 // that all selected aircraft receive the same treatment.  Current position and
 // trail history always come from OpenSky — FlightAware only provides the route.
 async function enrichSelectedWithFlightAware(icao, callsign) {
-  if (!window.flightAPI.getFlightPlan) return;
+  if (!window.flightAPI.getFlightPlan || !flightAwareAvailable) return;
 
   try {
     const data = await window.flightAPI.getFlightPlan(callsign.trim());
-    if (data.error || !data.flights || data.flights.length === 0) return;
+    if (data.error) { setFlightAwareAvailable(false); return; }
+    setFlightAwareAvailable(true);
+    if (!data.flights || data.flights.length === 0) return;
 
     // Bail if user deselected or selected a different aircraft while we were fetching
     if (selectedIcao !== icao) return;
@@ -1128,10 +1165,12 @@ function displayFlightPlanRoute(flightData, preSelectedFlight = null) {
 // origin→destination route corridor if no track is available.
 async function findAndSelectViaOpenSky(flight, originCoords, destCoords) {
   // Step 1: Try FlightAware /track endpoint for real-time position
-  if (flight.fa_flight_id && window.flightAPI.getFlightTrack) {
+  if (flight.fa_flight_id && window.flightAPI.getFlightTrack && flightAwareAvailable) {
     try {
       console.log(`[FlightPlan] Fetching FlightAware track for ${flight.fa_flight_id}`);
       const trackData = await window.flightAPI.getFlightTrack(flight.fa_flight_id);
+      if (trackData.error) setFlightAwareAvailable(false);
+      else setFlightAwareAvailable(true);
       if (!trackData.error && trackData.positions && trackData.positions.length > 0) {
         const lastTrackPos = trackData.positions[trackData.positions.length - 1];
         if (lastTrackPos.latitude != null && lastTrackPos.longitude != null) {
@@ -1258,9 +1297,11 @@ function selectSearchedAircraft() {
 // cruiseAltMeters is the filed cruise altitude in meters (null if unknown).
 async function fetchAndDisplayFiledRoute(faFlightId, flight, originCoords, destCoords, routeColor, waypointColor, cruiseAltMeters) {
   // Try the /route endpoint first (returns decoded waypoints with lat/lon)
-  if (window.flightAPI.getFlightRoute) {
+  if (window.flightAPI.getFlightRoute && flightAwareAvailable) {
     try {
       const data = await window.flightAPI.getFlightRoute(faFlightId);
+      if (data.error) { setFlightAwareAvailable(false); }
+      else { setFlightAwareAvailable(true); }
       if (!data.error) {
         const fixes = data.fixes || [];
         const validFixes = fixes.filter(f => f.latitude != null && f.longitude != null);
@@ -1730,8 +1771,8 @@ function buildAdvancedQuery(params) {
 // Handle a natural language flight search query by calling the FlightAware
 // /flights/search/advanced endpoint with a query built from the parsed params.
 async function searchFlightsByNL(query) {
-  if (!window.flightAPI.searchFlights) {
-    console.warn('[FlightPlan] searchFlights not available on this platform');
+  if (!window.flightAPI.searchFlights || !flightAwareAvailable) {
+    console.warn('[FlightPlan] searchFlights not available');
     return;
   }
 
@@ -1753,9 +1794,11 @@ async function searchFlightsByNL(query) {
     const data = await window.flightAPI.searchFlights(advQuery);
     if (data.error) {
       console.warn(`[FlightPlan] NL search error: ${data.error}`);
+      setFlightAwareAvailable(false);
       alert(`Flight search failed: ${data.error}`);
       return;
     }
+    setFlightAwareAvailable(true);
 
     const flights = data.flights || [];
     if (flights.length === 0) {
@@ -1813,17 +1856,19 @@ async function searchFlightPlan(ident) {
   if (searchInput) searchInput.disabled = true;
 
   try {
-    if (!window.flightAPI.getFlightPlan) {
-      console.warn('[FlightPlan] getFlightPlan not available on this platform');
+    if (!window.flightAPI.getFlightPlan || !flightAwareAvailable) {
+      console.warn('[FlightPlan] FlightAware API not available');
       return;
     }
 
     const data = await window.flightAPI.getFlightPlan(ident.trim());
     if (data.error) {
       console.warn(`[FlightPlan] Error: ${data.error}`);
+      setFlightAwareAvailable(false);
       alert(`Flight search failed: ${data.error}`);
       return;
     }
+    setFlightAwareAvailable(true);
 
     if (!data.flights || data.flights.length === 0) {
       alert(`No flights found for "${ident.trim()}"`);
@@ -2075,5 +2120,7 @@ window.delayColor = delayColor;
 window.haversineKm = haversineKm;
 window.applyAirportFilter = applyAirportFilter;
 window.clearAirportFilter = clearAirportFilter;
+window.setFlightAwareAvailable = setFlightAwareAvailable;
+window.checkFlightAwareAvailability = checkFlightAwareAvailability;
 
 export {}
