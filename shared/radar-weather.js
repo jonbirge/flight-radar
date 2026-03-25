@@ -535,6 +535,7 @@ function pirepCssColor(intensity) {
 
 async function fetchPireps() {
   console.log('[Weather] Fetching PIREPs...');
+  removePirepEntities();
   const pirepMaxAgeHours = Math.ceil(PIREP_MAX_AGE_MS / (60 * 60 * 1000));
   try {
     const resp = await fetch(awcUrl(`pirep?format=geojson&type=turb&age=${pirepMaxAgeHours}&bbox=15,-180,75,-50`)).catch((err) => { console.warn('[Weather] PIREP fetch failed:', err.message); return null; });
@@ -606,6 +607,7 @@ async function fetchPireps() {
 
 async function fetchSigmets() {
   console.log('[Weather] Fetching SIGMETs...');
+  removeSigmetEntities();
   try {
     const resp = await fetch(awcUrl('sigmet?format=geojson')).catch((err) => { console.warn('[Weather] SIGMET fetch failed:', err.message); return null; });
     if (resp && resp.ok) {
@@ -746,6 +748,7 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
 // fore=3 snapshots may both be in the past, so we pick whichever is nearest.
 async function fetchAirmets() {
   console.log('[Weather] Fetching G-AIRMETs (live, hours 0 & 3)...');
+  removeAirmetEntities();
   try {
     const [resp0, resp3] = await Promise.all([
       fetch(awcUrl('gairmet?format=geojson&fore=0'))
