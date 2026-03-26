@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Download FAA airspace boundaries (Class B, C, D) and generate a JS database.
-// Tries FAA ArcGIS service first, falls back to GitHub mirror if it times out.
+// Tries FAA ArcGIS service first (current data with altitudes), falls back to GitHub mirror.
 // Run: npm run pull-data
 
 'use strict';
@@ -12,14 +12,14 @@ const path = require('path');
 const OUT_DIR = path.join(__dirname, '..', 'data');
 const OUT_FILE = path.join(OUT_DIR, 'airspace.json');
 
-const CLASSES = ['B', 'C', 'D'];
-const REQUEST_TIMEOUT = 20000; // 20s per request
-const BATCH_SIZE = 200;
+const CLASSES = new Set(['B', 'C', 'D']);
+const REQUEST_TIMEOUT = 30000; // 30s
 
-// FAA ArcGIS Feature Service
+// FAA ArcGIS Feature Service (paginated queries filtered by class)
 const FAA_BASE = 'https://services6.arcgis.com/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Class_Airspace/FeatureServer/0/query';
+const BATCH_SIZE = 1000;
 
-// Fallback: GitHub pre-processed GeoJSON (older data but instant downloads)
+// Fallback: GitHub pre-processed GeoJSON (older data from 2014, but includes LOWALT/HIGHALT)
 const GITHUB_URLS = {
   B: 'https://raw.githubusercontent.com/drnic/faa-airspace-data/master/class_b.geo.json',
   C: 'https://raw.githubusercontent.com/drnic/faa-airspace-data/master/class_c.geo.json',
@@ -84,8 +84,8 @@ function parseFAAFeatures(features, cls) {
     const p = f.properties;
     const ceil = p.UPPER_VAL != null ? p.UPPER_VAL : null;
     const floor = p.LOWER_VAL != null ? p.LOWER_VAL : null;
-    const ceilRef = p.UPPER_CODE || null;  // "MSL"
-    const floorRef = p.LOWER_CODE || null; // "SFC" or "MSL"
+    const ceilRef = p.UPPER_CODE || null;
+    const floorRef = p.LOWER_CODE || null;
     const geom = f.geometry;
     if (!geom || !geom.coordinates) continue;
 
@@ -110,20 +110,33 @@ async function fetchGitHubClass(cls) {
   return data.features || [];
 }
 
+function parseAltValue(val) {
+  if (val == null || val === '') return null;
+  const s = String(val).trim().toUpperCase();
+  if (s === 'SFC') return 0;
+  const n = parseInt(s, 10);
+  return isNaN(n) ? null : n;
+}
+
 function parseGitHubFeatures(features, cls) {
   const entries = [];
   for (const f of features) {
-    // GitHub source uses AIRSPACE or NAME property
-    const name = (f.properties.AIRSPACE || f.properties.NAME || '').trim();
+    const p = f.properties;
+    const name = (p.AIRSPACE || p.NAME || '').trim();
     const geom = f.geometry;
     if (!geom || !geom.coordinates) continue;
 
-    // GitHub fallback doesn't include altitude data
+    // Parse LOWALT/HIGHALT fields (e.g. "SFC", "7000", "100")
+    const floor = parseAltValue(p.LOWALT);
+    const ceil = parseAltValue(p.HIGHALT);
+    const floorRef = floor === 0 ? 'SFC' : (floor != null ? 'MSL' : null);
+    const ceilRef = ceil != null ? 'MSL' : null;
+
     if (geom.type === 'Polygon') {
-      entries.push({ name, cls, ceil: null, floor: null, ceilRef: null, floorRef: null, coords: roundCoords(geom.coordinates[0]) });
+      entries.push({ name, cls, ceil, floor, ceilRef, floorRef, coords: roundCoords(geom.coordinates[0]) });
     } else if (geom.type === 'MultiPolygon') {
       for (const poly of geom.coordinates) {
-        entries.push({ name, cls, ceil: null, floor: null, ceilRef: null, floorRef: null, coords: roundCoords(poly[0]) });
+        entries.push({ name, cls, ceil, floor, ceilRef, floorRef, coords: roundCoords(poly[0]) });
       }
     }
   }
@@ -184,30 +197,31 @@ async function main() {
     return;
   }
 
-  const allEntries = [];
+  let allEntries = [];
   const counts = {};
-  let source = 'FAA ArcGIS';
+  let source;
 
-  // Try FAA ArcGIS first
+  // Try FAA ArcGIS first (current data with full altitude info)
   console.log('Trying FAA ArcGIS service ...');
   try {
     for (const cls of CLASSES) {
       const features = await fetchFAAClass(cls);
-      counts[cls] = features.length;
-      allEntries.push(...parseFAAFeatures(features, cls));
+      const parsed = parseFAAFeatures(features, cls);
+      counts[cls] = parsed.length;
+      allEntries.push(...parsed);
     }
+    source = 'FAA ArcGIS';
   } catch (err) {
     console.warn(`\nFAA ArcGIS failed: ${err.message}`);
     console.log('Falling back to GitHub mirror (older data) ...\n');
 
-    // Reset and try GitHub
-    allEntries.length = 0;
+    allEntries = [];
     source = 'GitHub (drnic/faa-airspace-data)';
-
     for (const cls of CLASSES) {
       const features = await fetchGitHubClass(cls);
-      counts[cls] = features.length;
-      allEntries.push(...parseGitHubFeatures(features, cls));
+      const parsed = parseGitHubFeatures(features, cls);
+      counts[cls] = parsed.length;
+      allEntries.push(...parsed);
     }
   }
 
@@ -216,16 +230,10 @@ async function main() {
     return;
   }
 
-  // Validate altitude data (required for 3D airspace volumes)
+  // Report altitude data availability
   const withAltitude = allEntries.filter(e => e.ceil != null && e.floor != null);
   const altPct = Math.round((withAltitude.length / allEntries.length) * 100);
   console.log(`\nAltitude data: ${withAltitude.length}/${allEntries.length} entries (${altPct}%)`);
-  if (withAltitude.length === 0) {
-    console.warn('WARNING: No entries have altitude data — keeping existing data.');
-    console.warn('This typically means the FAA ArcGIS source failed and the GitHub fallback was used.');
-    console.warn('Retry when FAA service is available.');
-    return;
-  }
 
   // Sort by class then name for deterministic output
   allEntries.sort((a, b) => a.cls.localeCompare(b.cls) || a.name.localeCompare(b.name));
