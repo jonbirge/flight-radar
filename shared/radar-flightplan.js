@@ -988,15 +988,53 @@ function pickBestFlight(flights) {
   return flights[0];
 }
 
-// Fly the camera to show the aircraft's track history (trail entities) from above.
-// Falls back to zooming to the aircraft entity itself if no trail data is available yet.
+// Fly the camera to show the aircraft's track history from above.
+// Computes a bounding rectangle from all history + granular track points,
+// adds 10% margin, and flies to that view. Falls back to the aircraft entity.
 function flyToTrackHistory(icao) {
   const ac = aircraft.get(icao);
   if (!ac) return;
-  if (ac.trailEntities && ac.trailEntities.length > 0) {
-    viewer.flyTo(ac.trailEntities, {
+
+  // Collect all known positions (polled history + granular track)
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  let count = 0;
+
+  for (const p of ac.history) {
+    if (p.lat != null && p.lon != null) {
+      minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
+      minLon = Math.min(minLon, p.lon); maxLon = Math.max(maxLon, p.lon);
+      count++;
+    }
+  }
+  if (ac.granularTrack && ac.granularTrack.path) {
+    for (const wp of ac.granularTrack.path) {
+      // wp: [time, lat, lon, baro_alt, heading, on_ground]
+      if (wp[1] != null && wp[2] != null) {
+        minLat = Math.min(minLat, wp[1]); maxLat = Math.max(maxLat, wp[1]);
+        minLon = Math.min(minLon, wp[2]); maxLon = Math.max(maxLon, wp[2]);
+        count++;
+      }
+    }
+  }
+  // Include current position
+  if (ac.state && ac.state.lat != null && ac.state.lon != null) {
+    minLat = Math.min(minLat, ac.state.lat); maxLat = Math.max(maxLat, ac.state.lat);
+    minLon = Math.min(minLon, ac.state.lon); maxLon = Math.max(maxLon, ac.state.lon);
+    count++;
+  }
+
+  if (count >= 2) {
+    // Add 10% margin
+    const latPad = (maxLat - minLat) * 0.1 || 0.5;
+    const lonPad = (maxLon - minLon) * 0.1 || 0.5;
+    const rect = Cesium.Rectangle.fromDegrees(
+      minLon - lonPad, minLat - latPad,
+      maxLon + lonPad, maxLat + latPad
+    );
+    viewer.camera.flyTo({
+      destination: rect,
       duration: 1.5,
-      offset: new Cesium.HeadingPitchRange(0, -Math.PI / 2, 0),
+      orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
     });
   } else if (ac.entity) {
     viewer.flyTo(ac.entity, {
