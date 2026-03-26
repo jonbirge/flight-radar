@@ -294,6 +294,23 @@ function toggleAircraft(show) {
     _lastBulkPollMs = 0;
     _lastSelectedPollApiMs = 0;
     lastSelectedPollMs = 0;
+
+    // Clear all existing aircraft entities and trails so stale data
+    // from the previous session doesn't linger when polling resumes.
+    _renderGeneration++;
+    viewer.entities.suspendEvents();
+    try {
+      for (const [, ac] of aircraft) {
+        if (ac.entity) { viewer.entities.remove(ac.entity); ac.entity = null; }
+        ac._iconKey = ''; ac._labelText = '';
+        removeTrailEntities(ac);
+        ac.history = [];
+        ac.granularTrack = null;
+      }
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+
     // Suspend → resume: fully stop the tick timer (which may have been
     // running for selected-aircraft-only polling) so startPolling() can
     // do a clean restart with the correct interval and initial fetch.
