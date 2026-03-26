@@ -1488,6 +1488,11 @@ async function fetchNextTrack() {
     ac.lastTrackFetch = Date.now() / 1000;
     console.log(`[Track] Got ${data.path.length} waypoints for ${icao24}`);
     renderAircraft();
+    // If a history zoom was pending for this aircraft, trigger it now
+    if (pendingHistoryZoom === icao24 && selectedIcao === icao24) {
+      pendingHistoryZoom = null;
+      flyToTrackHistory(icao24);
+    }
   }
 }
 

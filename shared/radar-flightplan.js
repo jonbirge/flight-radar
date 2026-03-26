@@ -839,6 +839,7 @@ function showTurbInfo(entity) {
 
 function hideAircraftInfo() {
   stopTracking();
+  pendingHistoryZoom = null;
   const prevIcao = selectedIcao;
   selectedIcao = null;
 
@@ -900,15 +901,16 @@ document.getElementById('info-close').addEventListener('click', () => {
 // trail history always come from OpenSky — FlightAware only provides the route.
 async function enrichSelectedWithFlightAware(icao, callsign) {
   if (!window.flightAPI.getFlightPlan || !flightAwareAvailable) {
+    pendingHistoryZoom = icao;
     flyToTrackHistory(icao);
     return;
   }
 
   try {
     const data = await window.flightAPI.getFlightPlan(callsign.trim());
-    if (data.error) { setFlightAwareAvailable(false); flyToTrackHistory(icao); return; }
+    if (data.error) { setFlightAwareAvailable(false); pendingHistoryZoom = icao; flyToTrackHistory(icao); return; }
     setFlightAwareAvailable(true);
-    if (!data.flights || data.flights.length === 0) { flyToTrackHistory(icao); return; }
+    if (!data.flights || data.flights.length === 0) { pendingHistoryZoom = icao; flyToTrackHistory(icao); return; }
 
     // Bail if user deselected or selected a different aircraft while we were fetching
     if (selectedIcao !== icao) return;
@@ -923,6 +925,7 @@ async function enrichSelectedWithFlightAware(icao, callsign) {
     console.log(`[FlightPlan] Enriched selected aircraft ${icao} (${callsign}) with FlightAware data`);
   } catch (err) {
     console.warn('[FlightPlan] Enrichment error:', err);
+    pendingHistoryZoom = icao;
     flyToTrackHistory(icao);
   }
 }
