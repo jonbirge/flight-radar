@@ -60,6 +60,7 @@ window.activeFlightPlan = null;     // current flight plan data
 window.searchedFlightIdent = null;  // callsign of the searched flight (for visibility bypass)
 window.searchedIcao = null;         // ICAO24 of the matched live aircraft (for visibility bypass)
 window.selectedRouteFlight = null;  // picked flight from activeFlightPlan for info panel
+window.pendingHistoryZoom = null;   // ICAO24 awaiting track data before zoom-to-history
 window.timelineTime = null;         // ms timestamp for timeline scrubbing (null = live/now mode)
 window.timelineEntity = null;       // Cesium entity showing aircraft position on timeline
 window.timelineRoutePoints = [];  // geographic route points [{lon, lat, alt}] for interpolation
