@@ -911,13 +911,16 @@ async function enrichSelectedWithFlightAware(icao, callsign) {
     if (data.error) { setFlightAwareAvailable(false); return; }
     setFlightAwareAvailable(true);
     if (!data.flights || data.flights.length === 0) return;
-    // Flight plan found — cancel any pending history zoom
-    pendingHistoryZoom = null;
 
     // Bail if user deselected or selected a different aircraft while we were fetching
     if (selectedIcao !== icao) return;
 
     const result = displayFlightPlanRoute(data);
+    // Only cancel pending history zoom if we have a real route (both endpoints),
+    // not just a single origin or destination marker
+    if (result && result.originCoords && result.destCoords) {
+      pendingHistoryZoom = null;
+    }
     searchedIcao = icao;
     if (result && result.flight) {
       selectedRouteFlight = result.flight;
@@ -1218,8 +1221,9 @@ function displayFlightPlanRoute(flightData, preSelectedFlight = null) {
   // Fetch delays for origin/dest and update marker colors asynchronously
   updateFlightPlanDelayColors(origin, dest);
 
-  // Fly to origin/dest markers immediately so the user sees something right away
-  if (flightPlanEntities.length > 0) {
+  // Fly to route overview only when we have both endpoints (a real route).
+  // A single airport marker is not worth zooming to — let history zoom handle it.
+  if (originCoords && destCoords && flightPlanEntities.length > 0) {
     flyToRouteOverview();
   }
 
