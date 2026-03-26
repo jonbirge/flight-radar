@@ -1,6 +1,10 @@
 // Aircraft selection, info panel, flight plan search, and route display.
 // Depends on radar-core.js, radar-aircraft.js.
 
+// Discovery poll radius (in degrees) around an airport when searching for
+// en-route aircraft.  1 degree ≈ 60 nm, so 3.3° ≈ 200 nm.
+const AIRPORT_DISCOVERY_RADIUS_DEG = 3.3;
+
 // ============================================================
 // FlightAware Availability Detection
 // ============================================================
@@ -481,7 +485,7 @@ async function fetchAirportFlights(icao) {
       if (priorityIcaos.size < callsigns.size && selectedAirport) {
         const apLat = selectedAirport.lat;
         const apLon = selectedAirport.lon;
-        const pad = 8; // ~500nm radius around airport
+        const pad = AIRPORT_DISCOVERY_RADIUS_DEG;
         const discoveryBounds = {
           south: Math.max(apLat - pad, -90), north: Math.min(apLat + pad, 90),
           west: Math.max(apLon - pad, -180), east: Math.min(apLon + pad, 180),
