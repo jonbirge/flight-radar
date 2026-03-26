@@ -5,6 +5,7 @@ out/
 assets/*.png
 web/creds.json
 web/cred.json
+data/*.json
 data/vfrmap/
 *.snap
 .claude/*
