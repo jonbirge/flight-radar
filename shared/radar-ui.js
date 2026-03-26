@@ -43,7 +43,11 @@ function boundsContain(outer, inner) {
 }
 
 function scheduleViewportPoll() {
-  if (!aircraftActive() || Date.now() < rateLimitedUntil) return;
+  // Only schedule a bulk region poll when the aircraft toggle is actually on.
+  // When aircraft display is off but priority/selected aircraft exist, those are
+  // already polled by the tick timer via pollPriorityAircraft/pollSelectedAircraft
+  // — a full region poll would fetch all aircraft in view, creating spurious trails.
+  if (!CONFIG.aircraftEnabled || Date.now() < rateLimitedUntil) return;
   if (viewChangePollDebounce) clearTimeout(viewChangePollDebounce);
   // Wait at least until the rate limit window has passed
   const elapsed = lastPollTime ? Date.now() - lastPollTime.getTime() : Infinity;

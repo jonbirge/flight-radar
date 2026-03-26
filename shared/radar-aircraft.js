@@ -1424,6 +1424,12 @@ function padBounds(bounds, fraction) {
 }
 
 async function pollStates() {
+  // Guard: never run a bulk region poll when aircraft display is off — use
+  // pollPriorityAircraft / pollSelectedAircraft for individual tracking.
+  if (!CONFIG.aircraftEnabled) {
+    console.log('[Poll] Skipped pollStates: aircraft display is off');
+    return;
+  }
   if (_pollInFlight) {
     console.log('[Poll] Skipped: _pollInFlight');
     return;
