@@ -273,6 +273,7 @@ function showAircraftInfo(icao) {
     // Skip if this aircraft is already the searched flight (already enriched).
     const cs = (s.callsign || '').trim();
     if (cs && cs.toUpperCase() !== (searchedFlightIdent || '')) {
+      pendingFlightPlanFetch = icao;
       enrichSelectedWithFlightAware(icao, cs);
     } else if (activeFlightPlan && activeFlightPlan.flights) {
       // Already have flight plan data from a prior search — show route timing
@@ -811,6 +812,7 @@ function showTurbInfo(entity) {
 function hideAircraftInfo() {
   stopTracking();
   pendingHistoryZoom = null;
+  pendingFlightPlanFetch = null;
   const prevIcao = selectedIcao;
   selectedIcao = null;
 
@@ -872,24 +874,41 @@ document.getElementById('info-close').addEventListener('click', () => {
 // trail history always come from OpenSky — FlightAware only provides the route.
 async function enrichSelectedWithFlightAware(icao, callsign) {
   if (!window.flightAPI.getFlightPlan || !flightAwareAvailable) {
+    pendingFlightPlanFetch = null;
+    triggerDeferredHistoryZoom(icao);
     return;
   }
 
   try {
     const data = await window.flightAPI.getFlightPlan(callsign.trim());
-    if (data.error) { setFlightAwareAvailable(false); return; }
+    if (data.error) {
+      setFlightAwareAvailable(false);
+      pendingFlightPlanFetch = null;
+      triggerDeferredHistoryZoom(icao);
+      return;
+    }
     setFlightAwareAvailable(true);
-    if (!data.flights || data.flights.length === 0) return;
+    if (!data.flights || data.flights.length === 0) {
+      pendingFlightPlanFetch = null;
+      triggerDeferredHistoryZoom(icao);
+      return;
+    }
 
     // Bail if user deselected or selected a different aircraft while we were fetching
-    if (selectedIcao !== icao) return;
+    if (selectedIcao !== icao) {
+      pendingFlightPlanFetch = null;
+      return;
+    }
 
     const result = displayFlightPlanRoute(data);
     // Only cancel pending history zoom if we have a real route (both endpoints),
     // not just a single origin or destination marker
     if (result && result.originCoords && result.destCoords) {
       pendingHistoryZoom = null;
+    } else {
+      triggerDeferredHistoryZoom(icao);
     }
+    pendingFlightPlanFetch = null;
     searchedIcao = icao;
     if (result && result.flight) {
       selectedRouteFlight = result.flight;
@@ -898,6 +917,8 @@ async function enrichSelectedWithFlightAware(icao, callsign) {
 
     console.log(`[FlightPlan] Enriched selected aircraft ${icao} (${callsign}) with FlightAware data`);
   } catch (err) {
+    pendingFlightPlanFetch = null;
+    triggerDeferredHistoryZoom(icao);
     console.warn('[FlightPlan] Enrichment error:', err);
   }
 }
@@ -961,6 +982,21 @@ function pickBestFlight(flights) {
   // 4. Fallback to most recent (first in the array — AeroAPI returns reverse-chronological)
   console.log(`[FlightPlan] Fallback to most recent flight: ${flights[0].fa_flight_id}`);
   return flights[0];
+}
+
+// Trigger a deferred zoom-to-history for the given ICAO, but only if the
+// pending flag is still set, the aircraft is still selected, and granular
+// track data has already arrived.  If track data hasn't arrived yet,
+// pendingHistoryZoom stays set so fetchNextTrack() can handle it later.
+function triggerDeferredHistoryZoom(icao) {
+  if (pendingHistoryZoom !== icao || selectedIcao !== icao) return;
+  const ac = aircraft.get(icao);
+  if (ac && ac.granularTrack) {
+    pendingHistoryZoom = null;
+    flyToTrackHistory(icao);
+  }
+  // If track data isn't ready yet, leave pendingHistoryZoom set —
+  // fetchNextTrack() will trigger the zoom when data arrives.
 }
 
 // Fly the camera to show the aircraft's track history from above.
