@@ -810,7 +810,6 @@ function updateExtrapolationTrail(icao, ac, currentPos) {
         width: trailWidth,
         material: material,
         clampToGround: false,
-        distanceDisplayCondition: acDisplayCond,
       },
     });
   }
@@ -999,7 +998,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
           height: iconSize,
           pixelOffset: new Cesium.Cartesian2(0, 0),
           eyeOffset: new Cesium.Cartesian3(0, 0, -100),
-          distanceDisplayCondition: acDisplayCond,
         },
         label: (CONFIG.labelsEnabled || isSelected || isPriority) ? (() => {
           const layout = computeLabelLayout(s.heading);
@@ -1144,7 +1142,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
               width: trailWidth,
               material: material,
               clampToGround: false,
-              distanceDisplayCondition: acDisplayCond,
             },
           }));
         }
@@ -1183,7 +1180,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
                       width: trailWidth,
                       material: material,
                       clampToGround: false,
-                      distanceDisplayCondition: acDisplayCond,
                     },
                   }));
                 }
@@ -1205,7 +1201,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
                 width: trailWidth,
                 material: trailMaterial,
                 clampToGround: false,
-                distanceDisplayCondition: acDisplayCond,
               },
             }));
           }
@@ -1302,7 +1297,6 @@ function resizeAircraftIcons() {
       if (ac.entity.billboard) {
         ac.entity.billboard.width = iconSize;
         ac.entity.billboard.height = iconSize;
-        ac.entity.billboard.distanceDisplayCondition = acDisplayCond;
       }
       if (ac.entity.label) {
         ac.entity.label.show = LABEL_DECONFLICT ? false : ((icao === selectedIcao || priorityIcaos.has(icao)) ? CONFIG.labelsEnabled : showLabels);
