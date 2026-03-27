@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS = {
   airspaceEnabled: true,
   airspaceEdges: false,
   airspace3D: false,
-  showSmallAirports: false,
+
   navaidsEnabled: false,
   showFixes: false,
   mapLayer: 'noLabels',

@@ -70,8 +70,7 @@ async function loadAndApplySettings(overrideSettings) {
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : DEFAULT_SETTINGS.airspaceEdges;
       const prev3D = CONFIG.airspace3D;
       CONFIG.airspace3D = saved.airspace3D !== undefined ? saved.airspace3D : DEFAULT_SETTINGS.airspace3D;
-      const prevSmallAirports = CONFIG.showSmallAirports;
-      CONFIG.showSmallAirports = saved.showSmallAirports !== undefined ? saved.showSmallAirports : DEFAULT_SETTINGS.showSmallAirports;
+
       CONFIG.mapLayer = saved.mapLayer || DEFAULT_SETTINGS.mapLayer;
       CONFIG.muteMapColors = saved.muteMapColors !== undefined ? saved.muteMapColors : DEFAULT_SETTINGS.muteMapColors;
       const prevNavaids = CONFIG.navaidsEnabled;
@@ -129,7 +128,6 @@ async function loadAndApplySettings(overrideSettings) {
       const labelsToggle = document.getElementById('toggle-labels');
       if (labelsToggle) {
         labelsToggle.checked = CONFIG.labelsEnabled;
-        labelsToggle.disabled = !CONFIG.aircraftEnabled;
       }
       const rToggle = document.getElementById('toggle-radar');
       if (rToggle) rToggle.checked = CONFIG.radarEnabled;
@@ -216,13 +214,7 @@ async function loadAndApplySettings(overrideSettings) {
         }
         updateWeatherAltitudes();
       }
-      if (prevSmallAirports !== CONFIG.showSmallAirports && cachedAirportData) {
-        if (CONFIG.showSmallAirports) {
-          initSmallAirports(cachedAirportData);
-        } else {
-          removeSmallAirports();
-        }
-      }
+
       if (prevAirports !== CONFIG.airportsEnabled) {
         toggleAirports(CONFIG.airportsEnabled);
       }

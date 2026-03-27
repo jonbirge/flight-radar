@@ -8,7 +8,7 @@
 window.aircraft = new Map();       // icao24 -> aircraft state object
 window.trackFetchQueue = [];       // icao24s to fetch hi-res tracks for
 window.airportEntities = [];       // Cesium entities for airport markers
-window.smallAirportEntities = [];  // Cesium entities for small airport markers
+
 window.airspaceEntities = [];     // Cesium entities for airspace polygons
 window.waypointEntities = [];     // Cesium entities for fix markers
 window.navaidEntities = [];       // Cesium entities for navaid markers

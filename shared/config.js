@@ -45,7 +45,7 @@ const CONFIG = window.CONFIG = {
   airspaceEnabled: DEFAULT_SETTINGS.airspaceEnabled,
   airspace3D: DEFAULT_SETTINGS.airspace3D,
   airspaceEdges: DEFAULT_SETTINGS.airspaceEdges,
-  showSmallAirports: DEFAULT_SETTINGS.showSmallAirports,
+
   navaidsEnabled: DEFAULT_SETTINGS.navaidsEnabled,
   showFixes: DEFAULT_SETTINGS.showFixes,
   mapLayer: DEFAULT_SETTINGS.mapLayer,

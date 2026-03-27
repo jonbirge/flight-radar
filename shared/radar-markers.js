@@ -186,7 +186,7 @@ function getAirportDelayInfo(code) {
 function applyDelayColorsToAirports() {
   if (!CONFIG.airportDelaysEnabled) return;
   const defaultColor = getAirportColor();
-  for (const entity of [...airportEntities, ...smallAirportEntities]) {
+  for (const entity of airportEntities) {
     const icao = entity.properties?.icao?.getValue?.() || '';
     const iata = entity.properties?.iata?.getValue?.() || '';
     const mins = getAirportDelayMinutes(icao) || getAirportDelayMinutes(iata);
@@ -198,7 +198,7 @@ function applyDelayColorsToAirports() {
 // Reset all airport marker colors to default (when delays disabled)
 function resetAirportDelayColors() {
   const defaultColor = getAirportColor();
-  for (const entity of [...airportEntities, ...smallAirportEntities]) {
+  for (const entity of airportEntities) {
     entity.point.color = defaultColor;
   }
 }
@@ -241,7 +241,7 @@ function initAirports(airports) {
   const labelColor = getAirportLabelColor();
 
   for (const ap of airports) {
-    if (ap.type === 'S') continue;  // Small airports handled separately
+    if (ap.type === 'S') continue;
     const isLarge = ap.type === 'L';
     const label = ap.iata || ap.icao;
     const labelRange = isLarge ? 800000 : 300000;
@@ -289,71 +289,6 @@ function initAirports(airports) {
   }
 
   console.log(`[Airports] Created ${airportEntities.length} markers`);
-
-  if (CONFIG.showSmallAirports) {
-    initSmallAirports(airports);
-  }
-}
-
-function initSmallAirports(airports) {
-  const pointColor = getAirportColor();
-  const pointOutlineColor = getAirportOutlineColor();
-  const pointOutlineWidth = getAirportOutlineWidth();
-  const labelColor = getAirportLabelColor();
-  const smallRange = 200000; // Only visible within 200km
-
-  for (const ap of airports) {
-    if (ap.type !== 'S') continue;
-    const label = ap.iata || ap.icao;
-    const dotSize = 4;
-    const farScale = 2 / dotSize;
-    const dotScale = new Cesium.NearFarScalar(5e4, 1.0, 2e5, farScale);
-
-    const entity = viewer.entities.add({
-      id: `apt-${ap.icao}`,
-      position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 10),
-      point: {
-        pixelSize: dotSize,
-        color: pointColor,
-        outlineColor: pointOutlineColor,
-        outlineWidth: pointOutlineWidth,
-        scaleByDistance: dotScale,
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, smallRange),
-      },
-      label: {
-        text: label,
-        font: labelFont(CONFIG.fontSize),
-        fillColor: labelColor,
-        outlineColor: CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK,
-        outlineWidth: 2,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, 8),
-        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-        verticalOrigin: Cesium.VerticalOrigin.TOP,
-        scale: 0.75,
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, smallRange),
-      },
-      show: CONFIG.airportsEnabled,
-      properties: {
-        icao: ap.icao,
-        iata: ap.iata || '',
-        name: ap.name || '',
-        type: ap.type,
-        lat: ap.lat,
-        lon: ap.lon,
-      },
-    });
-    smallAirportEntities.push(entity);
-  }
-
-  console.log(`[Airports] Created ${smallAirportEntities.length} small airport markers`);
-}
-
-function removeSmallAirports() {
-  for (const entity of smallAirportEntities) {
-    viewer.entities.remove(entity);
-  }
-  smallAirportEntities.length = 0;
 }
 
 function toggleAirports(show) {
@@ -361,9 +296,7 @@ function toggleAirports(show) {
   for (const entity of airportEntities) {
     entity.show = show;
   }
-  for (const entity of smallAirportEntities) {
-    entity.show = show;
-  }
+
 }
 
 function updateAirportColors() {
@@ -372,7 +305,7 @@ function updateAirportColors() {
   const pointOutlineWidth = getAirportOutlineWidth();
   const labelColor = getAirportLabelColor();
   const outlineColor = CONFIG.theme === 'light' ? Cesium.Color.WHITE : Cesium.Color.BLACK;
-  for (const entity of [...airportEntities, ...smallAirportEntities]) {
+  for (const entity of airportEntities) {
     entity.point.color = pointColor;
     entity.point.outlineColor = pointOutlineColor;
     entity.point.outlineWidth = pointOutlineWidth;
@@ -678,8 +611,7 @@ window.getAirportOutlineColor = getAirportOutlineColor;
 window.getAirportOutlineWidth = getAirportOutlineWidth;
 window.getAirportLabelColor = getAirportLabelColor;
 window.initAirports = initAirports;
-window.initSmallAirports = initSmallAirports;
-window.removeSmallAirports = removeSmallAirports;
+
 window.toggleAirports = toggleAirports;
 window.updateAirportColors = updateAirportColors;
 window.initAirspace = initAirspace;

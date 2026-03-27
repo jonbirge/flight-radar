@@ -491,10 +491,7 @@ function createSettingsFormHTML() {
               <input type="checkbox" id="set-airspace">
               <span>Airspace</span>
             </label>
-            <label class="settings-toggle-label">
-              <input type="checkbox" id="set-small-airports">
-              <span>Small airports</span>
-            </label>
+
             <label class="settings-toggle-label">
               <input type="checkbox" id="set-airspace-edges">
               <span>Volume edges</span>
@@ -645,7 +642,7 @@ function populateSettingsForm(container, settings) {
   container.querySelector('#set-navaids').checked = s.navaidsEnabled;
   container.querySelector('#set-airspace-edges').checked = s.airspaceEdges;
   container.querySelector('#set-airspace-3d').checked = s.airspace3D;
-  container.querySelector('#set-small-airports').checked = s.showSmallAirports;
+
   container.querySelector('#set-show-fixes').checked = s.showFixes;
 
   // Rotation speed
@@ -765,7 +762,7 @@ function initSettingsPanel(options) {
   const navaidsEnabled = container.querySelector('#set-navaids');
   const airspaceEdges = container.querySelector('#set-airspace-edges');
   const airspace3D = container.querySelector('#set-airspace-3d');
-  const smallAirports = container.querySelector('#set-small-airports');
+
   const showFixes = container.querySelector('#set-show-fixes');
   const rotSlider = container.querySelector('#set-rotation-speed');
   const rotVal = container.querySelector('#set-rotation-speed-val');
@@ -802,7 +799,7 @@ function initSettingsPanel(options) {
       navaidsEnabled: navaidsEnabled.checked,
       airspaceEdges: airspaceEdges.checked,
       airspace3D: airspace3D.checked,
-      showSmallAirports: smallAirports.checked,
+
       showFixes: showFixes.checked,
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
@@ -958,7 +955,7 @@ function initSettingsPanel(options) {
   navaidsEnabled.addEventListener('change', broadcast);
   airspaceEdges.addEventListener('change', broadcast);
   airspace3D.addEventListener('change', broadcast);
-  smallAirports.addEventListener('change', broadcast);
+
   showFixes.addEventListener('change', broadcast);
 
   // --- Rotation speed slider ---
