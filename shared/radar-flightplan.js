@@ -1623,6 +1623,10 @@ async function searchForLiveAircraft(result) {
 // If the flight came from an advanced search (sparse data), re-fetches full
 // flight details via /flights/{ident} before displaying.
 async function selectFlightFromResults(flight, flightData) {
+  // Clear the search bar — the selected flight is shown in the info panel title
+  const searchInput = document.getElementById('flight-search');
+  if (searchInput) searchInput.value = '';
+
   // Add the selected flight's ident to search history so the user can
   // return to it directly without repeating the original search.
   const ident = (flight.ident || '').trim().toUpperCase();
@@ -1665,6 +1669,72 @@ function isNaturalLanguageQuery(query) {
   return /\b(from|to|departing|arriving|flights?|between|today|tomorrow|yesterday|morning|afternoon|evening)\b/i.test(query);
 }
 
+// City name → primary airport IATA code mapping.
+// Covers the largest US metro areas plus common international destinations.
+window.CITY_AIRPORTS = {
+  'new york':      'JFK',  'nyc':           'JFK',
+  'los angeles':   'LAX',  'la':            'LAX',
+  'chicago':       'ORD',
+  'dallas':        'DFW',
+  'houston':       'IAH',
+  'denver':        'DEN',
+  'san francisco': 'SFO',  'sf':            'SFO',
+  'seattle':       'SEA',
+  'atlanta':       'ATL',
+  'boston':         'BOS',
+  'miami':         'MIA',
+  'phoenix':       'PHX',
+  'minneapolis':   'MSP',
+  'detroit':       'DTW',
+  'philadelphia':  'PHL',  'philly':        'PHL',
+  'orlando':       'MCO',
+  'charlotte':     'CLT',
+  'las vegas':     'LAS',  'vegas':         'LAS',
+  'portland':      'PDX',
+  'san diego':     'SAN',
+  'tampa':         'TPA',
+  'salt lake city':'SLC',  'salt lake':     'SLC',
+  'san antonio':   'SAT',
+  'austin':        'AUS',
+  'nashville':     'BNA',
+  'san jose':      'SJC',
+  'washington':    'DCA',  'dc':            'DCA',
+  'baltimore':     'BWI',
+  'fort lauderdale':'FLL', 'ft lauderdale': 'FLL',
+  'pittsburgh':    'PIT',
+  'st louis':      'STL',  'saint louis':   'STL',
+  'indianapolis':  'IND',
+  'cleveland':     'CLE',
+  'kansas city':   'MCI',
+  'columbus':      'CMH',
+  'raleigh':       'RDU',
+  'milwaukee':     'MKE',
+  'new orleans':   'MSY',
+  'honolulu':      'HNL',
+  'anchorage':     'ANC',
+  'london':        'LHR',
+  'paris':         'CDG',
+  'tokyo':         'NRT',
+  'toronto':       'YYZ',
+  'cancun':        'CUN',
+};
+
+// Sorted city names longest-first for greedy matching.
+const CITY_NAMES_SORTED = Object.keys(CITY_AIRPORTS).sort((a, b) => b.length - a.length);
+
+// Replace city names in the query with their airport codes for simpler regex matching.
+function substituteCityNames(query) {
+  let q = query.toLowerCase().trim();
+  for (const city of CITY_NAMES_SORTED) {
+    const escaped = city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`\\b${escaped}\\b`, 'gi');
+    if (re.test(q)) {
+      q = q.replace(re, CITY_AIRPORTS[city]);
+    }
+  }
+  return q;
+}
+
 // Common US airline name/abbreviation → ICAO operator code mapping.
 window.AIRLINE_CODES = {
   'united':     'UAL', 'ual':     'UAL',
@@ -1684,26 +1754,29 @@ window.AIRLINE_CODES = {
 // Parse a natural language flight search query.
 // Returns { origin, destination, airline, start, end } (values may be null).
 function parseNaturalLanguage(query) {
-  const q = query.toLowerCase().trim();
+  // Substitute city names (e.g. "Boston" → "BOS") before regex parsing
+  const q = substituteCityNames(query);
   const result = { origin: null, destination: null, airline: null, start: null, end: null };
 
   // Extract origin airport (3–4 letter IATA/ICAO code)
-  const originMatch = q.match(/(?:from\s+|departing\s+(?:from\s+)?|out\s+of\s+)([a-z]{3,4})\b/);
+  const originMatch = q.match(/(?:from\s+|departing\s+(?:from\s+)?|out\s+of\s+)([a-z]{3,4})\b/i);
   if (originMatch) result.origin = originMatch[1].toUpperCase();
 
   // Extract destination airport (3–4 letter IATA/ICAO code)
-  const destMatch = q.match(/(?:\bto\s+|arriving\s+(?:at\s+|in\s+)?|bound\s+for\s+)([a-z]{3,4})\b/);
+  const destMatch = q.match(/(?:\bto\s+|arriving\s+(?:at\s+|in\s+)?|bound\s+for\s+)([a-z]{3,4})\b/i);
   if (destMatch) result.destination = destMatch[1].toUpperCase();
 
   // Fallback: "BOS to LAX" pattern — origin code directly before "to <dest>"
   if (!result.origin && result.destination) {
-    const implicitOrigin = q.match(/\b([a-z]{3,4})\s+to\s+[a-z]{3,4}\b/);
+    const implicitOrigin = q.match(/\b([a-z]{3,4})\s+to\s+[a-z]{3,4}\b/i);
     if (implicitOrigin) result.origin = implicitOrigin[1].toUpperCase();
   }
 
-  // Extract airline — check for known names/codes in the query
+  // Extract airline — check for known names/codes in the original query
+  // (not the substituted one, since city names could collide with airline keywords)
+  const qLower = query.toLowerCase().trim();
   for (const [name, icao] of Object.entries(AIRLINE_CODES)) {
-    if (q.includes(name)) {
+    if (qLower.includes(name)) {
       result.airline = icao;
       break;
     }
@@ -1903,6 +1976,8 @@ async function searchFlightPlan(ident) {
 
     // If only one result, select it immediately; otherwise let the user pick.
     if (data.flights.length === 1) {
+      // Clear the search bar — the flight is shown in the info panel title
+      if (searchInput) searchInput.value = '';
       const result = displayFlightPlanRoute(data);
       if (result) {
         await searchForLiveAircraft(result);
