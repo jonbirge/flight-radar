@@ -98,9 +98,10 @@ function deconflictLabels() {
     ? viewer.camera.positionCartographic.height : 0;
   const showLabels = CONFIG.labelsEnabled && camHeight < 800000;
   const hasPriority = priorityIcaos.size > 0;
+  if (!CONFIG.labelsEnabled) return;
   if (!showLabels && !selectedIcao && !hasPriority) return;
 
-  // Labels globally off — only handle selected + priority aircraft, skip the full loop
+  // Labels globally on but zoomed out — only handle selected + priority aircraft, skip the full loop
   if (!showLabels && !hasPriority && selectedIcao) {
     const ac = aircraft.get(selectedIcao);
     if (ac && ac.entity && ac.entity.label) {
@@ -317,8 +318,7 @@ function toggleAircraft(show) {
     stopTick();
     startPolling();
   }
-  const labelsToggle = document.getElementById('toggle-labels');
-  if (labelsToggle) labelsToggle.disabled = !show;
+  // Labels toggle is independent of aircraft toggle
 }
 
 // ==== Poll Interval Management =============================================
@@ -1013,7 +1013,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
             verticalOrigin: layout.vOrigin,
             showBackground: false,
             scale: 1.0,
-            show: LABEL_DECONFLICT ? false : (isSelected || isPriority || showLabels),
+            show: LABEL_DECONFLICT ? false : ((isSelected || isPriority) ? CONFIG.labelsEnabled : showLabels),
             distanceDisplayCondition: acDisplayCond,
           };
         })() : undefined,
@@ -1063,7 +1063,7 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
         ac.entity.label.pixelOffset = new Cesium.Cartesian2(layout.offsetX, layout.offsetY);
         ac.entity.label.horizontalOrigin = layout.hOrigin;
         ac.entity.label.verticalOrigin = layout.vOrigin;
-        ac.entity.label.show = LABEL_DECONFLICT ? false : (isSelected || isPriority || showLabels);
+        ac.entity.label.show = LABEL_DECONFLICT ? false : ((isSelected || isPriority) ? CONFIG.labelsEnabled : showLabels);
       } else if (ac.entity.label) {
         ac.entity.label.show = false;
       }
@@ -1305,7 +1305,7 @@ function resizeAircraftIcons() {
         ac.entity.billboard.distanceDisplayCondition = acDisplayCond;
       }
       if (ac.entity.label) {
-        ac.entity.label.show = LABEL_DECONFLICT ? false : ((icao === selectedIcao) || priorityIcaos.has(icao) || showLabels);
+        ac.entity.label.show = LABEL_DECONFLICT ? false : ((icao === selectedIcao || priorityIcaos.has(icao)) ? CONFIG.labelsEnabled : showLabels);
         ac.entity.label.distanceDisplayCondition = acDisplayCond;
       }
     }
