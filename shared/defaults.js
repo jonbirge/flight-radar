@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS = {
   pirepsEnabled: false,
   satelliteIREnabled: false,
   turbForecastEnabled: false,
+  airportDelaysEnabled: false,
   turb3D: false,
   exaggerateAltitudes: 1,
   weatherOverlayOpacity: 25,

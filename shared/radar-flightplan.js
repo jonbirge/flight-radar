@@ -21,14 +21,14 @@ function setFlightAwareAvailable(available) {
 }
 
 // Probe FlightAware API to determine initial availability.
-// Uses a lightweight airport delays call; result also updates the flag.
+// Uses a lightweight airport flights call; result also updates the flag.
 async function checkFlightAwareAvailability() {
-  if (!window.flightAPI || !window.flightAPI.getAirportDelays) {
+  if (!window.flightAPI || !window.flightAPI.getAirportFlights) {
     setFlightAwareAvailable(false);
     return;
   }
   try {
-    const data = await window.flightAPI.getAirportDelays('KJFK');
+    const data = await window.flightAPI.getAirportFlights('KJFK');
     setFlightAwareAvailable(!data.error);
   } catch {
     setFlightAwareAvailable(false);
@@ -326,16 +326,18 @@ function showAirportInfo(entity) {
   // Store selected airport
   selectedAirport = { icao, iata, name, type, lat, lon };
 
-  // Highlight the selected airport entity — green by default, updated by delay fetch
+  // Highlight the selected airport entity — use delay color if available, else bright green
   if (entity.point) {
     entity._origPointColor = entity.point.color.getValue(Cesium.JulianDate.now());
     entity._origPointSize = entity.point.pixelSize.getValue(Cesium.JulianDate.now());
-    entity.point.color = Cesium.Color.LIME;
+    const delayMins = getAirportDelayMinutes(icao) || getAirportDelayMinutes(iata);
+    const highlightColor = delayMins > 0 ? delayColor(delayMins) : Cesium.Color.WHITE;
+    entity.point.color = highlightColor;
     entity.point.outlineColor = Cesium.Color.BLACK;
     entity.point.outlineWidth = 2;
     entity.point.pixelSize = entity._origPointSize * 1.5;
   }
-  // Store reference so delay fetch can update the color
+  // Store reference for later color updates
   selectedAirport._entity = entity;
 
   // Show info panel
@@ -357,12 +359,13 @@ function showAirportInfo(entity) {
     <div><span class="label">AIRPORT</span><span>${name || icao}</span></div>
     <div><span class="label">TYPE</span><span>${typeLabel}</span></div>
     ${flightAwareAvailable ? '<div class="airport-flights-status"><span class="label">FLIGHTS</span><span>Loading...</span></div>' : ''}
-    ${flightAwareAvailable ? '<div class="airport-delay-status"><span class="label">DELAYS</span><span>Loading...</span></div>' : ''}
   `;
 
-  // Fetch flights and delays from FlightAware (skipped if unavailable)
+  // Display cached delay info immediately (if setting is enabled)
+  displayAirportDelayInfo(icao, iata);
+
+  // Fetch flights from FlightAware (skipped if unavailable)
   fetchAirportFlights(icao);
-  fetchAirportDelays(icao);
 }
 
 // Compute great-circle distance in km between two lat/lon points.
@@ -568,122 +571,53 @@ function updateAirportFlightsStatus(msg) {
   }
 }
 
-// Compute a Cesium.Color for a delay duration in minutes.
-// 0 min → dark (no delay), ~15 min → orange, 30+ min → red.
-function delayColor(delayMinutes) {
-  if (!delayMinutes || delayMinutes <= 0) return null; // no delay
-  const t = Math.min(delayMinutes / 45, 1); // 0..1 over 0..45 min
-  // Interpolate: orange (#FF9800) at t=0 → red (#D32F2F) at t=1
-  const r = Math.round(255 - t * (255 - 211));
-  const g = Math.round(152 - t * (152 - 47));
-  const b = Math.round(0 + t * (47 - 0));
-  return Cesium.Color.fromBytes(r, g, b);
-}
+// Display cached airport delay info in the info panel.
+// Uses the FAA delay cache populated by fetchAllAirportDelays().
+function displayAirportDelayInfo(icao, iata) {
+  if (!CONFIG.airportDelaysEnabled) return;
 
-// Format delay duration for display
-function formatDelayMinutes(mins) {
-  if (mins == null) return '';
-  if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
+  const info = getAirportDelayInfo(icao) || getAirportDelayInfo(iata);
+  const details = document.getElementById('info-details');
+  if (!details) return;
 
-// Fetch and display airport delays in the info panel.
-// Returns the delay data for reuse (e.g., by flight plan marker coloring).
-async function fetchAirportDelays(icao) {
-  if (!window.flightAPI.getAirportDelays || !flightAwareAvailable) {
-    console.log(`[Airport] Skipping delay fetch for ${icao} (API ${!window.flightAPI.getAirportDelays ? 'missing' : 'unavailable'})`);
-    return null;
+  if (!info || !info.details || info.details.length === 0) {
+    const row = document.createElement('div');
+    row.className = 'airport-delay-row';
+    row.innerHTML = `<span class="label">DELAYS</span><span style="color: var(--md-on-surface-variant)">None</span>`;
+    details.appendChild(row);
+    return;
   }
 
-  try {
-    console.log(`[Airport] Fetching delays for ${icao}...`);
-    const data = await window.flightAPI.getAirportDelays(icao);
+  for (const d of info.details) {
+    const row = document.createElement('div');
+    row.className = 'airport-delay-row';
+    const parts = [];
 
-    // Bail if user closed or switched airport
-    if (!selectedAirport || selectedAirport.icao !== icao) return null;
-
-    if (data.error) {
-      console.warn(`[Airport] Delays error: ${data.error}`);
-      setFlightAwareAvailable(false);
-      // Remove the loading row on error
-      const loadingRow = document.querySelector('.airport-delay-status');
-      if (loadingRow) loadingRow.remove();
-      return null;
-    }
-    setFlightAwareAvailable(true);
-
-    const delays = data.delays || [];
-    console.log(`[Airport] Delays for ${icao}: ${delays.length} reason(s)`, delays);
-    const details = document.getElementById('info-details');
-    if (!details) return delays;
-
-    // Remove the loading row
-    const loadingRow = details.querySelector('.airport-delay-status');
-    if (loadingRow) loadingRow.remove();
-
-    if (delays.length === 0) {
-      // Show "No delays" row
-      const row = document.createElement('div');
-      row.className = 'airport-delay-row';
-      row.innerHTML = `<span class="label">DELAYS</span><span style="color: var(--md-on-surface-variant)">None</span>`;
-      details.appendChild(row);
+    // Build duration display based on delay type
+    if (d.type === 'Ground Stop') {
+      const color = delayColor(60);
+      parts.push(`<span style="color:${color.toCssColorString()};font-weight:600">Ground Stop</span>`);
+      if (d.endTime) parts.push(`until ${d.endTime}`);
+    } else if (d.type === 'Ground Delay') {
+      const mins = d.avgMins || d.maxMins || 30;
+      const color = delayColor(mins);
+      parts.push(`<span style="color:${color.toCssColorString()};font-weight:600">${formatDelayMinutes(mins)} avg</span>`);
+    } else if (d.type === 'Closure') {
+      const color = delayColor(90);
+      parts.push(`<span style="color:${color.toCssColorString()};font-weight:600">Closed</span>`);
+      if (d.reopen) parts.push(`reopens ${d.reopen}`);
     } else {
-      for (const d of delays) {
-        const avg = d.delay_secs != null ? Math.round(d.delay_secs / 60) : null;
-        const reason = d.reason || '';
-        const color = avg != null && avg > 0 ? delayColor(avg) : null;
-        const cssColor = color ? color.toCssColorString() : 'var(--md-on-surface-variant)';
-
-        const row = document.createElement('div');
-        row.className = 'airport-delay-row';
-        let html = `<span class="label">DELAY</span>`;
-        const parts = [];
-        if (avg != null) parts.push(`<span style="color:${cssColor};font-weight:600">${formatDelayMinutes(avg)}</span>`);
-        if (reason) parts.push(reason);
-        html += `<span>${parts.join(' — ')}</span>`;
-        row.innerHTML = html;
-        details.appendChild(row);
-      }
+      // Arrival/Departure delay
+      const mins = d.maxMins || d.minMins || 15;
+      const color = delayColor(mins);
+      parts.push(`<span style="color:${color.toCssColorString()};font-weight:600">${d.type}: ${formatDelayMinutes(mins)}</span>`);
+      if (d.trend) parts.push(d.trend);
     }
 
-    // Update the selected airport marker color based on worst delay
-    if (selectedAirport && selectedAirport._entity && selectedAirport._entity.point) {
-      let worstMins = 0;
-      for (const d of delays) {
-        if (d.delay_secs != null) worstMins = Math.max(worstMins, d.delay_secs / 60);
-      }
-      worstMins = Math.round(worstMins);
-      const markerColor = worstMins > 0 ? delayColor(worstMins) : Cesium.Color.LIME;
-      selectedAirport._entity.point.color = markerColor;
-    }
+    if (d.reason) parts.push(d.reason);
 
-    return delays;
-  } catch (err) {
-    console.error('[Airport] Delays fetch error:', err);
-    // Remove the loading row on error
-    const loadingRow = document.querySelector('.airport-delay-status');
-    if (loadingRow) loadingRow.remove();
-    return null;
-  }
-}
-
-// Fetch delays for a single airport code.  Returns the worst delay in minutes, or 0.
-async function getAirportDelayMinutes(airportCode) {
-  if (!airportCode || !window.flightAPI.getAirportDelays || !flightAwareAvailable) return 0;
-  try {
-    const data = await window.flightAPI.getAirportDelays(airportCode);
-    if (data.error) { setFlightAwareAvailable(false); return 0; }
-    setFlightAwareAvailable(true);
-    if (!data.delays || data.delays.length === 0) return 0;
-    let worst = 0;
-    for (const d of data.delays) {
-      if (d.delay_secs != null) worst = Math.max(worst, d.delay_secs / 60);
-    }
-    return Math.round(worst);
-  } catch {
-    return 0;
+    row.innerHTML = `<span class="label">DELAY</span><span>${parts.join(' — ')}</span>`;
+    details.appendChild(row);
   }
 }
 
@@ -1099,14 +1033,16 @@ function lookupAirportCoords(airportObj) {
   return null;
 }
 
-// Draw origin (green) and destination (red) airport markers for a flight plan.
-// originDelayColor/destDelayColor override the default point colors when delays exist.
-function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointColor, originDelayColor, destDelayColor) {
-  const defaultOriginColor = Cesium.Color.LIME;
-  const defaultDestColor = Cesium.Color.LIME;
-  // Use black when no delay, or the delay color if present
-  const originPointColor = originDelayColor || defaultOriginColor;
-  const destPointColor = destDelayColor || defaultDestColor;
+// Draw origin and destination airport markers for a flight plan.
+// Uses delay color from cache if delays enabled, otherwise theme default.
+function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointColor) {
+  const defaultColor = Cesium.Color.WHITE;
+  const originCode = origin && (origin.code_icao || origin.code_iata || origin.code || '');
+  const destCode = dest && (dest.code_icao || dest.code_iata || dest.code || '');
+  const originMins = getAirportDelayMinutes(originCode);
+  const destMins = getAirportDelayMinutes(destCode);
+  const originPointColor = originMins > 0 ? delayColor(originMins) : defaultColor;
+  const destPointColor = destMins > 0 ? delayColor(destMins) : defaultColor;
 
   viewer.entities.suspendEvents();
   try {
@@ -1151,31 +1087,30 @@ function drawFlightPlanMarkers(origin, dest, originCoords, destCoords, waypointC
   }
 }
 
-// Fetch delays for origin/destination airports and update the flight plan marker
-// point colors: black for no delays, orange→red gradient based on delay severity.
-async function updateFlightPlanDelayColors(origin, dest) {
-  const originCode = origin && (origin.code_icao || origin.code || '');
-  const destCode = dest && (dest.code_icao || dest.code || '');
+// Update flight plan marker point colors from cached delay data.
+// Default color when no delays or setting disabled; orange→red for delays.
+function updateFlightPlanDelayColors(origin, dest) {
+  if (!CONFIG.airportDelaysEnabled) return;
+  const originCode = origin && (origin.code_icao || origin.code_iata || origin.code || '');
+  const destCode = dest && (dest.code_icao || dest.code_iata || dest.code || '');
   if (!originCode && !destCode) return;
 
-  // Fetch both in parallel
-  const [originMins, destMins] = await Promise.all([
-    getAirportDelayMinutes(originCode),
-    getAirportDelayMinutes(destCode),
-  ]);
+  const originMins = getAirportDelayMinutes(originCode);
+  const destMins = getAirportDelayMinutes(destCode);
 
-  // Update existing entities by id
   const originEntity = viewer.entities.getById('_fp_origin');
   const destEntity = viewer.entities.getById('_fp_dest');
 
   if (originEntity && originEntity.point) {
-    const color = originMins > 0 ? delayColor(originMins) : Cesium.Color.LIME;
-    originEntity.point.color = color;
+    const color = originMins > 0 ? delayColor(originMins) : null;
+    if (color) originEntity.point.color = color;
   }
   if (destEntity && destEntity.point) {
-    const color = destMins > 0 ? delayColor(destMins) : Cesium.Color.LIME;
-    destEntity.point.color = color;
-    if (destMins > 0) destEntity.point.outlineColor = Cesium.Color.BLACK;
+    const color = destMins > 0 ? delayColor(destMins) : null;
+    if (color) {
+      destEntity.point.color = color;
+      destEntity.point.outlineColor = Cesium.Color.BLACK;
+    }
   }
 }
 
@@ -2195,9 +2130,7 @@ window.showSearchHistory = showSearchHistory;
 window.stopTracking = stopTracking;
 window.showAirportInfo = showAirportInfo;
 window.fetchAirportFlights = fetchAirportFlights;
-window.fetchAirportDelays = fetchAirportDelays;
-window.getAirportDelayMinutes = getAirportDelayMinutes;
-window.delayColor = delayColor;
+window.displayAirportDelayInfo = displayAirportDelayInfo;
 window.haversineKm = haversineKm;
 window.applyAirportFilter = applyAirportFilter;
 window.clearAirportFilter = clearAirportFilter;

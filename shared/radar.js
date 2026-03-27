@@ -91,6 +91,8 @@ async function loadAndApplySettings(overrideSettings) {
       CONFIG.airmetsEnabled = saved.airmetsEnabled !== undefined ? saved.airmetsEnabled : DEFAULT_SETTINGS.airmetsEnabled;
       CONFIG.pirepsEnabled = saved.pirepsEnabled !== undefined ? saved.pirepsEnabled : DEFAULT_SETTINGS.pirepsEnabled;
       CONFIG.satelliteIREnabled = saved.satelliteIREnabled !== undefined ? saved.satelliteIREnabled : DEFAULT_SETTINGS.satelliteIREnabled;
+      const prevAirportDelays = CONFIG.airportDelaysEnabled;
+      CONFIG.airportDelaysEnabled = saved.airportDelaysEnabled !== undefined ? saved.airportDelaysEnabled : DEFAULT_SETTINGS.airportDelaysEnabled;
       const prevTurb3D = CONFIG.turb3D;
       CONFIG.turb3D = saved.turb3D !== undefined ? saved.turb3D : DEFAULT_SETTINGS.turb3D;
       const prevExAlt = CONFIG.exaggerateAltitudes;
@@ -238,6 +240,17 @@ async function loadAndApplySettings(overrideSettings) {
           initFixes();
         } else {
           removeFixes();
+        }
+      }
+      // Airport delays toggle
+      if (prevAirportDelays !== CONFIG.airportDelaysEnabled) {
+        if (delayRefreshTimer) { clearInterval(delayRefreshTimer); delayRefreshTimer = null; }
+        if (CONFIG.airportDelaysEnabled) {
+          fetchAllAirportDelays();
+          delayRefreshTimer = setInterval(fetchAllAirportDelays, 15 * 60 * 1000);
+        } else {
+          airportDelayCache.clear();
+          resetAirportDelayColors();
         }
       }
     }

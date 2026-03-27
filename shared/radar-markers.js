@@ -2,6 +2,208 @@
 // Depends on radar-core.js (viewer, CONFIG, state variables).
 
 // ============================================================
+// Airport Delay Functions (shared by markers, flight plan, timeline)
+// ============================================================
+
+// Compute a Cesium.Color for a delay duration in minutes.
+// 0 min → null (no delay), ~15 min → orange, 30+ min → red.
+function delayColor(delayMinutes) {
+  if (!delayMinutes || delayMinutes <= 0) return null;
+  const t = Math.min(delayMinutes / 45, 1);
+  const r = Math.round(255 - t * (255 - 211));
+  const g = Math.round(152 - t * (152 - 47));
+  const b = Math.round(0 + t * (47 - 0));
+  return Cesium.Color.fromBytes(r, g, b);
+}
+
+// Format delay duration for display
+function formatDelayMinutes(mins) {
+  if (mins == null) return '';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+// Parse FAA duration text like "2 hours and 57 minutes" or "15 minutes" → minutes
+function parseDelayDuration(text) {
+  if (!text) return 0;
+  let mins = 0;
+  const hourMatch = text.match(/(\d+)\s*hour/);
+  const minMatch = text.match(/(\d+)\s*minute/);
+  if (hourMatch) mins += parseInt(hourMatch[1], 10) * 60;
+  if (minMatch) mins += parseInt(minMatch[1], 10);
+  return mins;
+}
+
+// Build IATA→ICAO lookup from cached airport data
+function buildIataToIcaoMap() {
+  const map = new Map();
+  if (!cachedAirportData) return map;
+  for (const ap of cachedAirportData) {
+    if (ap.iata && ap.icao) {
+      map.set(ap.iata.toUpperCase(), ap.icao.toUpperCase());
+    }
+  }
+  return map;
+}
+
+// Parse FAA NASSTATUS XML into the delay cache
+function parseFAADelayXML(xmlString) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlString, 'application/xml');
+  const delays = new Map(); // IATA → { minutes, type, reason, details[] }
+  const iataToIcao = buildIataToIcaoMap();
+
+  function addDelay(iata, entry) {
+    iata = (iata || '').toUpperCase();
+    if (!iata) return;
+    const existing = delays.get(iata);
+    if (!existing || entry.minutes > existing.minutes) {
+      delays.set(iata, { ...entry, details: existing ? [...existing.details, ...entry.details] : entry.details });
+    } else {
+      existing.details.push(...entry.details);
+    }
+  }
+
+  // Ground Stop Programs
+  for (const prog of doc.querySelectorAll('Ground_Stop_List > Program')) {
+    const iata = prog.querySelector('ARPT')?.textContent?.trim();
+    const reason = prog.querySelector('Reason')?.textContent?.trim() || '';
+    const endTime = prog.querySelector('End_Time')?.textContent?.trim() || '';
+    addDelay(iata, {
+      minutes: 60, // Ground stops are severe — use high value for coloring
+      type: 'Ground Stop',
+      reason,
+      details: [{ type: 'Ground Stop', reason, endTime }],
+    });
+  }
+
+  // Ground Delay Programs
+  for (const gd of doc.querySelectorAll('Ground_Delay_List > Ground_Delay')) {
+    const iata = gd.querySelector('ARPT')?.textContent?.trim();
+    const reason = gd.querySelector('Reason')?.textContent?.trim() || '';
+    const avg = gd.querySelector('Avg')?.textContent?.trim() || '';
+    const max = gd.querySelector('Max')?.textContent?.trim() || '';
+    const avgMins = parseDelayDuration(avg);
+    const maxMins = parseDelayDuration(max);
+    addDelay(iata, {
+      minutes: avgMins || maxMins || 30,
+      type: 'Ground Delay',
+      reason,
+      details: [{ type: 'Ground Delay', reason, avg, max, avgMins, maxMins }],
+    });
+  }
+
+  // General Arrival/Departure Delays
+  for (const d of doc.querySelectorAll('Arrival_Departure_Delay_List > Delay')) {
+    const iata = d.querySelector('ARPT')?.textContent?.trim();
+    const reason = d.querySelector('Reason')?.textContent?.trim() || '';
+    const ad = d.querySelector('Arrival_Departure');
+    const adType = ad?.getAttribute('Type') || '';
+    const min = ad?.querySelector('Min')?.textContent?.trim() || '';
+    const max = ad?.querySelector('Max')?.textContent?.trim() || '';
+    const trend = ad?.querySelector('Trend')?.textContent?.trim() || '';
+    const maxMins = parseDelayDuration(max);
+    const minMins = parseDelayDuration(min);
+    addDelay(iata, {
+      minutes: maxMins || minMins || 15,
+      type: `${adType} Delay`,
+      reason,
+      details: [{ type: `${adType} Delay`, reason, min, max, minMins, maxMins, trend }],
+    });
+  }
+
+  // Airport Closures (skip NOTAMs that only restrict GA/non-sched traffic)
+  for (const ap of doc.querySelectorAll('Airport_Closure_List > Airport')) {
+    const iata = ap.querySelector('ARPT')?.textContent?.trim();
+    const reason = ap.querySelector('Reason')?.textContent?.trim() || '';
+    const start = ap.querySelector('Start')?.textContent?.trim() || '';
+    const reopen = ap.querySelector('Reopen')?.textContent?.trim() || '';
+    // Skip partial closures (NOTAMs restricting only non-sched/GA traffic)
+    if (reason.includes('NON SKED') || reason.includes('NON-SKED')) continue;
+    addDelay(iata, {
+      minutes: 90, // Full closure is the most severe
+      type: 'Closure',
+      reason,
+      details: [{ type: 'Closure', reason, start, reopen }],
+    });
+  }
+
+  // Build final cache keyed by both IATA and ICAO
+  airportDelayCache.clear();
+  for (const [iata, info] of delays) {
+    airportDelayCache.set(iata, info);
+    const icao = iataToIcao.get(iata);
+    if (icao) airportDelayCache.set(icao, info);
+  }
+
+  console.log(`[Delays] Parsed ${delays.size} airports with active delays`);
+  return delays;
+}
+
+// Fetch all airport delays from FAA NASSTATUS and update cache + markers
+async function fetchAllAirportDelays() {
+  if (!CONFIG.airportDelaysEnabled) return;
+  if (!window.flightAPI || !window.flightAPI.getSystemDelays) {
+    console.warn('[Delays] getSystemDelays not available');
+    return;
+  }
+
+  try {
+    console.log('[Delays] Fetching FAA system-wide delays...');
+    const result = await window.flightAPI.getSystemDelays();
+    if (result.error) {
+      console.warn('[Delays] FAA fetch error:', result.error);
+      return;
+    }
+    if (!result.xml) {
+      console.warn('[Delays] No XML data received');
+      return;
+    }
+    parseFAADelayXML(result.xml);
+    applyDelayColorsToAirports();
+  } catch (err) {
+    console.error('[Delays] Fetch error:', err);
+  }
+}
+
+// Look up worst delay minutes for an airport from the cache.
+// Accepts IATA or ICAO code. Returns 0 if no delays or setting disabled.
+function getAirportDelayMinutes(code) {
+  if (!CONFIG.airportDelaysEnabled || !code) return 0;
+  const info = airportDelayCache.get(code.toUpperCase());
+  return info ? info.minutes : 0;
+}
+
+// Look up full delay info for an airport from cache. Returns null if none.
+function getAirportDelayInfo(code) {
+  if (!CONFIG.airportDelaysEnabled || !code) return null;
+  return airportDelayCache.get(code.toUpperCase()) || null;
+}
+
+// Apply delay colors to all airport marker entities
+function applyDelayColorsToAirports() {
+  if (!CONFIG.airportDelaysEnabled) return;
+  const defaultColor = getAirportColor();
+  for (const entity of [...airportEntities, ...smallAirportEntities]) {
+    const icao = entity.properties?.icao?.getValue?.() || '';
+    const iata = entity.properties?.iata?.getValue?.() || '';
+    const mins = getAirportDelayMinutes(icao) || getAirportDelayMinutes(iata);
+    const color = mins > 0 ? delayColor(mins) : defaultColor;
+    entity.point.color = color;
+  }
+}
+
+// Reset all airport marker colors to default (when delays disabled)
+function resetAirportDelayColors() {
+  const defaultColor = getAirportColor();
+  for (const entity of [...airportEntities, ...smallAirportEntities]) {
+    entity.point.color = defaultColor;
+  }
+}
+
+// ============================================================
 // Airport Markers
 // ============================================================
 
@@ -176,6 +378,10 @@ function updateAirportColors() {
     entity.point.outlineWidth = pointOutlineWidth;
     entity.label.fillColor = labelColor;
     entity.label.outlineColor = outlineColor;
+  }
+  // Re-apply delay colors on top if enabled
+  if (CONFIG.airportDelaysEnabled && airportDelayCache.size > 0) {
+    applyDelayColorsToAirports();
   }
 }
 
@@ -458,6 +664,15 @@ function updateWaypointColors() {
   }
 }
 
+window.delayColor = delayColor;
+window.formatDelayMinutes = formatDelayMinutes;
+window.parseDelayDuration = parseDelayDuration;
+window.parseFAADelayXML = parseFAADelayXML;
+window.fetchAllAirportDelays = fetchAllAirportDelays;
+window.getAirportDelayMinutes = getAirportDelayMinutes;
+window.getAirportDelayInfo = getAirportDelayInfo;
+window.applyDelayColorsToAirports = applyDelayColorsToAirports;
+window.resetAirportDelayColors = resetAirportDelayColors;
 window.getAirportColor = getAirportColor;
 window.getAirportOutlineColor = getAirportOutlineColor;
 window.getAirportOutlineWidth = getAirportOutlineWidth;

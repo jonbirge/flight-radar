@@ -354,15 +354,22 @@
 
   <h3 id="airport-delays">Airport Delays</h3>
   <p>
-    When you click an airport, the info panel also shows current FAA delay information
-    (ground delay programs, ground stops, arrival/departure delays) fetched from
-    FlightAware. Each delay shows its type, average duration, and reason. If there are
-    no active delays, the panel shows &ldquo;None&rdquo;.
+    Enable <strong>Airport delays</strong> in Settings &rarr; Aviation data to see
+    real-time FAA delay information. When enabled, the app fetches system-wide
+    airport status from the FAA every 15 minutes, covering ground delay programs,
+    ground stops, arrival/departure delays, and airport closures.
   </p>
   <p>
-    Airport markers and flight plan endpoint markers are color-coded by delay
-    status: green when there are no delays, and an orange-to-red gradient when
-    delays are present &mdash; the longer the delay, the deeper the red.
+    Airport markers are color-coded by delay severity: an orange-to-red gradient
+    where longer delays show deeper red. Airports with no delays remain the
+    default color. The same color coding applies to flight plan endpoint markers
+    and timeline dots.
+  </p>
+  <p>
+    When you click an airport, the info panel shows each active delay with its
+    type, duration, and reason. If no delays are active, the panel shows
+    &ldquo;None&rdquo;. When the Airport delays setting is off, no delay
+    information is shown anywhere.
   </p>
 
   <h2 id="hud">HUD (Heads-Up Display)</h2>

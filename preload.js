@@ -26,8 +26,8 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch flights to/from an airport from FlightAware AeroAPI
   getAirportFlights: (airportCode) => ipcRenderer.invoke('get-airport-flights', airportCode),
 
-  // Fetch current delays for an airport from FlightAware AeroAPI
-  getAirportDelays: (airportCode) => ipcRenderer.invoke('get-airport-delays', airportCode),
+  // Fetch FAA system-wide airport delay data (NASSTATUS XML)
+  getSystemDelays: () => ipcRenderer.invoke('get-system-delays'),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),

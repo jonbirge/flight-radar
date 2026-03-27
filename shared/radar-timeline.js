@@ -461,26 +461,26 @@ function clearSliderGradient() {
 // Timeline Delay Dots
 // ============================================================
 
-// Fetch delays for origin/destination and update the dot colors in the timeline bar.
-async function updateTimelineDelayDots(origin, dest) {
-  const originCode = origin && (origin.code_icao || origin.code || '');
-  const destCode = dest && (dest.code_icao || dest.code || '');
+// Update the delay dot colors in the timeline bar from cached delay data.
+function updateTimelineDelayDots(origin, dest) {
+  if (!CONFIG.airportDelaysEnabled) return;
 
-  const [originMins, destMins] = await Promise.all([
-    getAirportDelayMinutes(originCode),
-    getAirportDelayMinutes(destCode),
-  ]);
+  const originCode = origin && (origin.code_icao || origin.code_iata || origin.code || '');
+  const destCode = dest && (dest.code_icao || dest.code_iata || dest.code || '');
+
+  const originMins = getAirportDelayMinutes(originCode);
+  const destMins = getAirportDelayMinutes(destCode);
 
   const originDot = document.getElementById('timeline-dot-origin');
   const destDot = document.getElementById('timeline-dot-dest');
 
   if (originDot) {
-    const color = originMins > 0 ? delayColor(originMins) : Cesium.Color.LIME;
-    originDot.style.background = color.toCssColorString();
+    const color = originMins > 0 ? delayColor(originMins) : null;
+    originDot.style.background = color ? color.toCssColorString() : '';
   }
   if (destDot) {
-    const color = destMins > 0 ? delayColor(destMins) : Cesium.Color.LIME;
-    destDot.style.background = color.toCssColorString();
+    const color = destMins > 0 ? delayColor(destMins) : null;
+    destDot.style.background = color ? color.toCssColorString() : '';
   }
 }
 

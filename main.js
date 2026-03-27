@@ -424,30 +424,35 @@ ipcMain.handle('get-airport-flights', async (event, airportCode) => {
   }
 });
 
-// IPC handler: get airport delays from FlightAware
-ipcMain.handle('get-airport-delays', async (event, airportCode) => {
-  const s = loadSettings();
-  const apiKey = s.flightawareApiKey;
-  if (!apiKey) {
-    return { error: 'FlightAware API key not configured' };
-  }
-
+// IPC handler: get FAA system-wide airport delays (NASSTATUS XML)
+ipcMain.handle('get-system-delays', async () => {
+  const FAA_URL = 'https://nasstatus.faa.gov/api/airport-status-information';
   try {
-    const safeCode = airportCode.replace(/[^a-zA-Z0-9]/g, '');
-    const url = `${FA_AEROAPI_BASE}/airports/${safeCode}/delays`;
-    console.log(`[FlightAware] Fetching delays for ${safeCode}: ${url}`);
-    const data = await httpGetFA(url, apiKey);
-    console.log(`[FlightAware] Delays response for ${safeCode}:`, JSON.stringify(data));
-    // Per-airport endpoint returns a single delay object with a reasons array
-    const delays = data.reasons || [];
-    return { delays };
+    console.log(`[FAA] Fetching system-wide airport delays...`);
+    const xml = await new Promise((resolve, reject) => {
+      const parsed = new URL(FAA_URL);
+      const req = https.get({
+        hostname: parsed.hostname,
+        path: parsed.pathname,
+        timeout: 15000,
+        headers: { 'User-Agent': 'FlightRadar/1.0' },
+      }, (res) => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`HTTP ${res.statusCode}`));
+          res.resume();
+          return;
+        }
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve(data));
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+    });
+    console.log(`[FAA] Received ${xml.length} bytes of delay data`);
+    return { xml };
   } catch (err) {
-    // 404 means no delays reported for this airport
-    if (err.message && err.message.includes('HTTP 404')) {
-      console.log(`[FlightAware] No delays for ${airportCode} (404)`);
-      return { delays: [] };
-    }
-    console.error(`[FlightAware] Airport delays error for ${airportCode}:`, err.message);
+    console.error(`[FAA] System delays error:`, err.message);
     return { error: err.message };
   }
 });

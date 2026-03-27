@@ -56,6 +56,7 @@ const CONFIG = window.CONFIG = {
   pirepsEnabled: DEFAULT_SETTINGS.pirepsEnabled,
   satelliteIREnabled: DEFAULT_SETTINGS.satelliteIREnabled,
   turbForecastEnabled: DEFAULT_SETTINGS.turbForecastEnabled,
+  airportDelaysEnabled: DEFAULT_SETTINGS.airportDelaysEnabled,
   turb3D: DEFAULT_SETTINGS.turb3D,
   exaggerateAltitudes: DEFAULT_SETTINGS.exaggerateAltitudes,
   turbulenceLevel: 'none',  // runtime-only: computed from altitude, not persisted

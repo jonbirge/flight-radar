@@ -289,27 +289,18 @@ async function apiGetAirportFlights(airportCode) {
   }
 }
 
-// Fetch current delays for an airport from FlightAware AeroAPI
-async function apiGetAirportDelays(airportCode) {
+// Fetch FAA system-wide airport delay data (NASSTATUS XML)
+async function apiGetSystemDelays() {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const url = `flightaware-proxy.php?endpoint=airports/delays&airport=${encodeURIComponent(airportCode)}`;
-    const resp = await fetch(url, { signal: controller.signal });
+    const resp = await fetch('faa-proxy.php', { signal: controller.signal });
     clearTimeout(timeout);
     if (!resp.ok) {
-      // 404 means no delays reported for this airport
-      if (resp.status === 404) {
-        console.log(`[Airport] No delays for ${airportCode} (404)`);
-        return { delays: [] };
-      }
       return { error: `HTTP ${resp.status}` };
     }
-    const data = await resp.json();
-    console.log(`[Airport] Delays response for ${airportCode}:`, JSON.stringify(data));
-    // Per-airport endpoint returns a single delay object with a reasons array
-    const delays = data.reasons || [];
-    return { delays };
+    const xml = await resp.text();
+    return { xml };
   } catch (err) {
     return { error: err.message };
   }
@@ -345,7 +336,7 @@ window.flightAPI = {
   getFlightTrack: (faFlightId) => apiGetFlightTrack(faFlightId),
   searchFlights: (advQuery) => apiSearchFlights(advQuery),
   getAirportFlights: (airportCode) => apiGetAirportFlights(airportCode),
-  getAirportDelays: (airportCode) => apiGetAirportDelays(airportCode),
+  getSystemDelays: () => apiGetSystemDelays(),
   getSettings: () => Promise.resolve(loadSettings()),
   saveSettings: (s) => { saveSettings(s); return Promise.resolve(true); },
   onOpenSettings: () => {},  // no-op

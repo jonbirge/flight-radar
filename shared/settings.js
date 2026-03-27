@@ -484,6 +484,10 @@ function createSettingsFormHTML() {
               <span>Major airports</span>
             </label>
             <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airport-delays">
+              <span>Airport delays</span>
+            </label>
+            <label class="settings-toggle-label">
               <input type="checkbox" id="set-airspace">
               <span>Airspace</span>
             </label>
@@ -666,6 +670,10 @@ function populateSettingsForm(container, settings) {
   const turb3dEl = container.querySelector('#set-turb-3d');
   if (turb3dEl) turb3dEl.checked = s.turb3D;
 
+  // Airport delays
+  const airportDelaysEl = container.querySelector('#set-airport-delays');
+  if (airportDelaysEl) airportDelaysEl.checked = s.airportDelaysEnabled;
+
   // Exaggerate altitudes
   const exAltSlider = container.querySelector('#set-exaggerate-alt');
   const exAltVal = container.querySelector('#set-exaggerate-alt-val');
@@ -765,6 +773,7 @@ function initSettingsPanel(options) {
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
   const radarThinning = container.querySelector('#set-radar-thinning');
   const turb3d = container.querySelector('#set-turb-3d');
+  const airportDelays = container.querySelector('#set-airport-delays');
   const exaggerateAlt = container.querySelector('#set-exaggerate-alt');
   const exaggerateAltVal = container.querySelector('#set-exaggerate-alt-val');
   const clientId = container.querySelector('#set-client-id');
@@ -799,6 +808,7 @@ function initSettingsPanel(options) {
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
       radarThinning: radarThinning ? radarThinning.checked : true,
       turb3D: turb3d ? turb3d.checked : false,
+      airportDelaysEnabled: airportDelays ? airportDelays.checked : false,
       exaggerateAltitudes: exaggerateAlt ? parseFloat(exaggerateAlt.value) : 1,
       openskyClientId: clientId.value.trim(),
       openskyClientSecret: clientSecret.value,
@@ -982,6 +992,9 @@ function initSettingsPanel(options) {
 
   // --- 3D turbulence toggle ---
   if (turb3d) turb3d.addEventListener('change', broadcast);
+
+  // --- Airport delays toggle ---
+  if (airportDelays) airportDelays.addEventListener('change', broadcast);
 
   // --- Exaggerate altitudes (height gain) slider ---
   if (exaggerateAlt) {

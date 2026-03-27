@@ -6,8 +6,8 @@ assets/*.png
 web/creds.json
 web/cred.json
 data/*.json
-package-lock.json
 data/vfrmap/
-*.snap
-.claude/*
 dist/
+package-lock.json
+.claude/*
+*.snap
