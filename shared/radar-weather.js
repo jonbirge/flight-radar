@@ -970,8 +970,9 @@ function isWeatherEntityVisible(entity, timeMs, altitudeFL) {
 // Apply visibility filter to all weather entity arrays.
 // timeMs: null = skip time check; altitudeFL: null = skip altitude check.
 function filterAllWeather(timeMs, altitudeFL) {
+  // Always show all PIREPs — don't filter by time or altitude
   for (const entity of pirepEntities) {
-    entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
+    entity.show = true;
   }
   for (const entity of sigmetEntities) {
     entity.show = isWeatherEntityVisible(entity, timeMs, altitudeFL);
