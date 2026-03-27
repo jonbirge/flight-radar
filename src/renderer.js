@@ -84,6 +84,29 @@ async function init() {
   }
   // Initialize cloud sync (restores session from localStorage if exists)
   if (typeof initCloud === 'function') await initCloud();
+  // If cloud-logged-in, load credentials from PocketBase and push to
+  // local settings so the main process can use them for API calls.
+  if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+    try {
+      const creds = await cloudLoadCredentials();
+      if (creds) {
+        const local = await window.flightAPI.getSettings();
+        let changed = false;
+        for (const k of CREDENTIAL_KEYS) {
+          if (creds[k] && creds[k] !== local[k]) {
+            local[k] = creds[k];
+            changed = true;
+          }
+        }
+        if (changed) {
+          await window.flightAPI.saveSettings(local);
+          console.log('[Cloud] Synced credentials from PocketBase to local settings');
+        }
+      }
+    } catch (err) {
+      console.warn('[Cloud] Could not load credentials from PocketBase:', err.message);
+    }
+  }
   await loadAndApplySettings();
   applySavedView();
   // Probe FlightAware availability (hides search bar etc. if unavailable)

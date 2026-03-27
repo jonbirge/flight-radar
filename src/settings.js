@@ -102,6 +102,15 @@ initSettingsPanel({
   container,
   getSettings: async () => {
     originalSettings = await window.settingsAPI.getSettings();
+    // If cloud-logged-in, overlay credentials from PocketBase (source of truth)
+    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+      try {
+        const creds = await cloudLoadCredentials();
+        if (creds) Object.assign(originalSettings, creds);
+      } catch (err) {
+        console.warn('[Cloud] Could not load credentials:', err.message);
+      }
+    }
     applySettingsTheme(originalSettings);
     // Always open the settings window with credentials collapsed
     return { ...originalSettings, credentialsExpanded: false };
@@ -112,6 +121,12 @@ initSettingsPanel({
     window.settingsAPI.updateSettings(merged);
     if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
       cloudSaveSettings(merged);
+      // Persist credentials to PocketBase as source of truth
+      const creds = {};
+      for (const k of CREDENTIAL_KEYS) {
+        if (merged[k] !== undefined) creds[k] = merged[k];
+      }
+      cloudSaveCredentials(creds);
     }
   },
   onClose: () => {
@@ -135,6 +150,11 @@ initSettingsPanel({
     window.settingsAPI.updateSettingsQuiet(merged);
     if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
       cloudSaveSettings(merged);
+      const creds = {};
+      for (const k of CREDENTIAL_KEYS) {
+        if (merged[k] !== undefined) creds[k] = merged[k];
+      }
+      cloudSaveCredentials(creds);
     }
   },
   onDefaults: async () => {
@@ -159,9 +179,14 @@ initSettingsPanel({
       await window.settingsAPI.updateSettings(merged);
       originalSettings = merged;
     } else {
-      // First-time cloud user — upload current settings
+      // First-time cloud user — upload current settings (including credentials)
       const local = await window.settingsAPI.getSettings();
       await cloudSaveSettings(local);
+      const creds = {};
+      for (const k of CREDENTIAL_KEYS) {
+        if (local[k]) creds[k] = local[k];
+      }
+      if (Object.keys(creds).length) await cloudSaveCredentials(creds);
     }
     populateSettingsForm(container, originalSettings);
     applySettingsTheme(originalSettings);

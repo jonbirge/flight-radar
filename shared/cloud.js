@@ -14,6 +14,9 @@ const CLOUD_EXCLUDE_KEYS = [
   'turbulenceLevel',  // runtime-only: computed from altitude, not a user setting
 ];
 
+// API credential keys stored in cloud (source of truth when logged in)
+const CREDENTIAL_KEYS = ['openskyClientId', 'openskyClientSecret', 'flightawareApiKey'];
+
 // ============================================================
 // State
 // ============================================================
@@ -235,6 +238,37 @@ function _setUserFromAuth() {
 }
 
 // ============================================================
+// Credential helpers (Electron: PocketBase is source of truth)
+// ============================================================
+
+/** Load only credential fields from PocketBase. Returns object or null. */
+async function cloudLoadCredentials() {
+  const settings = await cloudLoadSettings();
+  if (!settings) return null;
+  const creds = {};
+  let hasAny = false;
+  for (const k of CREDENTIAL_KEYS) {
+    if (settings[k]) {
+      creds[k] = settings[k];
+      hasAny = true;
+    }
+  }
+  return hasAny ? creds : null;
+}
+
+/** Save only credential fields to PocketBase (merges with existing cloud settings). */
+async function cloudSaveCredentials(creds) {
+  if (!pb || !pb.authStore.isValid) return;
+  // Load existing cloud settings, merge credentials in, and save
+  const existing = await cloudLoadSettings() || {};
+  for (const k of CREDENTIAL_KEYS) {
+    if (creds[k] !== undefined) existing[k] = creds[k];
+  }
+  await _doCloudSave(existing);
+  console.log('[Cloud] Credentials saved to PocketBase');
+}
+
+// ============================================================
 // Window exports
 // ============================================================
 
@@ -246,3 +280,6 @@ window.isCloudLoggedIn = isCloudLoggedIn;
 window.getCloudUser = getCloudUser;
 window.cloudLoadSettings = cloudLoadSettings;
 window.cloudSaveSettings = cloudSaveSettings;
+window.cloudLoadCredentials = cloudLoadCredentials;
+window.cloudSaveCredentials = cloudSaveCredentials;
+window.CREDENTIAL_KEYS = CREDENTIAL_KEYS;
