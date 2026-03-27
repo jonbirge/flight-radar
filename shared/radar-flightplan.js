@@ -5,6 +5,10 @@
 // en-route aircraft.  1 degree ≈ 60 nm, so 3.3° ≈ 200 nm.
 const AIRPORT_DISCOVERY_RADIUS_DEG = 3.3;
 
+// Interval (ms) for refreshing airport flights when an airport is selected.
+const AIRPORT_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let airportRefreshTimer = null;
+
 // ============================================================
 // FlightAware Availability Detection
 // ============================================================
@@ -554,11 +558,35 @@ async function fetchAirportFlights(icao) {
     } else {
       updateAirportFlightsStatus('No en-route flights found');
     }
+
+    // Schedule periodic refresh while this airport remains selected
+    // (only start if not already running, to avoid resetting the timer on refresh)
+    if (!airportRefreshTimer) startAirportRefresh(icao);
   } catch (err) {
     console.error('[Airport] Fetch error:', err);
     if (selectedAirport && selectedAirport.icao === icao) {
       updateAirportFlightsStatus('Failed to load flights');
     }
+  }
+}
+
+// Start a periodic timer that re-fetches airport flights every 5 minutes.
+function startAirportRefresh(icao) {
+  stopAirportRefresh();
+  airportRefreshTimer = setInterval(() => {
+    if (!selectedAirport || selectedAirport.icao !== icao) {
+      stopAirportRefresh();
+      return;
+    }
+    console.log(`[Airport] Refreshing flights for ${icao}`);
+    fetchAirportFlights(icao);
+  }, AIRPORT_REFRESH_INTERVAL_MS);
+}
+
+function stopAirportRefresh() {
+  if (airportRefreshTimer) {
+    clearInterval(airportRefreshTimer);
+    airportRefreshTimer = null;
   }
 }
 
@@ -640,6 +668,9 @@ function applyAirportFilter() {
 }
 
 function clearAirportFilter() {
+  // Stop the periodic airport refresh
+  stopAirportRefresh();
+
   // Restore highlighted airport entity to its original style
   if (selectedAirport) {
     const aptId = `apt-${selectedAirport.icao}`;
