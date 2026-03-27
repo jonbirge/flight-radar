@@ -516,7 +516,7 @@ function createSettingsFormHTML() {
         </div>
 
         <div class="settings-section" style="border-bottom:none;">
-          <div class="settings-label">Altitude gain</div>
+          <div class="settings-label">Altitude exaggeration</div>
           <div class="settings-row" style="align-items:center;">
             <input type="range" id="set-exaggerate-alt" min="1" max="10" value="1" step="0.1" style="flex:1;">
             <span class="settings-fontsize-val" id="set-exaggerate-alt-val">1\u00D7</span>

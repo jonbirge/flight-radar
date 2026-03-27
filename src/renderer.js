@@ -17,6 +17,8 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 window.flightAPI.onSettingsChanged(async (settings) => {
   try {
     await loadAndApplySettings(settings);
+    // Re-probe FlightAware in case the user entered/changed an API key
+    checkFlightAwareAvailability();
   } catch (err) {
     console.warn('[Settings] Could not reload:', err);
   }

@@ -414,6 +414,8 @@ const settingsPanel = initSettingsPanel({
     const merged = { ...existing, ...form };
     saveSettings(merged);
     await loadAndApplySettings(merged);
+    // Re-probe FlightAware in case the user entered/changed an API key
+    checkFlightAwareAvailability();
   },
   onQuietSave: (form) => {
     const existing = loadSettings();
