@@ -810,7 +810,6 @@ function updateExtrapolationTrail(icao, ac, currentPos) {
         width: trailWidth,
         material: material,
         clampToGround: false,
-        distanceDisplayCondition: acDisplayCond,
       },
     });
   }
@@ -1144,7 +1143,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
               width: trailWidth,
               material: material,
               clampToGround: false,
-              distanceDisplayCondition: acDisplayCond,
             },
           }));
         }
@@ -1183,7 +1181,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
                       width: trailWidth,
                       material: material,
                       clampToGround: false,
-                      distanceDisplayCondition: acDisplayCond,
                     },
                   }));
                 }
@@ -1205,7 +1202,6 @@ function _renderOneAircraft(icao, ac, camHeight, useDot, showLabels) {
                 width: trailWidth,
                 material: trailMaterial,
                 clampToGround: false,
-                distanceDisplayCondition: acDisplayCond,
               },
             }));
           }
