@@ -360,7 +360,7 @@ function showAirportInfo(entity) {
 
   document.getElementById('info-callsign').textContent = codeDisplay;
   document.getElementById('info-details').innerHTML = `
-    <div><span class="label">AIRPORT</span><span>${name || icao}</span></div>
+    <div><span class="label">AIRPORT</span><span>${(name || icao).replace(/\s*Airport\s*/i, ' ').trim()}</span></div>
     <div><span class="label">TYPE</span><span>${typeLabel}</span></div>
     ${flightAwareAvailable ? '<div class="airport-flights-status"><span class="label">FLIGHTS</span><span>Loading...</span></div>' : ''}
   `;
@@ -463,14 +463,14 @@ async function fetchAirportFlights(icao) {
       if (cs) callsigns.add(cs);
     }
 
-    console.log(`[Airport] ${icao}: ${arrivals.length} arriving, ${departures.length} departing, ${callsigns.size} unique callsigns`);
+    console.log(`[Airport] ${icao}: ${arrivals.length} inbound, ${departures.length} outbound, ${callsigns.size} unique callsigns`);
 
     // Update info panel
     const details = document.getElementById('info-details');
     if (details && selectedAirport && selectedAirport.icao === icao) {
       const statusEl = details.querySelector('.airport-flights-status');
       if (statusEl) {
-        statusEl.innerHTML = `<span class="label">EN ROUTE</span><span>${arrivals.length} arriving, ${departures.length} departing</span>`;
+        statusEl.innerHTML = `<span class="label">EN ROUTE</span><span>${arrivals.length} inbound, ${departures.length} outbound</span>`;
       }
     }
 
@@ -1697,7 +1697,7 @@ async function selectFlightFromResults(flight, flightData) {
 function isNaturalLanguageQuery(query) {
   if (!query) return false;
   if (query.includes(' ')) return true;
-  return /\b(from|to|departing|arriving|flights?|between|today|tomorrow|yesterday|morning|afternoon|evening)\b/i.test(query);
+  return /\b(from|to|departing|arriving|inbound|outbound|flights?|between|today|tomorrow|yesterday|morning|afternoon|evening)\b/i.test(query);
 }
 
 // City name → primary airport IATA code mapping.
@@ -1790,11 +1790,11 @@ function parseNaturalLanguage(query) {
   const result = { origin: null, destination: null, airline: null, start: null, end: null };
 
   // Extract origin airport (3–4 letter IATA/ICAO code)
-  const originMatch = q.match(/(?:from\s+|departing\s+(?:from\s+)?|out\s+of\s+)([a-z]{3,4})\b/i);
+  const originMatch = q.match(/(?:from\s+|departing\s+(?:from\s+)?|outbound\s+(?:from\s+)?|out\s+of\s+)([a-z]{3,4})\b/i);
   if (originMatch) result.origin = originMatch[1].toUpperCase();
 
   // Extract destination airport (3–4 letter IATA/ICAO code)
-  const destMatch = q.match(/(?:\bto\s+|arriving\s+(?:at\s+|in\s+)?|bound\s+for\s+)([a-z]{3,4})\b/i);
+  const destMatch = q.match(/(?:\bto\s+|arriving\s+(?:at\s+|in\s+)?|inbound\s+(?:to\s+|at\s+|in\s+)?|bound\s+for\s+)([a-z]{3,4})\b/i);
   if (destMatch) result.destination = destMatch[1].toUpperCase();
 
   // Fallback: "BOS to LAX" pattern — origin code directly before "to <dest>"
