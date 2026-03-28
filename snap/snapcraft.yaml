@@ -15,7 +15,7 @@ confinement: strict
 
 apps:
   flight-radar:
-    command: node_modules/electron/dist/electron $SNAP/main.js
+    command: app/node_modules/.bin/electron app
     extensions: [gnome]
     plugs:
       - audio-playback
@@ -32,20 +32,51 @@ parts:
   app:
     plugin: nil
     source: .
+    build-snaps:
+      - node/22/stable
     build-packages:
       - python3
       - make
       - g++
-      - rsync
     override-build: |
+      set -eu
       craftctl set version="$(node -p "require('./package.json').version")"
+
+      # Install all deps (postinstall copies Cesium + fonts)
       npm ci --include=dev
-      npm run setup
-      rsync -a \
-        --exclude='.git' \
-        --exclude='dist' \
-        --exclude='snap' \
-        "$CRAFT_PART_SRC/" "$CRAFT_PART_INSTALL/"
-      node "$CRAFT_PART_SRC/scripts/obfuscate-snap.js" "$CRAFT_PART_INSTALL"
-      rsync -a --exclude='7zip-bin' node_modules/ "$CRAFT_PART_INSTALL/node_modules/"
-      cp -a vendor "$CRAFT_PART_INSTALL/"
+
+      # Build with electron-vite → out/
+      npx electron-vite build
+
+      # Obfuscate built JS
+      node scripts/obfuscate-snap.js out
+
+      # Assemble the snap payload
+      DEST="$CRAFT_PART_INSTALL/app"
+      mkdir -p "$DEST"
+
+      # Built output (main, preload, renderer + static assets)
+      cp -a out "$DEST/"
+
+      # package.json (electron reads "main" field from it)
+      cp package.json "$DEST/"
+
+      # App icons
+      cp -a assets "$DEST/"
+
+      # Install runtime deps + electron into dest
+      cd "$DEST"
+      node -e "
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        pkg.dependencies = { ...pkg.dependencies, electron: '*' };
+        delete pkg.devDependencies;
+        delete pkg.scripts;
+        delete pkg.build;
+        fs.writeFileSync('_snap_pkg.json', JSON.stringify(pkg, null, 2));
+      "
+      mv _snap_pkg.json package.json.tmp
+      mv package.json package.json.real
+      mv package.json.tmp package.json
+      npm install --production --ignore-scripts
+      mv package.json.real package.json

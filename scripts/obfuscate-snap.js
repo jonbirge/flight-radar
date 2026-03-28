@@ -1,43 +1,29 @@
 const fs = require('fs');
 const path = require('path');
-const { minify } = require('terser');
 const JavaScriptObfuscator = require('javascript-obfuscator');
 
-const root = path.resolve(process.argv[2] || '.');
+const root = path.resolve(process.argv[2] || 'out');
 
-const files = [
-  'main.js',
-  'preload.js',
-  'settings-preload.js',
-  'src/renderer.js',
-  'src/settings.js',
-  'web/app.js'
-];
-
-const directories = ['shared'];
-
-for (const directory of directories) {
-  const directoryPath = path.join(root, directory);
-  if (!fs.existsSync(directoryPath)) continue;
-  for (const file of fs.readdirSync(directoryPath)) {
-    if (file.endsWith('.js')) files.push(path.join(directory, file));
+function collectJsFiles(dir) {
+  const results = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      // Skip vendor directories (Cesium, etc.) — too large and not our code
+      if (entry.name === 'vendor' || entry.name === 'node_modules') continue;
+      results.push(...collectJsFiles(full));
+    } else if (entry.name.endsWith('.js')) {
+      results.push(full);
+    }
   }
+  return results;
 }
 
-async function obfuscateFile(file) {
-  const filePath = path.join(root, file);
-  if (!fs.existsSync(filePath)) return false;
-
+async function obfuscateFile(filePath) {
   const source = fs.readFileSync(filePath, 'utf8');
-  const minified = await minify(source, {
-    compress: true,
-    mangle: true,
-    format: { comments: false }
-  });
 
-  if (!minified.code) throw new Error(`Unable to minify ${file}`);
-
-  const obfuscated = JavaScriptObfuscator.obfuscate(minified.code, {
+  // Vite already minifies, so just obfuscate
+  const obfuscated = JavaScriptObfuscator.obfuscate(source, {
     compact: true,
     controlFlowFlattening: false,
     deadCodeInjection: false,
@@ -50,15 +36,14 @@ async function obfuscateFile(file) {
   });
 
   fs.writeFileSync(filePath, obfuscated.getObfuscatedCode(), 'utf8');
-  return true;
 }
 
 (async () => {
-  let obfuscatedCount = 0;
+  const files = collectJsFiles(root);
   for (const file of files) {
-    if (await obfuscateFile(file)) obfuscatedCount += 1;
+    await obfuscateFile(file);
   }
-  console.log(`Obfuscated ${obfuscatedCount} JavaScript files under ${root} (missing files skipped)`);
+  console.log(`Obfuscated ${files.length} JavaScript files under ${root}`);
 })().catch((error) => {
   console.error(error.message);
   process.exit(1);
