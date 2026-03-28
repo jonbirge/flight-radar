@@ -49,7 +49,7 @@
         <li><a href="#display-mode" class="nav-h3">Display Mode</a></li>
         <li><a href="#ui-color" class="nav-h3">UI Color</a></li>
         <li><a href="#aircraft-display" class="nav-h3">Aircraft Display</a></li>
-        <li><a href="#level-of-detail" class="nav-h3">Level of Detail</a></li>
+        <li><a href="#aviation-data" class="nav-h3">Aviation Data</a></li>
         <li><a href="#other" class="nav-h3">Other</a></li>
       </ul>
     </li>
@@ -383,6 +383,7 @@
     <li><strong>Tracks</strong> — Number of aircraft currently tracked.</li>
     <li><strong>Updated</strong> — Time of the last data update.</li>
     <li><strong>Lat, Lon</strong> — Camera center coordinates.</li>
+    <li><strong>Alt</strong> — Camera altitude above the surface.</li>
   </ul>
 
   <h2 id="airspace-colors">Airspace Colors</h2>
@@ -465,12 +466,20 @@
       (thinner at low altitude, thicker at high altitude).</li>
   </ul>
 
-  <h3 id="level-of-detail">Level of Detail</h3>
+  <h3 id="aviation-data">Aviation Data</h3>
   <ul>
-    <li><strong>Volume Edges</strong> — Draw outline edges on airspace, SIGMET, and AIRMET volume polygons.</li>
-    <li><strong>3D Airspace</strong> — Extrude airspace boundaries to their floor and ceiling altitudes.</li>
-
+    <li><strong>Major airports</strong> — Show airport markers on the map (large, medium, and small airports
+      appear progressively as you zoom in).</li>
+    <li><strong>Airport delays</strong> — Fetch and display real-time FAA delay information.
+      See <a href="#airport-delays">Airport Delays</a> for details.</li>
+    <li><strong>Airspace</strong> — Show Class B, C, and D airspace boundaries on the map.</li>
+    <li><strong>Volume edges</strong> — Draw outline edges on airspace, SIGMET, and AIRMET volume polygons.</li>
+    <li><strong>Navaids</strong> — Show VOR, NDB, and DME navigation aids on the map.</li>
+    <li><strong>3D airspace</strong> — Extrude airspace boundaries to their floor and ceiling altitudes.</li>
     <li><strong>Nav fixes</strong> — Show named waypoint fixes along with navaids.</li>
+    <li><strong>3D turbulence</strong> — When enabled, the GTG turbulence forecast is displayed as
+      stacked semi-transparent surfaces at each flight level altitude (FL180&ndash;FL420) instead of a
+      single flat overlay. Each layer is shown at 10% opacity to create a volumetric 3D effect.</li>
   </ul>
 
   <h3 id="other">Other</h3>
@@ -481,10 +490,7 @@
     <li><strong>Radar Thinning</strong> — When enabled, NEXRAD radar tiles are filtered to remove
       ground clutter and non-precipitation blues/grays, keeping only saturated weather colors
       (green, yellow, orange, red). Disable to see the full unfiltered radar imagery.</li>
-    <li><strong>3D Turbulence</strong> — When enabled, the GTG turbulence forecast is displayed as
-      stacked semi-transparent surfaces at each flight level altitude (FL180&ndash;FL420) instead of a
-      single flat overlay. Each layer is shown at 10% opacity to create a volumetric 3D effect.</li>
-    <li><strong>Height Gain (1&ndash;10&times;)</strong> — Scales all entity altitudes by the chosen factor to make
+    <li><strong>Altitude Exaggeration (1&ndash;10&times;)</strong> — Scales all entity altitudes by the chosen factor to make
       vertical separation more visible. Affects aircraft, trails, airspace volumes, turbulence surfaces,
       PIREPs, and flight plan routes. At 1&times; altitudes are shown at their true scale.</li>
     <li><strong>API Credentials</strong> — Click the disclosure triangle to expand. Enter OpenSky Network client ID/secret for authenticated
