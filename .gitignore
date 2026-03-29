@@ -1,13 +1,9 @@
 node_modules/
 vendor/
-shared/fonts/
 out/
 assets/*.png
 web/creds.json
 web/cred.json
-data/*.json
-data/vfrmap/
 dist/
-package-lock.json
 .claude/*
 *.snap

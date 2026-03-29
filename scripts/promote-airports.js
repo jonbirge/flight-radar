@@ -6,6 +6,7 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -14,6 +15,12 @@ const AIRPORTS_FILE = path.join(DATA_DIR, 'airports.json');
 const AIRSPACE_FILE = path.join(DATA_DIR, 'airspace.json');
 
 const MAX_DIST_NM = 2; // only promote if within 2 NM of centroid
+
+function writeChecksum(filePath) {
+  const hash = crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex');
+  fs.writeFileSync(filePath + '.md5', hash + '\n', 'utf8');
+  return hash;
+}
 
 const airports = JSON.parse(fs.readFileSync(AIRPORTS_FILE, 'utf8'));
 const airspace = JSON.parse(fs.readFileSync(AIRSPACE_FILE, 'utf8'));
@@ -66,4 +73,5 @@ for (const entry of Object.values(cdGroups)) {
 }
 
 fs.writeFileSync(AIRPORTS_FILE, JSON.stringify(airports), 'utf8');
+writeChecksum(AIRPORTS_FILE);
 console.log(`Promoted ${promoted} primary Class C/D airports to medium`);

@@ -4,6 +4,7 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +14,24 @@ const OUT_DIR = path.join(__dirname, '..', 'data');
 const OUT_FILE = path.join(OUT_DIR, 'waypoints.json');
 
 const REQUEST_TIMEOUT = 30000;
+
+function md5(filePath) {
+  return crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function writeChecksum(filePath) {
+  const hash = md5(filePath);
+  fs.writeFileSync(filePath + '.md5', hash + '\n', 'utf8');
+  return hash;
+}
+
+function verifyChecksum(filePath) {
+  const md5File = filePath + '.md5';
+  if (!fs.existsSync(md5File)) return null;
+  const expected = fs.readFileSync(md5File, 'utf8').trim();
+  const actual = md5(filePath);
+  return actual === expected;
+}
 
 // ---- NASR 28-day cycle date computation ----
 
@@ -354,10 +373,19 @@ async function downloadWithFallback(type) {
 // ---- Main ----
 
 async function main() {
-  // Skip download if waypoint data already exists (rarely changes)
+  // Verify existing data if present
   if (fs.existsSync(OUT_FILE)) {
-    console.log(`Waypoint data already exists (${OUT_FILE}) — skipping download.`);
-    return;
+    const valid = verifyChecksum(OUT_FILE);
+    if (valid === null) {
+      const hash = writeChecksum(OUT_FILE);
+      console.log(`Waypoint data exists, checksum recorded: ${hash} — skipping download.`);
+      return;
+    } else if (valid) {
+      console.log('Waypoint data exists and checksum OK — skipping download.');
+      return;
+    } else {
+      console.warn('Waypoint data CHECKSUM MISMATCH — re-downloading...');
+    }
   }
 
   console.log('Downloading FAA NASR FIX data ...');
@@ -383,6 +411,7 @@ async function main() {
 
   const content = JSON.stringify({ fixes, navaids });
   fs.writeFileSync(OUT_FILE, content, 'utf8');
+  writeChecksum(OUT_FILE);
 
   console.log(`\nFixes: ${fixes.length}`);
   console.log(`Navaids: ${navaids.length}`);

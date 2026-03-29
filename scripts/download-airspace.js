@@ -5,6 +5,7 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -25,6 +26,24 @@ const GITHUB_URLS = {
   C: 'https://raw.githubusercontent.com/drnic/faa-airspace-data/master/class_c.geo.json',
   D: 'https://raw.githubusercontent.com/drnic/faa-airspace-data/master/class_d.geo.json',
 };
+
+function md5(filePath) {
+  return crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function writeChecksum(filePath) {
+  const hash = md5(filePath);
+  fs.writeFileSync(filePath + '.md5', hash + '\n', 'utf8');
+  return hash;
+}
+
+function verifyChecksum(filePath) {
+  const md5File = filePath + '.md5';
+  if (!fs.existsSync(md5File)) return null;
+  const expected = fs.readFileSync(md5File, 'utf8').trim();
+  const actual = md5(filePath);
+  return actual === expected;
+}
 
 function fetch(url, timeout = REQUEST_TIMEOUT) {
   return new Promise((resolve, reject) => {
@@ -191,29 +210,38 @@ function roundCoords(coords) {
 }
 
 async function main() {
-  // Skip download if airspace data already exists (rarely changes)
+  // Verify existing data if present
   if (fs.existsSync(OUT_FILE)) {
-    console.log(`Airspace data already exists (${OUT_FILE}) — skipping download.`);
-    return;
+    const valid = verifyChecksum(OUT_FILE);
+    if (valid === null) {
+      const hash = writeChecksum(OUT_FILE);
+      console.log(`Airspace data exists, checksum recorded: ${hash} — skipping download.`);
+      return;
+    } else if (valid) {
+      console.log('Airspace data exists and checksum OK — skipping download.');
+      return;
+    } else {
+      console.warn('Airspace data CHECKSUM MISMATCH — re-downloading...');
+    }
   }
 
   let allEntries = [];
   const counts = {};
   let source;
 
-  // Try FAA ArcGIS first (current data with full altitude info)
-  console.log('Trying FAA ArcGIS service ...');
-  try {
-    for (const cls of CLASSES) {
-      const features = await fetchFAAClass(cls);
-      const parsed = parseFAAFeatures(features, cls);
-      counts[cls] = parsed.length;
-      allEntries.push(...parsed);
-    }
-    source = 'FAA ArcGIS';
-  } catch (err) {
-    console.warn(`\nFAA ArcGIS failed: ${err.message}`);
-    console.log('Falling back to GitHub mirror (older data) ...\n');
+  // // Try FAA ArcGIS first (current data with full altitude info)
+  // console.log('Trying FAA ArcGIS service ...');
+  // try {
+  //   for (const cls of CLASSES) {
+  //     const features = await fetchFAAClass(cls);
+  //     const parsed = parseFAAFeatures(features, cls);
+  //     counts[cls] = parsed.length;
+  //     allEntries.push(...parsed);
+  //   }
+  //   source = 'FAA ArcGIS';
+  // } catch (err) {
+  //   console.warn(`\nFAA ArcGIS failed: ${err.message}`);
+  //   console.log('Falling back to GitHub mirror (older data) ...\n');
 
     allEntries = [];
     source = 'GitHub (drnic/faa-airspace-data)';
@@ -223,7 +251,7 @@ async function main() {
       counts[cls] = parsed.length;
       allEntries.push(...parsed);
     }
-  }
+  // }
 
   if (allEntries.length === 0) {
     console.warn('WARNING: No airspace data retrieved from any source — keeping existing data.');
@@ -243,6 +271,7 @@ async function main() {
 
   const content = JSON.stringify(allEntries);
   fs.writeFileSync(OUT_FILE, content, 'utf8');
+  writeChecksum(OUT_FILE);
 
   console.log(`\nSource: ${source}`);
   console.log(`Class B: ${counts.B || 0}`);

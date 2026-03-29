@@ -4,6 +4,7 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -11,6 +12,24 @@ const path = require('path');
 const CSV_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv';
 const OUT_DIR = path.join(__dirname, '..', 'data');
 const OUT_FILE = path.join(OUT_DIR, 'airports.json');
+
+function md5(filePath) {
+  return crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function writeChecksum(filePath) {
+  const hash = md5(filePath);
+  fs.writeFileSync(filePath + '.md5', hash + '\n', 'utf8');
+  return hash;
+}
+
+function verifyChecksum(filePath) {
+  const md5File = filePath + '.md5';
+  if (!fs.existsSync(md5File)) return null;
+  const expected = fs.readFileSync(md5File, 'utf8').trim();
+  const actual = md5(filePath);
+  return actual === expected;
+}
 
 function fetch(url) {
   return new Promise((resolve, reject) => {
@@ -71,6 +90,22 @@ function parseCSVRow(line) {
 }
 
 async function main() {
+  // Verify existing data if present
+  if (fs.existsSync(OUT_FILE)) {
+    const valid = verifyChecksum(OUT_FILE);
+    if (valid === null) {
+      // No checksum file yet — record one and skip download
+      const hash = writeChecksum(OUT_FILE);
+      console.log(`Airport data exists, checksum recorded: ${hash} — skipping download.`);
+      return;
+    } else if (valid) {
+      console.log('Airport data exists and checksum OK — skipping download.');
+      return;
+    } else {
+      console.warn('Airport data CHECKSUM MISMATCH — re-downloading...');
+    }
+  }
+
   console.log('Downloading airports.csv ...');
   const csv = await fetch(CSV_URL);
 
@@ -117,7 +152,7 @@ async function main() {
 
   const content = JSON.stringify(airports);
   fs.writeFileSync(OUT_FILE, content, 'utf8');
-
+  // Note: checksum is written by promote-airports.js after it modifies this file
   console.log(`Wrote ${airports.length} airports to ${OUT_FILE}`);
 }
 
