@@ -16,12 +16,11 @@ confinement: strict
 
 apps:
   flight-radar:
-    command: app/node_modules/electron/dist/electron --no-sandbox $SNAP/app
+    command: launcher.sh
     desktop: snap/gui/flight-radar.desktop
     extensions: [gnome]
     environment:
       ELECTRON_DISABLE_SANDBOX: "true"
-      DISABLE_WAYLAND: "1"
     plugs:
       - audio-playback
       - desktop
@@ -88,3 +87,7 @@ parts:
       mv package.json.tmp package.json
       npm install --production
       mv package.json.real package.json
+
+      # Install launcher script
+      cp "$CRAFT_PART_BUILD/scripts/snap-launcher.sh" "$CRAFT_PART_INSTALL/launcher.sh"
+      chmod +x "$CRAFT_PART_INSTALL/launcher.sh"
