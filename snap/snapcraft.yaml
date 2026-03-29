@@ -7,9 +7,9 @@ description: |
   Flight Radar is an Electron app that renders OpenSky Network aircraft data and weather in
   a 3D display.
 license: MIT
-contact: https://github.com/birge/flight-radar/issues
-source-code: https://github.com/birge/flight-radar
-issues: https://github.com/birge/flight-radar/issues
+contact: https://github.com/jonbirge/flight-radar/issues
+source-code: https://github.com/jonbirge/flight-radar
+issues: https://github.com/jonbirge/flight-radar/issues
 website: https://flightradar.birgefuller.com
 grade: stable
 confinement: strict
