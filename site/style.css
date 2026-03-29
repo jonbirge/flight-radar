@@ -318,11 +318,13 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 28px;
+  text-align: center;
 }
 
 .install-card h3 {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   font-size: 18px;
   font-weight: 600;
@@ -338,6 +340,7 @@ a:hover { text-decoration: underline; }
   padding: 14px 18px;
   overflow-x: auto;
   margin: 0 0 12px;
+  text-align: left;
 }
 
 .install-card code {
@@ -351,10 +354,6 @@ a:hover { text-decoration: underline; }
   margin: 8px 0 0;
   font-size: 15px;
   color: var(--color-text-dim);
-}
-
-.install-card > p:last-child {
-  text-align: center;
 }
 
 /* ── Footer ─────────────────────────────────────────────────── */
