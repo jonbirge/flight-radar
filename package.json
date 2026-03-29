@@ -15,8 +15,8 @@
     "dist": "electron-vite build && electron-builder"
   },
   "build": {
-    "appId": "com.jonathanbirge.flightradar",
-    "productName": "Flight Radar",
+    "appId": "com.birgefuller.flightradar",
+    "productName": "Flight Radar 3D",
     "directories": {
       "output": "dist"
     },
