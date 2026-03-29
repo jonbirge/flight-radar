@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>3D Flight Radar — Real-time Flight Tracking on a 3D Globe</title>
-  <meta name="description" content="Track flights in real time on an interactive 3D globe with weather overlays, turbulence data, and flight plan search. Free and open source.">
+  <meta name="description" content="Track flights in real time on an interactive 3D globe with weather overlays, turbulence data, and flight plan search. Free and open source, but you'll have to bring your own API key for certain data feeds.">
   <link rel="canonical" href="https://flightradar3d.birgefuller.com/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,9 +36,9 @@
     <div class="container hero-inner">
       <h1>Real-time flight tracking<br>on a 3D globe</h1>
       <p class="hero-sub">
-        Watch aircraft move across an interactive CesiumJS globe with live ADS-B data,
+        Follow aircraft across an interactive globe with live ADS-B data,
         weather radar, turbulence overlays, and full flight plan search.
-        Available as a desktop app or in your browser.
+        Available as an app for MacOS, Windows and Linux.
       </p>
       <div class="hero-actions">
         <a href="#install" class="btn btn-primary">Get Started</a>
@@ -46,14 +46,7 @@
       </div>
     </div>
     <div class="hero-screenshot">
-      <div class="screenshot-placeholder" id="heroScreenshot">
-        <div class="placeholder-content">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" opacity="0.3">
-            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
-          </svg>
-          <span>screenshot</span>
-        </div>
-      </div>
+      <img src="screenshots/hero.png" alt="3D Flight Radar showing airports, weather overlays, and the selected airport panel" width="1100">
     </div>
   </section>
 
@@ -70,7 +63,7 @@
             </svg>
           </div>
           <h3>Interactive 3D Globe</h3>
-          <p>Pan, zoom, and tilt a full CesiumJS globe. Switch between 2D and 3D views, multiple map layers including VFR/IFR charts, and auto-rotate mode.</p>
+          <p>Pan, zoom, and tilt a full 3D globe. Switch between 2D and 3D views, multiple map layers including VFR/IFR charts, and auto-rotate mode.</p>
         </div>
 
         <div class="feature-card">
@@ -100,7 +93,7 @@
             </svg>
           </div>
           <h3>Flight Plan Search</h3>
-          <p>Search by flight number or natural language ("Delta from ATL to LAX today"). See filed routes, waypoints, flown tracks, and a timeline scrubber with weather forecasts.</p>
+          <p>Search by flight number or natural language ("Delta from ATL to LAX today"). See filed routes, waypoints, flown tracks, and a timeline scrubber with weather forecasts. (FlightAware API key needed.)</p>
         </div>
 
         <div class="feature-card">
@@ -110,7 +103,7 @@
             </svg>
           </div>
           <h3>Aviation Data</h3>
-          <p>Airport markers with delay status, Class B/C/D airspace boundaries (with optional 3D extrusion), VOR/NDB/DME navaids, and named waypoint fixes.</p>
+          <p>Airport markers with delay status, Class B/C/D airspace boundaries in 3D, VOR/NDB/DME navaids, and named waypoint fixes.</p>
         </div>
 
         <div class="feature-card">
@@ -120,7 +113,7 @@
             </svg>
           </div>
           <h3>Fully Customizable</h3>
-          <p>Dark/light/system themes with custom accent colors, adjustable font sizes, trail modes, altitude exaggeration, weather opacity, and cloud-synced settings.</p>
+          <p>Dark and light themes with custom accent colors, adjustable font sizes, trail modes, altitude exaggeration, weather layer opacity, and cloud-synced settings.</p>
         </div>
 
       </div>
@@ -134,36 +127,20 @@
       <p class="section-sub">See 3D Flight Radar in action.</p>
       <div class="screenshot-grid">
         <figure class="screenshot-card">
-          <div class="screenshot-placeholder">
-            <div class="placeholder-content">
-              <span>Dark mode overview</span>
-            </div>
-          </div>
-          <figcaption>Dark mode with aircraft tracking and data blocks</figcaption>
+          <img src="screenshots/charts.png" alt="Dark mode overview with aircraft tracking trails across the United States" width="1100" height="748" loading="lazy">
+          <figcaption>Aviation charts with aircraft tracking</figcaption>
         </figure>
         <figure class="screenshot-card">
-          <div class="screenshot-placeholder">
-            <div class="placeholder-content">
-              <span>Weather overlays</span>
-            </div>
-          </div>
-          <figcaption>NEXRAD radar and turbulence SIGMET volumes</figcaption>
+          <img src="screenshots/airmet.png" alt="Weather overlays with turbulence AIRMET volumes displayed on the 3D globe" width="1100" height="748" loading="lazy">
+          <figcaption>NEXRAD radar and turbulence AIRMET volumes</figcaption>
         </figure>
         <figure class="screenshot-card">
-          <div class="screenshot-placeholder">
-            <div class="placeholder-content">
-              <span>Flight plan view</span>
-            </div>
-          </div>
-          <figcaption>Flight plan with route, waypoints, and timeline scrubber</figcaption>
+          <img src="screenshots/flightplan.png" alt="Flight plan route from Boston to Los Angeles with timeline scrubber and weather context" width="1100" height="748" loading="lazy">
+          <figcaption>Show upcoming flight with route display and timeline scrubber showing turbulence predicted over the route</figcaption>
         </figure>
         <figure class="screenshot-card">
-          <div class="screenshot-placeholder">
-            <div class="placeholder-content">
-              <span>Light mode</span>
-            </div>
-          </div>
-          <figcaption>Light theme with airport markers and airspace boundaries</figcaption>
+          <img src="screenshots/search.png" alt="Natural language flight search results shown over the radar view" width="1100" height="748" loading="lazy">
+          <figcaption>Natural language flight search (requires FlightAware API key)</figcaption>
         </figure>
       </div>
     </div>
@@ -182,7 +159,7 @@
             </svg>
             Linux (Snap)
           </h3>
-          <pre><code>sudo snap install flight-radar</code></pre>
+          <p>Install the linux snap package.</p>
           <p>
             <a href="https://snapcraft.io/flight-radar" class="btn btn-outline btn-sm">View on Snapcraft</a>
           </p>
@@ -193,11 +170,11 @@
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
             </svg>
-            Web App
+            Latest Release
           </h3>
-          <p>No install required. Run 3D Flight Radar directly in your browser.</p>
+          <p>Download the newest packaged build from the GitHub releases page.</p>
           <p>
-            <a href="https://flightradar3d.birgefuller.com/app/" class="btn btn-outline btn-sm">Open Web App</a>
+            <a href="https://github.com/jonbirge/flight-radar/releases/latest" class="btn btn-outline btn-sm">View Latest Release</a>
           </p>
         </div>
 

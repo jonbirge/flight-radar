@@ -207,8 +207,8 @@ sudo snap install snapcraft --classic
 sudo snap install lxd && sudo lxd init --auto
 sudo usermod -aG lxd $USER && newgrp lxd
 
-# Build (first build is slow — pulls core22 + gnome images)
-snapcraft --use-lxd
+# Build
+snapcraft pack
 
 # Install locally
 sudo snap install flight-radar_*.snap --dangerous
@@ -216,7 +216,7 @@ sudo snap install flight-radar_*.snap --dangerous
 
 Useful snap commands:
 ```bash
-snapcraft clean --use-lxd         # wipe build state for a clean rebuild
+snapcraft clean                    # wipe build state for a clean rebuild
 snap logs flight-radar             # runtime logs
 snap run --shell flight-radar      # shell inside snap confinement
 ```
