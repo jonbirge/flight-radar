@@ -4,19 +4,24 @@ adopt-info: app
 title: Flight Radar
 summary: Real-time US flight tracker with FAA radar center aesthetic
 description: |
-  Flight Radar is an Electron app that renders OpenSky Network aircraft data in
-  a Cesium-powered radar display.
+  Flight Radar is an Electron app that renders OpenSky Network aircraft data and weather in
+  a 3D display.
 license: MIT
 contact: https://github.com/birge/flight-radar/issues
 source-code: https://github.com/birge/flight-radar
 issues: https://github.com/birge/flight-radar/issues
+website: https://flightradar3d.birgefuller.com
 grade: stable
 confinement: strict
 
 apps:
   flight-radar:
-    command: app/node_modules/.bin/electron app
+    command: app/node_modules/electron/dist/electron --no-sandbox $SNAP/app
+    desktop: snap/gui/flight-radar.desktop
     extensions: [gnome]
+    environment:
+      ELECTRON_DISABLE_SANDBOX: "true"
+      DISABLE_WAYLAND: "1"
     plugs:
       - audio-playback
       - desktop
@@ -27,6 +32,7 @@ apps:
       - opengl
       - wayland
       - x11
+      - browser-support
 
 parts:
   app:
@@ -58,18 +64,20 @@ parts:
       # Built output (main, preload, renderer + static assets)
       cp -a out "$DEST/"
 
-      # package.json (electron reads "main" field from it)
+      # package.json + lock file (electron reads "main" field; lock ensures reproducible installs)
       cp package.json "$DEST/"
+      cp package-lock.json "$DEST/"
 
       # App icons
       cp -a assets "$DEST/"
 
       # Install runtime deps + electron into dest
       cd "$DEST"
+      ELECTRON_VERSION="$(node -p "require('$CRAFT_PART_BUILD/node_modules/electron/package.json').version")"
       node -e "
         const fs = require('fs');
         const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-        pkg.dependencies = { ...pkg.dependencies, electron: '*' };
+        pkg.dependencies = { ...pkg.dependencies, electron: '$ELECTRON_VERSION' };
         delete pkg.devDependencies;
         delete pkg.scripts;
         delete pkg.build;
@@ -78,5 +86,5 @@ parts:
       mv _snap_pkg.json package.json.tmp
       mv package.json package.json.real
       mv package.json.tmp package.json
-      npm install --production --ignore-scripts
+      npm install --production
       mv package.json.real package.json

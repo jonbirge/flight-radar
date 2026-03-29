@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Flight Radar
+Comment=Real-time US flight tracker with FAA radar center aesthetic
+Exec=flight-radar
+Icon=${SNAP}/meta/gui/icon.png
+Categories=Utility;
+Terminal=false

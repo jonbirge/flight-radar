@@ -193,21 +193,31 @@ targets configured in the `"build"` field of `package.json`.
 GitHub integration. The build runs `scripts/obfuscate-snap.js` to minify and
 obfuscate JS before packaging.
 
-Local snap build (requires Snapcraft + LXD):
+**Install from Snap Store:**
 
 ```bash
+sudo snap install flight-radar
+```
+
+**Local snap build** (requires Snapcraft + LXD):
+
+```bash
+# One-time setup
 sudo snap install snapcraft --classic
 sudo snap install lxd && sudo lxd init --auto
 sudo usermod -aG lxd $USER && newgrp lxd
 
-snapcraft                                              # first build (slow — pulls core22 image)
-snapcraft --use-lxd                                    # subsequent builds (faster)
-sudo snap install flight-radar_*.snap --dangerous      # install locally
+# Build (first build is slow — pulls core22 + gnome images)
+snapcraft --use-lxd
+
+# Install locally
+sudo snap install flight-radar_*.snap --dangerous
 ```
 
 Useful snap commands:
 ```bash
-snapcraft clean                    # wipe build state
+snapcraft clean --use-lxd         # wipe build state for a clean rebuild
 snap logs flight-radar             # runtime logs
 snap run --shell flight-radar      # shell inside snap confinement
 ```
+
