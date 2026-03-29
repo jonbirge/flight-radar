@@ -1,8 +1,8 @@
-name: flight-radar
+name: flight-radar-3d
 base: core22
 adopt-info: app
-title: Flight Radar
-summary: Real-time US flight tracker with FAA radar center aesthetic
+title: Flight Radar 3D
+summary: Real-time US flight tracker with 3D view and live weather
 description: |
   Flight Radar is an Electron app that renders OpenSky Network aircraft data and weather in
   a 3D display.
@@ -10,7 +10,7 @@ license: MIT
 contact: https://github.com/birge/flight-radar/issues
 source-code: https://github.com/birge/flight-radar
 issues: https://github.com/birge/flight-radar/issues
-website: https://flightradar3d.birgefuller.com
+website: https://flightradar.birgefuller.com
 grade: stable
 confinement: strict
 
