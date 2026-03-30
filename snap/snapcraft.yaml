@@ -43,12 +43,17 @@ parts:
       - python3
       - make
       - g++
+      - unzip
+      - curl
     override-build: |
       set -eu
       craftctl set version="$(node -p "require('./package.json').version")"
 
-      # Install all deps (postinstall copies Cesium + fonts)
-      npm ci --include=dev
+      # Install all deps (postinstall copies Cesium + fonts).
+      # Skip Electron binary download — electron-vite build only needs
+      # Electron's JS, not the binary.  The binary is fetched separately
+      # below with curl, which handles the Launchpad proxy correctly.
+      ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --include=dev
 
       # Build with electron-vite → out/
       npx electron-vite build
@@ -63,30 +68,28 @@ parts:
       # Built output (main, preload, renderer + static assets)
       cp -a out "$DEST/"
 
-      # package.json + lock file (electron reads "main" field; lock ensures reproducible installs)
+      # package.json (electron reads "main" field)
       cp package.json "$DEST/"
-      cp package-lock.json "$DEST/"
 
       # App icons
       cp -a assets "$DEST/"
 
-      # Install runtime deps + electron into dest
-      cd "$DEST"
-      ELECTRON_VERSION="$(node -p "require('$CRAFT_PART_BUILD/node_modules/electron/package.json').version")"
-      node -e "
-        const fs = require('fs');
-        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-        pkg.dependencies = { ...pkg.dependencies, electron: '$ELECTRON_VERSION' };
-        delete pkg.devDependencies;
-        delete pkg.scripts;
-        delete pkg.build;
-        fs.writeFileSync('_snap_pkg.json', JSON.stringify(pkg, null, 2));
-      "
-      mv _snap_pkg.json package.json.tmp
-      mv package.json package.json.real
-      mv package.json.tmp package.json
-      npm install --production
-      mv package.json.real package.json
+      # Copy runtime node_modules from the build tree — no second npm install needed
+      mkdir -p "$DEST/node_modules"
+      cp -a node_modules/pocketbase "$DEST/node_modules/"
+      cp -a node_modules/electron   "$DEST/node_modules/"
+
+      # Fetch the Electron binary with curl (respects HTTPS_PROXY, unlike
+      # Electron's install.js which fails in Launchpad's proxy environment)
+      ELECTRON_VERSION="$(node -p "require('./node_modules/electron/package.json').version")"
+      ELECTRON_ZIP="electron-v${ELECTRON_VERSION}-linux-x64.zip"
+      env -u LD_LIBRARY_PATH curl -fSL \
+        "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/${ELECTRON_ZIP}" \
+        -o "/tmp/${ELECTRON_ZIP}"
+      mkdir -p "$DEST/node_modules/electron/dist"
+      unzip -o "/tmp/${ELECTRON_ZIP}" -d "$DEST/node_modules/electron/dist/"
+      rm "/tmp/${ELECTRON_ZIP}"
+      echo "dist/electron" > "$DEST/node_modules/electron/path.txt"
 
       # Install launcher script
       cp "$CRAFT_PART_BUILD/scripts/snap-launcher.sh" "$CRAFT_PART_INSTALL/launcher.sh"

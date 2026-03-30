@@ -1,7 +1,7 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import https from 'https'
