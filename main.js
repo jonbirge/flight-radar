@@ -6,7 +6,7 @@ import path from 'path'
 import fs from 'fs'
 import https from 'https'
 import http from 'http'
-import DEFAULT_SETTINGS from './shared/defaults.js'
+import DEFAULT_SETTINGS from './src/defaults.js'
 import pkg from './package.json'
 
 // --- Settings Persistence ---

@@ -2,8 +2,6 @@ node_modules/
 vendor/
 out/
 assets/*.png
-web/creds.json
-web/cred.json
 dist/
 .claude/*
 *.snap

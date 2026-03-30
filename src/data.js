@@ -1,5 +1,4 @@
-// Shared data: airport database, OpenSky state parsing, formatting utilities
-// Loaded by both Electron and web versions
+// Airport database, OpenSky state vector parsing, and data block formatting
 
 // ============================================================
 // Airport Database (major US airports + select international)

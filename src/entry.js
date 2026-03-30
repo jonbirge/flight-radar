@@ -1,24 +1,24 @@
-// Renderer entry point — imports all shared modules in dependency order,
+// Renderer entry point — imports all modules in dependency order,
 // then the Electron-specific renderer code.
-// Each shared module exposes its API on `window` so cross-module access works.
+// Each module exposes its API on `window` so cross-module access works.
 
 // CSS
-import '../shared/styles.css'
+import './styles.css'
 
-// Shared modules (order matters — each depends on the previous ones)
-import '../shared/defaults.js'
-import '../shared/config.js'
-import '../shared/data.js'
-import '../shared/icons.js'
-import '../shared/cloud.js'
-import '../shared/radar-core.js'
-import '../shared/radar-weather.js'
-import '../shared/radar-markers.js'
-import '../shared/radar-aircraft.js'
-import '../shared/radar-ui.js'
-import '../shared/radar-flightplan.js'
-import '../shared/radar-timeline.js'
-import '../shared/radar.js'
+// Core modules (order matters — each depends on the previous ones)
+import './defaults.js'
+import './config.js'
+import './data.js'
+import './icons.js'
+import './cloud.js'
+import './radar-core.js'
+import './radar-weather.js'
+import './radar-markers.js'
+import './radar-aircraft.js'
+import './radar-ui.js'
+import './radar-flightplan.js'
+import './radar-timeline.js'
+import './radar.js'
 
 // Electron-specific entry point
 import './renderer.js'

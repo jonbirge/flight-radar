@@ -7,7 +7,7 @@
   font-style: normal;
   font-weight: 100 1000;
   font-display: swap;
-  src: url('../shared/fonts/roboto-flex.woff2') format('woff2');
+  src: url('./fonts/roboto-flex.woff2') format('woff2');
 }
 
 /* M3 tokens (theme-independent — color tokens set by JS) */
@@ -41,7 +41,7 @@ body {
   --settings-btn-active-color: #ffffff;
 }
 
-/* Button styles — mirrors shared/styles.css .scope-btn */
+/* Button styles — mirrors styles.css .scope-btn */
 .scope-btn {
   background: #000000;
   border: none;

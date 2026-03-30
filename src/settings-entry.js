@@ -1,7 +1,7 @@
-// Settings window entry point — imports shared defaults + settings modules,
+// Settings window entry point — imports defaults + settings modules,
 // then the Electron settings-specific code.
 
-import '../shared/defaults.js'
-import '../shared/cloud.js'
-import '../shared/settings.js'
+import './defaults.js'
+import './cloud.js'
 import './settings.js'
+import './settings-electron.js'

@@ -1,5 +1,4 @@
-/* Material 3 Expressive — Shared styles */
-/* Used by both Electron and web versions */
+/* Material 3 Expressive — Core application styles */
 
 :root {
   /* M3 Color Roles (dark mode defaults — overridden dynamically by applyTheme) */

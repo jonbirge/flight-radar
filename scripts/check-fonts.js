@@ -1,5 +1,5 @@
 // scripts/check-fonts.js
-// Verifies that required font files exist in shared/fonts/ and are not corrupt.
+// Verifies that required font files exist in src/fonts/ and are not corrupt.
 // Fonts are checked into the repo — this just catches missing/corrupt files early.
 // If any are missing or fail checksum, downloads them from Google Fonts as a fallback.
 
@@ -8,7 +8,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const FONTS_DIR = path.join(__dirname, '..', 'shared', 'fonts');
+const FONTS_DIR = path.join(__dirname, '..', 'src', 'fonts');
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
 const FONTS = [

@@ -1,5 +1,4 @@
-// Shared configuration, color utilities, and zoom-based scaling
-// Loaded by both Electron and web versions
+// Configuration, color utilities, and zoom-based scaling
 
 // ============================================================
 // Configuration
@@ -62,7 +61,7 @@ const CONFIG = window.CONFIG = {
   turbulenceLevel: 'none',  // runtime-only: computed from altitude, not persisted
   weatherOverlayOpacity: DEFAULT_SETTINGS.weatherOverlayOpacity,
   radarThinning: DEFAULT_SETTINGS.radarThinning,
-  awcProxyUrl: null,  // set to e.g. 'awc-proxy.php' for web; null = direct AWC access
+  awcProxyUrl: null,  // null = direct AWC access (Electron main process)
 };
 
 // ============================================================

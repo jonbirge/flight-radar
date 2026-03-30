@@ -100,8 +100,8 @@ export default defineConfig({
             dest: '.'
           },
           {
-            src: 'shared/fonts',
-            dest: 'shared'
+            src: 'src/fonts',
+            dest: 'src'
           }
         ]
       })

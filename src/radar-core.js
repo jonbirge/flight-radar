@@ -247,7 +247,7 @@ function makeTopoTiles() {
 const VFRMAP_DATE = '20251225';
 
 function makeVfrMapTiles(chartType, maxZoom) {
-  // Web version routes through PHP caching proxy to avoid CORS
+  // Proxy URL for VFR map tiles (configured via CONFIG.vfrMapProxyUrl)
   const url = CONFIG.vfrMapProxyUrl
     ? `${CONFIG.vfrMapProxyUrl}?date=${VFRMAP_DATE}&chart=${chartType}&z={z}&y={reverseY}&x={x}`
     : `https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`;

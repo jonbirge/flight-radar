@@ -1,5 +1,0 @@
-{
-  "client_id": "your_opensky_client_id",
-  "client_secret": "your_opensky_client_secret",
-  "flightaware_api_key": "your_flightaware_aeroapi_key"
-}

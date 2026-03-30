@@ -1,6 +1,6 @@
 {
   "name": "flight-radar",
-  "version": "2.24.2",
+  "version": "2.25.0",
   "description": "Real-time 3D flight tracker with Material 3 Expressive design",
   "main": "out/main/index.js",
   "author": "Jonathan Birge",
@@ -12,7 +12,9 @@
     "postinstall": "node scripts/copy-cesium.js && node scripts/check-fonts.js && npm run pull-data",
     "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
     "pack": "electron-vite build && electron-builder --dir",
-    "dist": "electron-vite build && electron-builder"
+    "dist": "electron-vite build && electron-builder",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "build": {
     "appId": "com.birgefuller.flightradar",
@@ -31,7 +33,9 @@
       }
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "assets/icon.ico"
     },
     "nsis": {
@@ -39,7 +43,9 @@
       "installerIcon": "assets/icon.ico"
     },
     "linux": {
-      "target": ["deb"],
+      "target": [
+        "deb"
+      ],
       "icon": "assets/icon.png",
       "category": "Utility",
       "maintainer": "Jonathan Birge"
@@ -56,7 +62,8 @@
     "javascript-obfuscator": "*",
     "terser": "*",
     "vite": "^7.3.1",
-    "vite-plugin-static-copy": "^3.3.0"
+    "vite-plugin-static-copy": "^3.3.0",
+    "vitest": "^4.1.2"
   },
   "cesiumVersion": "1.139.1"
 }
