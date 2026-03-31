@@ -286,15 +286,15 @@ class CappedLevelImageryProvider {
       return this._inner.requestImage(x, y, level, request);
     }
 
-    // Compute the parent tile at _cap that contains (x, y) at this level
+    // Compute the parent tile at _cap that contains (x, y) at this level.
+    // A tile at (level, x, y) maps to (cap, x>>diff, y>>diff) in the
+    // parent grid; the sub-tile offset within that parent is the remainder.
     const diff = level - this._cap;
     const scale = 1 << diff;            // 2^diff
     const parentX = x >>> diff;          // Math.floor(x / scale)
     const parentY = y >>> diff;          // Math.floor(y / scale)
-
-    // Sub-tile position within the parent
-    const subX = x - parentX * scale;
-    const subY = y - parentY * scale;
+    const subX = x - parentX * scale;   // column within the parent tile
+    const subY = y - parentY * scale;   // row within the parent tile
 
     // Cache parent tile loads so multiple children share one request
     const key = `${parentX},${parentY}`;
@@ -304,7 +304,6 @@ class CappedLevelImageryProvider {
         this._inner.requestImage(parentX, parentY, this._cap, request)
       );
       this._cache.set(key, parentPromise);
-      parentPromise.catch(() => this._cache.delete(key));
     }
 
     return parentPromise.then((image) => {
@@ -325,6 +324,9 @@ class CappedLevelImageryProvider {
         0, 0, tw, th                              // dest rect (upscale)
       );
       return canvas;
+    }).catch(() => {
+      this._cache.delete(key);
+      return undefined; // let CesiumJS handle the missing tile
     });
   }
 }
