@@ -25,15 +25,15 @@ function setFlightAwareAvailable(available) {
 }
 
 // Probe FlightAware API to determine initial availability.
-// Uses a lightweight airport flights call; result also updates the flag.
+// Uses the no-cost /account/usage endpoint to validate the API key.
 async function checkFlightAwareAvailability() {
-  if (!window.flightAPI || !window.flightAPI.getAirportFlights) {
+  if (!window.flightAPI || !window.flightAPI.checkFlightAwareKey) {
     setFlightAwareAvailable(false);
     return;
   }
   try {
-    const data = await window.flightAPI.getAirportFlights('KJFK');
-    setFlightAwareAvailable(!data.error);
+    const valid = await window.flightAPI.checkFlightAwareKey();
+    setFlightAwareAvailable(valid);
   } catch {
     setFlightAwareAvailable(false);
   }

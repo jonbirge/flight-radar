@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('flightAPI', {
   // Fetch flights to/from an airport from FlightAware AeroAPI
   getAirportFlights: (airportCode) => ipcRenderer.invoke('get-airport-flights', airportCode),
 
+  // Validate FlightAware API key via the no-cost /account/usage endpoint
+  checkFlightAwareKey: () => ipcRenderer.invoke('check-flightaware-key'),
+
   // Fetch FAA system-wide airport delay data (NASSTATUS XML)
   getSystemDelays: () => ipcRenderer.invoke('get-system-delays'),
 

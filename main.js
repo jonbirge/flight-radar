@@ -268,6 +268,20 @@ ipcMain.handle('get-track', async (event, icao24) => {
 // --- FlightAware AeroAPI ---
 const FA_AEROAPI_BASE = 'https://aeroapi.flightaware.com/aeroapi';
 
+// Validate FlightAware API key using the no-cost /account/usage endpoint.
+// Returns true if the key is configured and valid, false otherwise.
+ipcMain.handle('check-flightaware-key', async () => {
+  const s = loadSettings();
+  const apiKey = s.flightawareApiKey;
+  if (!apiKey) return false;
+  try {
+    await httpGetFA(`${FA_AEROAPI_BASE}/account/usage`, apiKey);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
 function httpGetFA(url, apiKey) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
