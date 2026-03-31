@@ -3,14 +3,6 @@
 // window.flightAPI is provided by preload.js.
 
 // ============================================================
-// Electron-specific: Settings button opens IPC settings window
-// ============================================================
-
-document.getElementById('btn-settings').addEventListener('click', () => {
-  window.flightAPI.openSettings();
-});
-
-// ============================================================
 // Electron-specific: React to settings changes from external window
 // ============================================================
 
