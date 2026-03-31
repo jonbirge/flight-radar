@@ -1,4 +1,6 @@
-# Flight Radar
+# Flight Radar 3D
+
+<img src="site/screenshots/hero.png" alt="Flight Radar 3D" width="100%">
 
 Real-time 3D flight tracker built with Electron + CesiumJS.
 
@@ -9,59 +11,6 @@ npm install      # copies CesiumJS runtime to vendor/, downloads fonts
 npm run dev      # Vite dev server + Electron with HMR
 npm run build    # production build → out/
 npm start        # preview production build
-```
-
-## Project Structure
-
-```
-main.js                   # Electron main process (ESM, API calls, IPC, windows)
-preload.js                # Context-isolated IPC bridge → window.flightAPI
-settings-preload.js       # IPC bridge for settings window
-electron.vite.config.mjs  # Vite config (main, preload, renderer builds)
-src/
-  entry.js                # Renderer entry — imports all modules + renderer.js
-  index.html              # Electron renderer HTML (<script type="module">)
-  renderer.js             # Electron renderer entry point
-  settings-entry.js       # Settings window entry — imports defaults + settings
-  settings.html           # Settings window HTML
-  settings-electron.js    # Settings window logic (Electron IPC wrapper)
-  settings.js             # Settings panel UI — HTML template, CSS, event wiring
-  settings.css            # Settings window styling
-  help.html               # In-app help documentation
-  help.css                # Help window styling
-  help-preload.js         # Help window preload
-  defaults.js             # Default settings values
-  config.js               # CONFIG object, color/theme utilities
-  data.js                 # Airport DB, OpenSky state vector parsing
-  icons.js                # Canvas-based aircraft icon generation
-  cloud.js                # PocketBase cloud sync + Google OAuth
-  radar-core.js           # Cesium viewer init, theme engine (load first)
-  radar-weather.js        # NEXRAD, GTG turbulence, PIREPs, SIGMETs, G-AIRMETs
-  radar-markers.js        # Airport markers, airspace, waypoints, navaids
-  radar-aircraft.js       # Aircraft entities, trails, polling loop
-  radar-ui.js             # HUD, camera events, UI controls, 2D/3D morphing
-  radar-flightplan.js     # Aircraft selection, FlightAware flight plan search
-  radar-timeline.js       # Timeline scrubber for flight plan playback
-  radar.js                # Init helpers (loaded last)
-  styles.css              # All application CSS
-  fonts/                  # Bundled fonts (Roboto Flex, JetBrains Mono)
-out/                      # Build output (gitignored)
-  main/index.js           # Bundled main process
-  preload/                # Bundled preload scripts
-  renderer/               # Bundled renderer (HTML, JS, CSS, static assets)
-data/
-  airports.json           # Airport database
-  airspace.json           # Class B/C/D airspace boundaries
-  waypoints.json          # Navigation fixes
-scripts/
-  copy-cesium.js          # postinstall: copies CesiumJS build to vendor/
-  check-fonts.js          # postinstall: verifies/downloads fonts to src/fonts/
-  obfuscate-snap.js       # snap build: minifies/obfuscates JS before packaging
-  download-airports.js    # data refresh scripts
-  download-airspace.js
-  download-waypoints.js
-  promote-airports.js
-site/                     # Static marketing/help site
 ```
 
 ## Architecture
@@ -132,6 +81,8 @@ https://www.flightaware.com/aeroapi/. Enter it in Settings.
 
 ## Packaging
 
+### General
+
 ```bash
 npm run pack     # build + unpacked directory → dist/win-unpacked/
 npm run dist     # build + installer → dist/Flight Radar Setup *.exe
@@ -167,9 +118,67 @@ snapcraft pack
 sudo snap install flight-radar_*.snap --dangerous
 ```
 
-Useful snap commands:
-```bash
-snapcraft clean                    # wipe build state for a clean rebuild
-snap logs flight-radar             # runtime logs
-snap run --shell flight-radar      # shell inside snap confinement
+## Project Structure
+
 ```
+main.js                   # Electron main process (ESM, API calls, IPC, windows)
+preload.js                # Context-isolated IPC bridge → window.flightAPI
+settings-preload.js       # IPC bridge for settings window
+electron.vite.config.mjs  # Vite config (main, preload, renderer builds)
+src/
+  entry.js                # Renderer entry — imports all modules + renderer.js
+  index.html              # Electron renderer HTML (<script type="module">)
+  renderer.js             # Electron renderer entry point
+  settings-entry.js       # Settings window entry — imports defaults + settings
+  settings.html           # Settings window HTML
+  settings-electron.js    # Settings window logic (Electron IPC wrapper)
+  settings.js             # Settings panel UI — HTML template, CSS, event wiring
+  settings.css            # Settings window styling
+  help.html               # In-app help documentation
+  help.css                # Help window styling
+  help-preload.js         # Help window preload
+  defaults.js             # Default settings values
+  config.js               # CONFIG object, color/theme utilities
+  data.js                 # Airport DB, state vector parsing
+  icons.js                # Canvas-based aircraft icon generation
+  cloud.js                # PocketBase cloud sync + Google OAuth
+  radar-core.js           # Cesium viewer init, theme engine (load first)
+  radar-weather.js        # NEXRAD, GTG turbulence, PIREPs, SIGMETs, G-AIRMETs
+  radar-markers.js        # Airport markers, airspace, waypoints, navaids
+  radar-aircraft.js       # Aircraft entities, trails, polling loop
+  radar-ui.js             # HUD, camera events, UI controls, 2D/3D morphing
+  radar-flightplan.js     # Aircraft selection, FlightAware flight plan search
+  radar-timeline.js       # Timeline scrubber for flight plan playback
+  radar.js                # Init helpers (loaded last)
+  styles.css              # All application CSS
+  fonts/                  # Bundled fonts (Roboto Flex, JetBrains Mono)
+out/                      # Build output (gitignored)
+  main/index.js           # Bundled main process
+  preload/                # Bundled preload scripts
+  renderer/               # Bundled renderer (HTML, JS, CSS, static assets)
+data/
+  airports.json           # Airport database
+  airspace.json           # Class B/C/D airspace boundaries
+  waypoints.json          # Navigation fixes
+scripts/
+  copy-cesium.js          # postinstall: copies CesiumJS build to vendor/
+  check-fonts.js          # postinstall: verifies/downloads fonts to src/fonts/
+  obfuscate-snap.js       # snap build: minifies/obfuscates JS before packaging
+  generate-icon.js        # generates app icon assets
+  download-airports.js    # data refresh scripts
+  download-airspace.js
+  download-waypoints.js
+  promote-airports.js
+  publish-snap.sh         # snap publishing helper
+  snap-launcher.sh        # snap launcher wrapper
+utils/
+  fix-sandbox.sh          # sandbox fix utility
+site/                     # Static marketing/help site
+  screenshots/            # App screenshots used in README and marketing
+```
+
+## Screenshots
+
+<img src="site/screenshots/flightplan.png" alt="Flight plan view" width="49%"> <img src="site/screenshots/search.png" alt="Search panel" width="49%">
+
+<img src="site/screenshots/airmet.png" alt="AIRMET overlay" width="49%"> <img src="site/screenshots/charts.png" alt="Charts view" width="49%">
