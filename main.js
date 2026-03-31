@@ -795,6 +795,9 @@ function buildMenu() {
                 '',
                 `Electron ${process.versions.electron}`,
                 `CesiumJS ${pkg.cesiumVersion}`,
+                '',
+                'Licensed under the GNU General Public License v3.0',
+                'See NOTICES file for third-party attributions.',
               ].join('\n'),
               buttons: ['OK'],
             });
