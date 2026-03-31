@@ -334,8 +334,10 @@ async function fetchTurbImageDataUrl(level, dateSecs, opts) {
         row * rowBytes
       );
     }
-    // Replace transparent pixels with white (lightest turbulence color)
-    // unless keepTransparency is set (used for 3D altitude surfaces)
+    // Adjust pixel transparency based on context:
+    // - keepTransparency (3D layers): strip white-ish and blue-ish pixels
+    // - dark mode: fade white-ish pixels to transparent so the dark basemap shows
+    // - light mode: fill transparent pixels with white
     if (opts?.keepTransparency) {
       // For 3D layers: make white-ish and blue-ish pixels fully transparent
       // so only moderate-to-severe turbulence colors (green/yellow/orange/red) remain
@@ -352,7 +354,19 @@ async function fetchTurbImageDataUrl(level, dateSecs, opts) {
           pixels[i + 3] = 0;
         }
       }
+    } else if (CONFIG.theme === 'dark') {
+      // Dark mode: make white/whitish pixels transparent so the dark basemap
+      // shows through.  Alpha scales with color saturation — pure white is
+      // fully transparent and saturated hues (green/yellow/red) are fully
+      // opaque.  min(R,G,B) measures the "white" component of a color.
+      const pixels = outData.data;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3] === 0) continue; // already transparent
+        const minCh = Math.min(pixels[i], pixels[i + 1], pixels[i + 2]);
+        pixels[i + 3] = 255 - minCh;
+      }
     } else {
+      // Light mode: fill transparent pixels with white (lightest turbulence color)
       const pixels = outData.data;
       for (let i = 0; i < pixels.length; i += 4) {
         if (pixels[i + 3] === 0) {
