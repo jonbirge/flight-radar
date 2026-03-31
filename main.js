@@ -784,17 +784,22 @@ app.whenReady().then(() => {
 
     // Security: ensure resolved path stays inside the cache directory
     const resolved = path.resolve(cachePath);
-    if (!resolved.startsWith(path.resolve(TILE_CACHE_DIR) + path.sep) &&
-        resolved !== path.resolve(TILE_CACHE_DIR)) {
+    if (!resolved.startsWith(path.resolve(TILE_CACHE_DIR) + path.sep)) {
       return new Response('Forbidden', { status: 403 });
+    }
+
+    // Determine MIME type from file extension
+    function tileMime(filePath) {
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+      if (ext === '.png') return 'image/png';
+      return 'application/octet-stream';
     }
 
     // Serve from cache if available
     try {
       const data = await fs.promises.readFile(resolved);
-      const ext = path.extname(resolved).toLowerCase();
-      const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
-      return new Response(data, { headers: { 'Content-Type': mime } });
+      return new Response(data, { headers: { 'Content-Type': tileMime(resolved) } });
     } catch {
       // Cache miss — fall through to network fetch
     }
