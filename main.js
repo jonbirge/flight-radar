@@ -739,6 +739,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Set the app name for macOS menu bar (defaults to "Electron" otherwise)
+  if (process.platform === 'darwin') {
+    app.setName('Flight Radar');
+  }
   syncNativeTheme();
   createWindow();
   buildMenu();
@@ -747,63 +751,99 @@ app.on('window-all-closed', () => app.quit());
 
 // --- Application Menu ---
 function buildMenu() {
+  const isMac = process.platform === 'darwin';
+
+  const aboutMenuItem = {
+    label: 'About 3D Flight Radar...',
+    click: () => {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'About 3D Flight Radar',
+        message: '3D Flight Radar',
+        detail: [
+          `Version ${pkg.version}`,
+          '',
+          'Real-time flight tracking with data from',
+          'OpenSky Network (ADS-B)',
+          '',
+          'Weather data from',
+          'FAA Aviation Weather Center (AWC)',
+          'Iowa State Mesonet (NEXRAD)',
+          '',
+          `Electron ${process.versions.electron}`,
+          `CesiumJS ${pkg.cesiumVersion}`,
+          '',
+          'Licensed under the GNU General Public License v3.0',
+          'See NOTICES file for third-party attributions.',
+        ].join('\n'),
+        buttons: ['OK'],
+      });
+    },
+  };
+
+  const settingsMenuItem = {
+    label: 'Settings...',
+    accelerator: 'CmdOrCtrl+,',
+    click: () => openSettingsWindow(),
+  };
+
+  const editSubmenu = [
+    { role: 'undo' },
+    { role: 'redo' },
+    { type: 'separator' },
+    { role: 'cut' },
+    { role: 'copy' },
+    { role: 'paste' },
+  ];
+
+  // On non-Mac platforms, Settings lives in the Edit menu
+  if (!isMac) {
+    editSubmenu.push({ type: 'separator' }, settingsMenuItem);
+  }
+
+  const helpSubmenu = [
+    {
+      label: 'Help Contents',
+      accelerator: 'F1',
+      click: () => openHelpWindow(),
+    },
+  ];
+
+  // On non-Mac platforms, About lives in the Help menu
+  if (!isMac) {
+    helpSubmenu.push({ type: 'separator' }, aboutMenuItem);
+  }
+
   const template = [
+    // On macOS, the first menu is the app menu (uses the app name as its title)
+    ...(isMac
+      ? [{
+          label: app.name,
+          submenu: [
+            aboutMenuItem,
+            { type: 'separator' },
+            settingsMenuItem,
+            { type: 'separator' },
+            { role: 'services' },
+            { type: 'separator' },
+            { role: 'hide' },
+            { role: 'hideOthers' },
+            { role: 'unhide' },
+            { type: 'separator' },
+            { label: 'Quit Flight Radar', role: 'quit' },
+          ],
+        }]
+      : []),
     { role: 'fileMenu' },
     {
-      role: 'editMenu',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { type: 'separator' },
-        {
-          label: 'Settings...',
-          accelerator: 'CmdOrCtrl+,',
-          click: () => openSettingsWindow(),
-        },
-      ],
+      label: 'Edit',
+      submenu: editSubmenu,
     },
     { role: 'viewMenu' },
+    ...(isMac ? [{ role: 'windowMenu' }] : []),
     {
       label: 'Help',
-      submenu: [
-        {
-          label: 'Help Contents',
-          accelerator: 'F1',
-          click: () => openHelpWindow(),
-        },
-        { type: 'separator' },
-        {
-          label: 'About 3D Flight Radar...',
-          click: () => {
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              title: 'About 3D Flight Radar',
-              message: '3D Flight Radar',
-              detail: [
-                `Version ${pkg.version}`,
-                '',
-                'Real-time flight tracking with data from',
-                'OpenSky Network (ADS-B)',
-                '',
-                'Weather data from',
-                'FAA Aviation Weather Center (AWC)',
-                'Iowa State Mesonet (NEXRAD)',
-                '',
-                `Electron ${process.versions.electron}`,
-                `CesiumJS ${pkg.cesiumVersion}`,
-                '',
-                'Licensed under the GNU General Public License v3.0',
-                'See NOTICES file for third-party attributions.',
-              ].join('\n'),
-              buttons: ['OK'],
-            });
-          },
-        },
-      ],
+      submenu: helpSubmenu,
     },
   ];
 

@@ -12,11 +12,12 @@ npm start                # Preview production build (electron-vite preview)
 npm run pack             # Build + electron-builder --dir (unpacked)
 npm run dist             # Build + electron-builder (installer)
 npm test                 # Run unit tests (Vitest)
+npx vitest run test/config.test.js  # Run a single test file
 ```
 
 **Testing/running:** When asked to test or run the app, always run `npm install` first (to ensure dependencies and postinstall assets are up to date), then `npm run dev` to launch the Electron dev server.
 
-Build system: **electron-vite** (Vite-based Electron tooling). Config in `electron.vite.config.mjs`. Packaging via **electron-builder** (config in `package.json` `"build"` field). The build requires `vendor/cesium/` and `src/fonts/` which are created by postinstall — run `npm install` before first build.
+Build system: **electron-vite** (Vite-based Electron tooling). Config in `electron.vite.config.mjs`. Test config in `vitest.config.js`. Packaging via **electron-builder** (config in `package.json` `"build"` field). The build requires `vendor/cesium/` and `src/fonts/` which are created by postinstall — run `npm install` before first build. Postinstall also patches the Electron.app `Info.plist` on macOS so the menu bar shows "Flight Radar" instead of "Electron" during development.
 
 ## Architecture
 

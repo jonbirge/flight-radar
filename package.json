@@ -1,6 +1,6 @@
 {
   "name": "flight-radar",
-  "version": "2.25.1",
+  "version": "2.25.2",
   "description": "Real-time 3D flight tracker with Material 3 Expressive design",
   "main": "out/main/index.js",
   "license": "GPL-3.0-or-later",
@@ -10,7 +10,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "build:snap:js": "node scripts/obfuscate-snap.js",
-    "postinstall": "node scripts/copy-cesium.js && node scripts/check-fonts.js && npm run pull-data",
+    "postinstall": "node scripts/copy-cesium.js && node scripts/check-fonts.js && node scripts/patch-electron-plist.js && npm run pull-data",
     "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
     "pack": "electron-vite build && electron-builder --dir",
     "dist": "electron-vite build && electron-builder",
@@ -42,6 +42,13 @@
     "nsis": {
       "oneClick": false,
       "installerIcon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.utilities"
     },
     "linux": {
       "target": [
