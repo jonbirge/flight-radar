@@ -114,22 +114,26 @@ class Canvas {
       }
   }
 
-  // Draw a line with per-pixel color/alpha interpolated along the line (t=0 at start, t=1 at end)
+  // Draw a line with per-pixel color interpolated along the line (t) and/or across it (p).
+  // colorFn(t, p) where t=0..1 along the line, p=-1..+1 across (negative=left, positive=right).
   drawLineGradient(x0, y0, x1, y1, colorFn, thick) {
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
     if (len < 0.001) return;
     const nx = -dy / len, ny = dx / len;
+    const half = thick / 2;
     for (let y = Math.max(0, Math.floor(Math.min(y0, y1) - thick - 1)); y <= Math.min(this.size - 1, Math.ceil(Math.max(y0, y1) + thick + 1)); y++)
       for (let x = Math.max(0, Math.floor(Math.min(x0, x1) - thick - 1)); x <= Math.min(this.size - 1, Math.ceil(Math.max(x0, x1) + thick + 1)); x++) {
         const t = ((x - x0) * dx + (y - y0) * dy) / (len * len);
         if (t < -1 / len || t > 1 + 1 / len) continue;
-        const pd = Math.abs((x - x0) * nx + (y - y0) * ny);
-        if (pd > thick / 2 + 0.5) continue;
-        let cov = Math.min(1, thick / 2 + 0.5 - pd);
+        const sd = (x - x0) * nx + (y - y0) * ny; // signed distance from line (left negative, right positive)
+        const pd = Math.abs(sd);
+        if (pd > half + 0.5) continue;
+        let cov = Math.min(1, half + 0.5 - pd);
         if (t < 0) cov *= Math.max(0, 1 + t * len);
         if (t > 1) cov *= Math.max(0, 1 - (t - 1) * len);
         const tc = Math.max(0, Math.min(1, t));
-        const [r, g, b, a] = colorFn(tc);
+        const pc = Math.max(-1, Math.min(1, sd / half)); // -1 to +1 across the line
+        const [r, g, b, a] = colorFn(tc, pc);
         this.blend(x, y, r, g, b, a * Math.min(1, cov));
       }
   }
@@ -168,7 +172,7 @@ function drawRadarIcon(size) {
 
   // 2. Sweep glow — trailing wedge behind the sweep line
   const sweepDeg = 330; // clockwise from 12 o'clock
-  const trailDeg = 55;
+  const trailDeg = 110;
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++) {
       const dist = Math.hypot(x - cx, y - cy);
@@ -179,7 +183,7 @@ function drawRadarIcon(size) {
       if (behind < 0) behind += 360;
       if (behind >= 0 && behind < trailDeg) {
         const t = 1 - behind / trailDeg;
-        const glow = t * t * 0.25 * (1 - dist / maxR * 0.3);
+        const glow = t * t * 0.45 * (1 - dist / maxR * 0.3);
         c.blend(x, y, 0, 0.75, 0.25, glow);
       }
     }
@@ -194,15 +198,10 @@ function drawRadarIcon(size) {
   c.drawLine(cx - maxR, cy, cx + maxR, cy, 0, 0.3, 0.1, 0.45, lw);
   c.drawLine(cx, cy - maxR, cx, cy + maxR, 0, 0.3, 0.1, 0.45, lw);
 
-  // 5. Sweep line with gradient (bright at tip, fading toward center) — 3x thicker
-  const sw = Math.max(1, 2.5 * s) * 3;
+  // 5. Sweep line — solid bright, fully opaque
+  const sw = Math.max(1, 2.5 * s) * 3.5;
   const sRad = sweepDeg * Math.PI / 180;
-  const sxEnd = cx + maxR * Math.sin(sRad), syEnd = cy - maxR * Math.cos(sRad);
-  c.drawLineGradient(cx, cy, sxEnd, syEnd, (t) => {
-    // t=0 at center, t=1 at edge: fade in brightness and alpha along the line
-    const brightness = 0.3 + 0.7 * t;
-    return [0.15 * brightness, 1.0 * brightness, 0.4 * brightness, 0.3 + 0.65 * t];
-  }, sw);
+  c.drawLine(cx, cy, cx + maxR * Math.sin(sRad), cy - maxR * Math.cos(sRad), 0.15, 1.0, 0.4, 1.0, sw);
 
   // 6. Aircraft blips — 3x larger with multi-color gradient trails showing motion
   const br = Math.max(1.2, 3 * s) * 3;
@@ -260,6 +259,60 @@ function drawRadarIcon(size) {
       const g = 0.3 * t + 0.95 * (1 - t);
       const b = 0.8 * t + 0.5 * (1 - t);
       const a = 0.2 + 0.7 * (1 - t);
+      c.fillCircle(px, py, dotR, r, g, b, a);
+    }
+  }
+
+  // Blip 4: red-to-orange trail (outer, behind sweep)
+  {
+    const headAng = 275, trailLen = 22, steps = 5;
+    const dist = maxR * 0.48;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const ang = (headAng - trailLen * t) * Math.PI / 180;
+      const d = dist + t * maxR * 0.03;
+      const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
+      const dotR = br * 0.7 * (1 - t * 0.5);
+      const r = 1.0;
+      const g = 0.2 + 0.4 * (1 - t);
+      const b = 0.0;
+      const a = 0.2 + 0.7 * (1 - t);
+      c.fillCircle(px, py, dotR, r, g, b, a);
+    }
+  }
+
+  // Blip 5: blue-to-white trail (far from sweep, faded)
+  {
+    const headAng = 250, trailLen = 18, steps = 4;
+    const dist = maxR * 0.62;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const ang = (headAng - trailLen * t) * Math.PI / 180;
+      const d = dist - t * maxR * 0.02;
+      const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
+      const dotR = br * 0.65 * (1 - t * 0.5);
+      const r = 0.3 * (1 - t) + 0.2 * t;
+      const g = 0.5 * (1 - t) + 0.3 * t;
+      const b = 1.0 * t + 0.9 * (1 - t);
+      const a = 0.15 + 0.55 * (1 - t);
+      c.fillCircle(px, py, dotR, r, g, b, a);
+    }
+  }
+
+  // Blip 6: green-to-lime trail (opposite side, near sweep leading edge)
+  {
+    const headAng = 335, trailLen = 15, steps = 4;
+    const dist = maxR * 0.82;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const ang = (headAng - trailLen * t) * Math.PI / 180;
+      const d = dist - t * maxR * 0.01;
+      const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
+      const dotR = br * 0.55 * (1 - t * 0.5);
+      const r = 0.2 * (1 - t);
+      const g = 1.0 * (1 - t) + 0.5 * t;
+      const b = 0.1;
+      const a = 0.2 + 0.8 * (1 - t);
       c.fillCircle(px, py, dotR, r, g, b, a);
     }
   }
