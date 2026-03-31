@@ -114,6 +114,26 @@ class Canvas {
       }
   }
 
+  // Draw a line with per-pixel color/alpha interpolated along the line (t=0 at start, t=1 at end)
+  drawLineGradient(x0, y0, x1, y1, colorFn, thick) {
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+    if (len < 0.001) return;
+    const nx = -dy / len, ny = dx / len;
+    for (let y = Math.max(0, Math.floor(Math.min(y0, y1) - thick - 1)); y <= Math.min(this.size - 1, Math.ceil(Math.max(y0, y1) + thick + 1)); y++)
+      for (let x = Math.max(0, Math.floor(Math.min(x0, x1) - thick - 1)); x <= Math.min(this.size - 1, Math.ceil(Math.max(x0, x1) + thick + 1)); x++) {
+        const t = ((x - x0) * dx + (y - y0) * dy) / (len * len);
+        if (t < -1 / len || t > 1 + 1 / len) continue;
+        const pd = Math.abs((x - x0) * nx + (y - y0) * ny);
+        if (pd > thick / 2 + 0.5) continue;
+        let cov = Math.min(1, thick / 2 + 0.5 - pd);
+        if (t < 0) cov *= Math.max(0, 1 + t * len);
+        if (t > 1) cov *= Math.max(0, 1 - (t - 1) * len);
+        const tc = Math.max(0, Math.min(1, t));
+        const [r, g, b, a] = colorFn(tc);
+        this.blend(x, y, r, g, b, a * Math.min(1, cov));
+      }
+  }
+
   clipCircle(cx, cy, rad) {
     for (let y = 0; y < this.size; y++)
       for (let x = 0; x < this.size; x++) {
@@ -164,39 +184,92 @@ function drawRadarIcon(size) {
       }
     }
 
-  // 3. Range rings (3 concentric)
-  const rw = Math.max(0.8, 1.4 * s);
+  // 3. Range rings (3 concentric) — 3x thicker
+  const rw = Math.max(0.8, 1.4 * s) * 3;
   for (let i = 1; i <= 3; i++)
     c.strokeCircle(cx, cy, maxR * i / 4, 0, 0.38, 0.12, 0.45, rw);
 
-  // 4. Crosshair lines
-  const lw = Math.max(0.6, 1.2 * s);
+  // 4. Crosshair lines — 3x thicker
+  const lw = Math.max(0.6, 1.2 * s) * 3;
   c.drawLine(cx - maxR, cy, cx + maxR, cy, 0, 0.3, 0.1, 0.45, lw);
   c.drawLine(cx, cy - maxR, cx, cy + maxR, 0, 0.3, 0.1, 0.45, lw);
 
-  // 5. Sweep line (bright, from center to edge)
-  const sw = Math.max(1, 2.5 * s);
+  // 5. Sweep line with gradient (bright at tip, fading toward center) — 3x thicker
+  const sw = Math.max(1, 2.5 * s) * 3;
   const sRad = sweepDeg * Math.PI / 180;
-  c.drawLine(cx, cy, cx + maxR * Math.sin(sRad), cy - maxR * Math.cos(sRad), 0.15, 1.0, 0.4, 0.95, sw);
+  const sxEnd = cx + maxR * Math.sin(sRad), syEnd = cy - maxR * Math.cos(sRad);
+  c.drawLineGradient(cx, cy, sxEnd, syEnd, (t) => {
+    // t=0 at center, t=1 at edge: fade in brightness and alpha along the line
+    const brightness = 0.3 + 0.7 * t;
+    return [0.15 * brightness, 1.0 * brightness, 0.4 * brightness, 0.3 + 0.65 * t];
+  }, sw);
 
-  // 6. Aircraft blips
-  const br = Math.max(1.2, 3 * s);
-  // Bright blip near sweep line
-  const b1a = 310 * Math.PI / 180, b1d = maxR * 0.55;
-  c.fillCircle(cx + b1d * Math.sin(b1a), cy - b1d * Math.cos(b1a), br, 0.15, 1.0, 0.35, 1.0);
-  // Dimmer blip further in the trail
-  const b2a = 290 * Math.PI / 180, b2d = maxR * 0.72;
-  c.fillCircle(cx + b2d * Math.sin(b2a), cy - b2d * Math.cos(b2a), br * 0.8, 0, 0.8, 0.27, 0.85);
-  // Small blip
-  const b3a = 318 * Math.PI / 180, b3d = maxR * 0.32;
-  c.fillCircle(cx + b3d * Math.sin(b3a), cy - b3d * Math.cos(b3a), br * 0.6, 0.1, 0.95, 0.3, 0.9);
+  // 6. Aircraft blips — 3x larger with multi-color gradient trails showing motion
+  const br = Math.max(1.2, 3 * s) * 3;
 
-  // 7. Outer ring (bold)
-  const ow = Math.max(1.5, 3.2 * s);
+  // Blip 1: cyan-to-green trail with bright head (near sweep line)
+  {
+    const headAng = 310, trailLen = 25, steps = 6;
+    const dist = maxR * 0.55;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps; // 0 = head, 1 = tail
+      const ang = (headAng - trailLen * t) * Math.PI / 180;
+      const d = dist - t * maxR * 0.04;
+      const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
+      const dotR = br * (1 - t * 0.5);
+      // Cyan at tail → bright green at head
+      const r = 0.0 + 0.15 * (1 - t);
+      const g = 0.6 + 0.4 * (1 - t);
+      const b = 0.8 * t + 0.35 * (1 - t);
+      const a = 0.25 + 0.75 * (1 - t);
+      c.fillCircle(px, py, dotR, r, g, b, a);
+    }
+  }
+
+  // Blip 2: amber-to-yellow trail (further behind sweep)
+  {
+    const headAng = 285, trailLen = 20, steps = 5;
+    const dist = maxR * 0.72;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const ang = (headAng - trailLen * t) * Math.PI / 180;
+      const d = dist + t * maxR * 0.02;
+      const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
+      const dotR = br * 0.8 * (1 - t * 0.5);
+      // Deep amber at tail → bright yellow at head
+      const r = 0.8 + 0.2 * (1 - t);
+      const g = 0.5 + 0.4 * (1 - t);
+      const b = 0.0;
+      const a = 0.2 + 0.65 * (1 - t);
+      c.fillCircle(px, py, dotR, r, g, b, a);
+    }
+  }
+
+  // Blip 3: magenta-to-white trail (small, close to center)
+  {
+    const headAng = 320, trailLen = 18, steps = 4;
+    const dist = maxR * 0.32;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const ang = (headAng - trailLen * t) * Math.PI / 180;
+      const d = dist - t * maxR * 0.02;
+      const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
+      const dotR = br * 0.6 * (1 - t * 0.5);
+      // Magenta at tail → bright white-green at head
+      const r = 0.7 * t + 0.3 * (1 - t);
+      const g = 0.3 * t + 0.95 * (1 - t);
+      const b = 0.8 * t + 0.5 * (1 - t);
+      const a = 0.2 + 0.7 * (1 - t);
+      c.fillCircle(px, py, dotR, r, g, b, a);
+    }
+  }
+
+  // 7. Outer ring (bold) — 3x thicker
+  const ow = Math.max(1.5, 3.2 * s) * 3;
   c.strokeCircle(cx, cy, maxR, 0, 0.8, 0.27, 0.9, ow);
 
-  // 8. Center dot
-  c.fillCircle(cx, cy, Math.max(1.2, 2 * s), 0, 0.8, 0.27, 0.85);
+  // 8. Center dot — 3x larger
+  c.fillCircle(cx, cy, Math.max(1.2, 2 * s) * 3, 0, 0.8, 0.27, 0.85);
 
   // Clip to circular boundary
   c.clipCircle(cx, cy, maxR + ow / 2);
