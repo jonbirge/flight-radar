@@ -54,4 +54,8 @@ contextBridge.exposeInMainWorld('flightAPI', {
 
   // Native context menu — returns selected item id or null if dismissed
   showContextMenu: (items) => ipcRenderer.invoke('show-context-menu', items),
+
+  // Tile cache management
+  getTileCacheStats: () => ipcRenderer.invoke('get-tile-cache-stats'),
+  clearTileCache: () => ipcRenderer.invoke('clear-tile-cache'),
 })

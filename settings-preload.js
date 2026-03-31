@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   previewWeatherOpacity: (opacity) => ipcRenderer.send('preview-weather-opacity', opacity),
   previewAltGain: (factor) => ipcRenderer.send('preview-alt-gain', factor),
   cloudSettingsChanged: () => ipcRenderer.send('cloud-settings-changed'),
+  getTileCacheStats: () => ipcRenderer.invoke('get-tile-cache-stats'),
+  clearTileCache: () => ipcRenderer.invoke('clear-tile-cache'),
 })

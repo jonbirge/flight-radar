@@ -1,13 +1,23 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, protocol, net } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import { readFile, writeFile, mkdir, readdir, stat, rm } from 'fs/promises'
 import https from 'https'
 import http from 'http'
 import DEFAULT_SETTINGS from './src/defaults.js'
 import pkg from './package.json'
+
+// --- Tile Cache Protocol ---
+// Register 'tile' as a privileged scheme before app is ready.
+// The renderer uses tile:// URLs to route map tile requests through the main
+// process, which caches tiles on disk for offline use and faster loads.
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'tile',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+}]);
 
 // --- Settings Persistence ---
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
@@ -55,6 +65,61 @@ nativeTheme.on('updated', () => {
   const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('system-theme-changed', theme);
+  }
+});
+
+// --- Tile Cache ---
+const TILE_CACHE_DIR = path.join(app.getPath('userData'), 'tile-cache');
+
+// Map file extensions to MIME types for cached tile responses
+const TILE_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
+
+// Convert an original HTTPS tile URL to a local cache file path.
+// Uses the URL host + path as the directory structure.
+function tileCachePath(url) {
+  const parsed = new URL(url);
+  // Sanitize the path to prevent directory traversal
+  const safePath = (parsed.host + parsed.pathname).replace(/\.\./g, '');
+  return path.join(TILE_CACHE_DIR, safePath);
+}
+
+// IPC: get tile cache stats (total size in bytes, tile count)
+ipcMain.handle('get-tile-cache-stats', async () => {
+  try {
+    if (!fs.existsSync(TILE_CACHE_DIR)) return { size: 0, count: 0 };
+    let size = 0, count = 0;
+    async function walk(dir) {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(full);
+        } else {
+          const s = await stat(full);
+          size += s.size;
+          count++;
+        }
+      }
+    }
+    await walk(TILE_CACHE_DIR);
+    return { size, count };
+  } catch (err) {
+    console.error('[TileCache] Stats error:', err.message);
+    return { size: 0, count: 0 };
+  }
+});
+
+// IPC: clear tile cache
+ipcMain.handle('clear-tile-cache', async () => {
+  try {
+    if (fs.existsSync(TILE_CACHE_DIR)) {
+      await rm(TILE_CACHE_DIR, { recursive: true, force: true });
+      console.log('[TileCache] Cache cleared');
+    }
+    return true;
+  } catch (err) {
+    console.error('[TileCache] Clear error:', err.message);
+    return false;
   }
 });
 
@@ -739,6 +804,46 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin') {
     app.setName('Flight Radar');
   }
+
+  // Register tile:// protocol handler for local tile caching.
+  // The renderer replaces https:// with tile:// for map tile URLs.
+  // On cache hit we serve from disk; on miss we fetch, cache, and return.
+  protocol.handle('tile', async (request) => {
+    const originalUrl = request.url.replace(/^tile:\/\//, 'https://');
+    const cachePath = tileCachePath(originalUrl);
+
+    // Serve from cache if available
+    try {
+      if (fs.existsSync(cachePath)) {
+        const data = await readFile(cachePath);
+        const ext = path.extname(cachePath).slice(1).toLowerCase();
+        return new Response(data, {
+          headers: { 'Content-Type': TILE_MIME[ext] || 'image/png' },
+        });
+      }
+    } catch (_) { /* cache miss — fall through to network fetch */ }
+
+    // Fetch from the original HTTPS URL and cache to disk
+    try {
+      const response = await net.fetch(originalUrl);
+      if (response.ok) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const dir = path.dirname(cachePath);
+        await mkdir(dir, { recursive: true });
+        // Write to disk asynchronously — don't block the response
+        writeFile(cachePath, buffer).catch(() => {});
+        return new Response(buffer, {
+          headers: { 'Content-Type': response.headers.get('Content-Type') || 'image/png' },
+        });
+      }
+      // Non-OK response — pass through without caching
+      return new Response(null, { status: response.status, statusText: response.statusText });
+    } catch (err) {
+      console.error('[TileCache] Fetch error:', err.message);
+      return new Response('Tile fetch failed', { status: 502 });
+    }
+  });
+
   syncNativeTheme();
   createWindow();
   buildMenu();

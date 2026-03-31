@@ -540,7 +540,7 @@ function updateCloudUI(container) {
  * @returns {{ populate: (settings) => void }}
  */
 function initSettingsPanel(options) {
-  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onAltGainPreview, onQuietSave, onCloudLogin, onCloudLogout } = options;
+  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onAltGainPreview, onQuietSave, onCloudLogin, onCloudLogout, getTileCacheStats, onClearTileCache } = options;
 
   // Inject shared CSS into this document
   injectSettingsCSS(container.ownerDocument);
@@ -835,6 +835,46 @@ function initSettingsPanel(options) {
 
   if (btnDefaults && onDefaults) {
     btnDefaults.addEventListener('click', onDefaults);
+  }
+
+  // --- Tile cache ---
+  const tileCacheSection = container.querySelector('#tile-cache-section');
+  const tileCacheInfo = container.querySelector('#tile-cache-info');
+  const btnClearCache = container.querySelector('#btn-clear-tile-cache');
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
+    return `${(bytes / 1073741824).toFixed(2)} GB`;
+  }
+
+  async function refreshTileCacheStats() {
+    if (!getTileCacheStats || !tileCacheInfo) return;
+    try {
+      const { size, count } = await getTileCacheStats();
+      tileCacheInfo.textContent = `${formatBytes(size)} (${count.toLocaleString()} tiles)`;
+    } catch (_) {
+      tileCacheInfo.textContent = 'Unable to read cache';
+    }
+  }
+
+  if (tileCacheSection && getTileCacheStats) {
+    tileCacheSection.style.display = '';
+    refreshTileCacheStats();
+  }
+
+  if (btnClearCache && onClearTileCache) {
+    btnClearCache.addEventListener('click', async () => {
+      btnClearCache.disabled = true;
+      btnClearCache.textContent = 'Clearing\u2026';
+      try {
+        await onClearTileCache();
+        await refreshTileCacheStats();
+      } catch (_) {}
+      btnClearCache.disabled = false;
+      btnClearCache.textContent = 'Clear cache';
+    });
   }
 
   // --- Cloud sync buttons ---

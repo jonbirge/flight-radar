@@ -178,6 +178,8 @@ initSettingsPanel({
     populateSettingsForm(container, originalSettings);
     applySettingsTheme(originalSettings);
   },
+  getTileCacheStats: () => window.settingsAPI.getTileCacheStats(),
+  onClearTileCache: () => window.settingsAPI.clearTileCache(),
 });
 
 // Resize Electron window when credentials section is toggled
