@@ -152,7 +152,7 @@ document.getElementById('toggle-aircraft').addEventListener('change', async (e) 
   toggleAircraft(e.target.checked);
   const settings = await window.flightAPI.getSettings();
   settings.aircraftEnabled = CONFIG.aircraftEnabled;
-  await window.flightAPI.saveSettings(settings);
+  await saveSettingsUnified(settings);
 });
 
 window.airspace3DToggle = document.getElementById('toggle-airspace-3d');
@@ -172,7 +172,7 @@ if (radarToggle) {
     }
     const settings = await window.flightAPI.getSettings();
     settings.radarEnabled = CONFIG.radarEnabled;
-    await window.flightAPI.saveSettings(settings);
+    await saveSettingsUnified(settings);
   });
 }
 
@@ -186,7 +186,7 @@ if (satelliteIRToggle) {
     }
     const settings = await window.flightAPI.getSettings();
     settings.satelliteIREnabled = CONFIG.satelliteIREnabled;
-    await window.flightAPI.saveSettings(settings);
+    await saveSettingsUnified(settings);
   });
 }
 
@@ -200,7 +200,7 @@ if (sigmetsToggle) {
     }
     const settings = await window.flightAPI.getSettings();
     settings.sigmetsEnabled = CONFIG.sigmetsEnabled;
-    await window.flightAPI.saveSettings(settings);
+    await saveSettingsUnified(settings);
   });
 }
 
@@ -214,7 +214,7 @@ if (airmetsToggle) {
     }
     const settings = await window.flightAPI.getSettings();
     settings.airmetsEnabled = CONFIG.airmetsEnabled;
-    await window.flightAPI.saveSettings(settings);
+    await saveSettingsUnified(settings);
   });
 }
 
@@ -228,7 +228,7 @@ if (pirepsToggle) {
     }
     const settings = await window.flightAPI.getSettings();
     settings.pirepsEnabled = CONFIG.pirepsEnabled;
-    await window.flightAPI.saveSettings(settings);
+    await saveSettingsUnified(settings);
   });
 }
 
@@ -246,7 +246,7 @@ if (turbToggle) {
     }
     const settings = await window.flightAPI.getSettings();
     settings.turbForecastEnabled = CONFIG.turbForecastEnabled;
-    await window.flightAPI.saveSettings(settings);
+    await saveSettingsUnified(settings);
   });
 }
 
@@ -255,7 +255,7 @@ document.getElementById('toggle-labels').addEventListener('change', async (e) =>
   renderAircraft();
   const settings = await window.flightAPI.getSettings();
   settings.labelsEnabled = CONFIG.labelsEnabled;
-  await window.flightAPI.saveSettings(settings);
+  await saveSettingsUnified(settings);
 });
 
 window.mapLayerSelect = document.getElementById('map-layer');
@@ -293,7 +293,7 @@ async function applyMapLayerValue(value) {
   // Persist the selection
   const settings = await window.flightAPI.getSettings();
   settings.mapLayer = CONFIG.mapLayer;
-  await window.flightAPI.saveSettings(settings);
+  await saveSettingsUnified(settings);
 }
 
 // Toggle dropdown open/closed
@@ -354,7 +354,7 @@ async function saveView() {
   };
   const settings = await window.flightAPI.getSettings();
   settings.savedView = savedView;
-  await window.flightAPI.saveSettings(settings);
+  await saveSettingsUnified(settings);
   CONFIG.savedView = savedView;
 }
 

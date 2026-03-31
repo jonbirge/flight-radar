@@ -6,7 +6,194 @@
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
-  <div id="settings-container"></div>
+  <div id="settings-container">
+    <div class="settings-cloud-section" id="cloud-section">
+      <div class="settings-label">Cloud sync</div>
+      <div class="settings-cloud-row" id="cloud-logged-out">
+        <span class="cloud-hint">Sign in with Google to sync settings across devices</span>
+        <button type="button" id="btn-cloud-login">Sign in with Google</button>
+      </div>
+      <div class="settings-cloud-row" id="cloud-logged-in" style="display:none;">
+        <img id="cloud-avatar" src="" alt="">
+        <span id="cloud-user-name"></span>
+        <button type="button" id="btn-cloud-logout">Sign out</button>
+      </div>
+    </div>
+
+    <div class="settings-columns">
+      <div class="settings-column">
+        <div class="settings-section">
+          <div class="settings-label">Display mode</div>
+          <div class="settings-seg-group">
+            <button class="settings-theme-btn" id="set-theme-dark" type="button">Dark</button>
+            <button class="settings-theme-btn active" id="set-theme-light" type="button">Light</button>
+            <button class="settings-theme-btn" id="set-theme-system" type="button">System</button>
+          </div>
+          <label class="settings-toggle-label" style="margin-top:8px;">
+            <input type="checkbox" id="set-mute-map-colors">
+            <span>Mute map colors</span>
+          </label>
+        </div>
+
+        <div class="settings-section" id="color-section">
+          <div class="settings-label">UI color</div>
+          <div class="settings-color-label">Dark mode</div>
+          <div class="settings-row settings-color-row" style="margin-bottom:12px;">
+              <button class="color-swatch dark-color-swatch" data-color="#cccccc" style="background:#cccccc" title="White" type="button"></button>
+              <button class="color-swatch dark-color-swatch" data-color="#00cccc" style="background:#00cccc" title="Cyan" type="button"></button>
+              <button class="color-swatch dark-color-swatch" data-color="#cc8800" style="background:#cc8800" title="Amber" type="button"></button>
+              <button class="color-swatch dark-color-swatch" data-color="#00cc44" style="background:#00cc44" title="Phosphor Green" type="button"></button>
+              <button class="color-swatch dark-color-swatch" data-color="#6c7f70" style="background:#6c7f70" title="Sage" type="button"></button>
+              <input type="color" id="set-custom-color" value="#00cc44" title="Custom color">
+          </div>
+          <div class="settings-color-label">Light mode</div>
+          <div class="settings-row settings-color-row">
+              <button class="color-swatch light-color-swatch" data-color="#1a1a1a" style="background:#1a1a1a" title="Black" type="button"></button>
+              <button class="color-swatch light-color-swatch" data-color="#2563eb" style="background:#2563eb" title="Cobalt" type="button"></button>
+              <button class="color-swatch light-color-swatch" data-color="#0d9488" style="background:#0d9488" title="Teal" type="button"></button>
+              <button class="color-swatch light-color-swatch" data-color="#dc2626" style="background:#dc2626" title="Crimson" type="button"></button>
+              <button class="color-swatch light-color-swatch" data-color="#7c3aed" style="background:#7c3aed" title="Violet" type="button"></button>
+              <input type="color" id="set-light-custom-color" value="#1a1a1a" title="Custom color">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-label">Rotation speed</div>
+          <div class="settings-row">
+            <input type="range" id="set-rotation-speed" min="1" max="20" value="6" step="1">
+            <span class="settings-fontsize-val" id="set-rotation-speed-val">3 &deg;/s</span>
+          </div>
+        </div>
+
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-label">Weather overlay</div>
+          <div class="settings-row" style="margin-bottom:10px;">
+            <span class="settings-toggle-label" style="cursor:default;">Opacity</span>
+            <input type="range" id="set-weather-opacity" min="10" max="100" value="25" step="5" style="flex:1;">
+            <span class="settings-fontsize-val" id="set-weather-opacity-val">25%</span>
+          </div>
+          <label class="settings-toggle-label">
+            <input type="checkbox" id="set-radar-thinning">
+            <span>Radar thinning</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-column">
+        <div class="settings-section">
+          <div class="settings-label">Aircraft display</div>
+          <div class="settings-row" style="margin-bottom:10px;">
+            <span class="settings-toggle-label" style="cursor:default;">Font size</span>
+            <input type="range" id="set-fontsize" min="8" max="20" value="11" step="1" style="flex:1;">
+            <span class="settings-fontsize-val" id="set-fontsize-val">11px</span>
+          </div>
+          <div class="settings-row" style="margin-bottom:10px;">
+            <span class="settings-toggle-label" style="cursor:default;">Trails</span>
+            <div class="settings-seg-group">
+              <button class="settings-theme-btn" id="set-trail-none" type="button">None</button>
+              <button class="settings-theme-btn" id="set-trail-history" type="button">History</button>
+              <button class="settings-theme-btn" id="set-trail-velocity" type="button">Velocity</button>
+            </div>
+          </div>
+          <div class="settings-row" id="trail-length-row">
+            <span class="settings-toggle-label" style="cursor:default;">History length</span>
+            <input type="range" id="set-trail-length" min="60" max="600" value="120" step="60" style="flex:1;">
+            <span class="settings-fontsize-val" id="set-trail-length-val">2m</span>
+          </div>
+          <label class="settings-toggle-label" style="margin-top:8px;">
+            <input type="checkbox" id="set-color-by-alt">
+            <span>Color by altitude</span>
+          </label>
+          <label class="settings-toggle-label" style="margin-top:8px;">
+            <input type="checkbox" id="set-thick-trails">
+            <span>Trail thickness by altitude</span>
+          </label>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-label">Aviation data</div>
+          <div class="settings-row settings-grid-2col">
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airports">
+              <span>Major airports</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airport-delays">
+              <span>Airport delays</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airspace">
+              <span>Airspace</span>
+            </label>
+
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airspace-edges">
+              <span>Volume edges</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-navaids">
+              <span>Navaids</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-airspace-3d">
+              <span>3D airspace</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-show-fixes">
+              <span>Nav fixes</span>
+            </label>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="set-turb-3d">
+              <span>3D turbulence</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section" style="border-bottom:none;">
+          <div class="settings-label">Altitude exaggeration</div>
+          <div class="settings-row" style="align-items:center;">
+            <input type="range" id="set-exaggerate-alt" min="1" max="10" value="1" step="0.1" style="flex:1;">
+            <span class="settings-fontsize-val" id="set-exaggerate-alt-val">1&#x00D7;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section" style="border-bottom:none;border-top:1px solid var(--md-outline-variant, var(--settings-border, #ccc));">
+      <div class="settings-cred-section" id="cred-drop-zone">
+        <details class="settings-cred-details" id="cred-details">
+          <summary>API credentials</summary>
+          <div class="settings-cred-body">
+            <div class="settings-hint">
+              Drag &amp; drop a JSON credentials file here in the format provided by OpenSky, or enter manually.
+            </div>
+            <div class="settings-color-label" style="margin-top:4px;">OpenSky Network</div>
+            <div class="settings-row" style="margin-bottom:6px">
+              <span class="settings-field-label">Client ID</span>
+              <input type="text" id="set-client-id" class="settings-cred-input"
+                     placeholder="client_id" spellcheck="false" autocomplete="off">
+            </div>
+            <div class="settings-row" style="margin-bottom:10px">
+              <span class="settings-field-label">Secret</span>
+              <input type="text" id="set-client-secret" class="settings-cred-input"
+                     placeholder="client_secret" autocomplete="off">
+            </div>
+            <div class="settings-color-label">FlightAware AeroAPI</div>
+            <div class="settings-row">
+              <span class="settings-field-label">API Key</span>
+              <input type="text" id="set-fa-api-key" class="settings-cred-input"
+                     placeholder="flightaware_api_key" spellcheck="false" autocomplete="off">
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="settings-footer">
+      <button type="button" class="scope-btn" id="btn-settings-defaults">Defaults</button>
+      <button type="button" class="scope-btn" id="btn-settings-done">Done</button>
+    </div>
+  </div>
 
   <script type="module" src="./settings-entry.js"></script>
 </body>

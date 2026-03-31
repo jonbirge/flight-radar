@@ -46,16 +46,6 @@ window.flightAPI.onAltGainPreview((factor) => {
 // Start
 // ============================================================
 
-// Cloud sync: when a local save happens (control panel toggles, etc.),
-// also push to PocketBase if the user is logged in.
-if (window.flightAPI.onCloudSyncSettings) {
-  window.flightAPI.onCloudSyncSettings((settings) => {
-    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
-      cloudSaveSettings(settings);
-    }
-  });
-}
-
 // Listen for cloud settings changes from the settings window
 if (window.flightAPI.onCloudSettingsChanged) {
   window.flightAPI.onCloudSettingsChanged(async () => {
@@ -76,17 +66,17 @@ async function init() {
   }
   // Initialize cloud sync (restores session from localStorage if exists)
   if (typeof initCloud === 'function') await initCloud();
-  // If cloud-logged-in, load credentials from PocketBase and push to
-  // local settings so the main process can use them for API calls.
+  // If cloud-logged-in, sync credentials to local settings so the main
+  // process can use them for API calls (main process reads from local file).
   if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
     try {
-      const creds = await cloudLoadCredentials();
-      if (creds) {
+      const cloudSettings = await cloudLoadSettings();
+      if (cloudSettings) {
         const local = await window.flightAPI.getSettings();
         let changed = false;
         for (const k of CREDENTIAL_KEYS) {
-          if (creds[k] && creds[k] !== local[k]) {
-            local[k] = creds[k];
+          if (cloudSettings[k] && cloudSettings[k] !== local[k]) {
+            local[k] = cloudSettings[k];
             changed = true;
           }
         }

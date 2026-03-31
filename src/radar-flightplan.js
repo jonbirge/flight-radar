@@ -2106,7 +2106,7 @@ async function addSearchHistory(ident) {
     // Keep only the most recent entries
     if (history.length > MAX_SEARCH_HISTORY) history = history.slice(0, MAX_SEARCH_HISTORY);
     saved.searchHistory = history;
-    await window.flightAPI.saveSettings(saved);
+    await saveSettingsUnified(saved);
     console.log(`[FlightPlan] Search history updated: ${history.join(', ')}`);
   } catch (err) {
     console.warn('[FlightPlan] Could not save search history:', err);

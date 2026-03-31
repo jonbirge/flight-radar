@@ -269,6 +269,59 @@ async function cloudSaveCredentials(creds) {
 }
 
 // ============================================================
+// Unified settings save (cloud-first when logged in)
+// ============================================================
+
+/**
+ * Save settings everywhere needed:
+ * - If cloud-logged-in: save to PocketBase (source of truth) + local file (main process needs credentials for API calls)
+ * - If not logged in: save to local file only
+ */
+async function saveSettingsUnified(settings) {
+  // Always save locally — main process reads credentials from the local file
+  if (window.flightAPI?.saveSettings) {
+    await window.flightAPI.saveSettings(settings);
+  } else if (window.settingsAPI?.updateSettings) {
+    await window.settingsAPI.updateSettings(settings);
+  }
+  // Save to cloud if logged in
+  if (isCloudLoggedIn()) {
+    cloudSaveSettings(settings);
+    // Also persist credentials separately for backward compat
+    const creds = {};
+    for (const k of CREDENTIAL_KEYS) {
+      if (settings[k] !== undefined) creds[k] = settings[k];
+    }
+    if (Object.values(creds).some(v => v)) cloudSaveCredentials(creds);
+  }
+}
+
+/**
+ * Load settings from the appropriate source:
+ * - If cloud-logged-in: load from PocketBase only (cloud is source of truth)
+ * - If not logged in: load from local file
+ * Falls back to local if cloud load fails.
+ */
+async function loadSettingsUnified() {
+  const localSettings = window.flightAPI
+    ? await window.flightAPI.getSettings()
+    : (window.settingsAPI ? await window.settingsAPI.getSettings() : { ...DEFAULT_SETTINGS });
+
+  if (!isCloudLoggedIn()) return localSettings;
+
+  try {
+    const cloudSettings = await cloudLoadSettings();
+    if (cloudSettings) {
+      // Cloud is sole source of truth — use cloud settings with defaults as base
+      return { ...DEFAULT_SETTINGS, ...cloudSettings };
+    }
+  } catch (err) {
+    console.warn('[Cloud] Failed to load cloud settings, falling back to local:', err.message);
+  }
+  return localSettings;
+}
+
+// ============================================================
 // Window exports
 // ============================================================
 
@@ -283,3 +336,5 @@ window.cloudSaveSettings = cloudSaveSettings;
 window.cloudLoadCredentials = cloudLoadCredentials;
 window.cloudSaveCredentials = cloudSaveCredentials;
 window.CREDENTIAL_KEYS = CREDENTIAL_KEYS;
+window.saveSettingsUnified = saveSettingsUnified;
+window.loadSettingsUnified = loadSettingsUnified;

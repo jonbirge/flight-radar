@@ -37,10 +37,6 @@ function saveSettings(settings) {
 ipcMain.handle('get-settings', () => loadSettings());
 ipcMain.handle('save-settings', (event, settings) => {
   saveSettings(settings);
-  // Notify renderer to sync settings to cloud (if logged in)
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('cloud-sync-settings', settings);
-  }
   return true;
 });
 

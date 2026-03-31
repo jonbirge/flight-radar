@@ -94,23 +94,14 @@ if (typeof initCloud === 'function') {
 }
 
 const container = document.getElementById('settings-container');
-container.innerHTML = createSettingsFormHTML();
 
 let originalSettings = {};
 
 initSettingsPanel({
   container,
   getSettings: async () => {
-    originalSettings = await window.settingsAPI.getSettings();
-    // If cloud-logged-in, overlay credentials from PocketBase (source of truth)
-    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
-      try {
-        const creds = await cloudLoadCredentials();
-        if (creds) Object.assign(originalSettings, creds);
-      } catch (err) {
-        console.warn('[Cloud] Could not load credentials:', err.message);
-      }
-    }
+    // Cloud-first: loadSettingsUnified uses cloud as source of truth when logged in
+    originalSettings = await loadSettingsUnified();
     applySettingsTheme(originalSettings);
     // Always open the settings window with credentials collapsed
     return { ...originalSettings, credentialsExpanded: false };
@@ -118,15 +109,13 @@ initSettingsPanel({
   onChanged: (form) => {
     applySettingsTheme(form);
     const merged = { ...originalSettings, ...form };
+    // updateSettings saves locally + broadcasts to main window
     window.settingsAPI.updateSettings(merged);
+    // Save to cloud if logged in (saveSettingsUnified handles both, but
+    // settings window uses updateSettings for the broadcast side-effect,
+    // so we call cloud save directly here)
     if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
       cloudSaveSettings(merged);
-      // Persist credentials to PocketBase as source of truth
-      const creds = {};
-      for (const k of CREDENTIAL_KEYS) {
-        if (merged[k] !== undefined) creds[k] = merged[k];
-      }
-      cloudSaveCredentials(creds);
     }
   },
   onClose: () => {
@@ -150,11 +139,6 @@ initSettingsPanel({
     window.settingsAPI.updateSettingsQuiet(merged);
     if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
       cloudSaveSettings(merged);
-      const creds = {};
-      for (const k of CREDENTIAL_KEYS) {
-        if (merged[k] !== undefined) creds[k] = merged[k];
-      }
-      cloudSaveCredentials(creds);
     }
   },
   onDefaults: async () => {
@@ -164,6 +148,10 @@ initSettingsPanel({
       populateSettingsForm(container, DEFAULT_SETTINGS);
       applySettingsTheme(DEFAULT_SETTINGS);
       window.settingsAPI.resizeToContent();
+      // Also reset cloud settings if logged in
+      if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
+        cloudSaveSettings(DEFAULT_SETTINGS);
+      }
     }
   },
   onCloudLogin: async () => {
@@ -171,22 +159,15 @@ initSettingsPanel({
     // Check for existing cloud settings
     const cloudSettings = await cloudLoadSettings();
     if (cloudSettings) {
-      // Cloud wins — merge, preserving local-only keys
-      const local = await window.settingsAPI.getSettings();
-      const merged = { ...local, ...cloudSettings,
-        credentialsExpanded: local.credentialsExpanded,
-      };
+      // Cloud is source of truth — use cloud settings
+      const merged = { ...DEFAULT_SETTINGS, ...cloudSettings };
       await window.settingsAPI.updateSettings(merged);
       originalSettings = merged;
     } else {
-      // First-time cloud user — upload current settings (including credentials)
+      // First-time cloud user — upload current local settings to cloud
       const local = await window.settingsAPI.getSettings();
       await cloudSaveSettings(local);
-      const creds = {};
-      for (const k of CREDENTIAL_KEYS) {
-        if (local[k]) creds[k] = local[k];
-      }
-      if (Object.keys(creds).length) await cloudSaveCredentials(creds);
+      originalSettings = local;
     }
     populateSettingsForm(container, originalSettings);
     applySettingsTheme(originalSettings);

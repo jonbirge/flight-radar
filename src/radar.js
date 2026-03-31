@@ -26,23 +26,8 @@ async function loadAndApplySettings(overrideSettings) {
   try {
     // When called with overrideSettings (e.g. from onChanged), use them directly
     // to avoid a cloud-sync race where the async cloud save hasn't finished yet
-    // and cloudLoadSettings() returns stale data that overwrites the local change.
-    let saved = overrideSettings || await window.flightAPI.getSettings();
-
-    // Merge cloud settings if logged in (cloud wins, preserve local-only keys)
-    if (!overrideSettings && typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
-      try {
-        const cloudSettings = await cloudLoadSettings();
-        if (cloudSettings) {
-          const LOCAL_ONLY_KEYS = ['credentialsExpanded'];
-          const localOnly = {};
-          LOCAL_ONLY_KEYS.forEach(k => { if (saved && saved[k] !== undefined) localOnly[k] = saved[k]; });
-          saved = { ...saved, ...cloudSettings, ...localOnly };
-        }
-      } catch (err) {
-        console.warn('[Cloud] Failed to load cloud settings, using local:', err.message);
-      }
-    }
+    // and loadSettingsUnified() returns stale data that overwrites the local change.
+    let saved = overrideSettings || await loadSettingsUnified();
 
     if (saved) {
       CONFIG.fontSize = saved.fontSize || DEFAULT_SETTINGS.fontSize;
