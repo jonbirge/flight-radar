@@ -739,6 +739,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Set the app name for macOS menu bar (defaults to "Electron" otherwise)
+  if (process.platform === 'darwin') {
+    app.setName('Flight Radar');
+  }
   syncNativeTheme();
   createWindow();
   buildMenu();
@@ -826,7 +830,7 @@ function buildMenu() {
             { role: 'hideOthers' },
             { role: 'unhide' },
             { type: 'separator' },
-            { role: 'quit' },
+            { label: 'Quit Flight Radar', role: 'quit' },
           ],
         }]
       : []),
