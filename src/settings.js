@@ -469,6 +469,10 @@ function populateSettingsForm(container, settings) {
   const radarThinningEl = container.querySelector('#set-radar-thinning');
   if (radarThinningEl) radarThinningEl.checked = s.radarThinning;
 
+  // Tile cache
+  const tileCacheEl = container.querySelector('#set-tile-cache');
+  if (tileCacheEl) tileCacheEl.checked = s.tileCacheEnabled;
+
   // 3D turbulence
   const turb3dEl = container.querySelector('#set-turb-3d');
   if (turb3dEl) turb3dEl.checked = s.turb3D;
@@ -575,6 +579,7 @@ function initSettingsPanel(options) {
   const weatherOpacitySlider = container.querySelector('#set-weather-opacity');
   const weatherOpacityVal = container.querySelector('#set-weather-opacity-val');
   const radarThinning = container.querySelector('#set-radar-thinning');
+  const tileCache = container.querySelector('#set-tile-cache');
   const turb3d = container.querySelector('#set-turb-3d');
   const airportDelays = container.querySelector('#set-airport-delays');
   const exaggerateAlt = container.querySelector('#set-exaggerate-alt');
@@ -610,6 +615,7 @@ function initSettingsPanel(options) {
       rotationSpeed: parseInt(rotSlider.value),
       weatherOverlayOpacity: parseInt(weatherOpacitySlider.value),
       radarThinning: radarThinning ? radarThinning.checked : true,
+      tileCacheEnabled: tileCache ? tileCache.checked : false,
       turb3D: turb3d ? turb3d.checked : false,
       airportDelaysEnabled: airportDelays ? airportDelays.checked : false,
       exaggerateAltitudes: exaggerateAlt ? parseFloat(exaggerateAlt.value) : 1,
@@ -792,6 +798,9 @@ function initSettingsPanel(options) {
 
   // --- Radar thinning toggle ---
   if (radarThinning) radarThinning.addEventListener('change', broadcast);
+
+  // --- Tile cache toggle ---
+  if (tileCache) tileCache.addEventListener('change', broadcast);
 
   // --- 3D turbulence toggle ---
   if (turb3d) turb3d.addEventListener('change', broadcast);

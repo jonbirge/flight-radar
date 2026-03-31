@@ -1,7 +1,7 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, protocol, net } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import https from 'https'
@@ -11,6 +11,7 @@ import pkg from './package.json'
 
 // --- Settings Persistence ---
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+const TILE_CACHE_DIR = path.join(app.getPath('userData'), 'tile-cache');
 
 function loadSettings() {
   try {
@@ -38,6 +39,18 @@ ipcMain.handle('get-settings', () => loadSettings());
 ipcMain.handle('save-settings', (event, settings) => {
   saveSettings(settings);
   return true;
+});
+
+// IPC handler: clear tile cache
+ipcMain.handle('clear-tile-cache', async () => {
+  try {
+    await fs.promises.rm(TILE_CACHE_DIR, { recursive: true, force: true });
+    console.log('[TileCache] Cache cleared');
+    return true;
+  } catch (err) {
+    console.error('[TileCache] Clear error:', err.message);
+    return false;
+  }
 });
 
 // --- System Theme ---
@@ -748,12 +761,62 @@ function createWindow() {
   }
 }
 
+// Register tile:// scheme for local tile caching (must be before app.ready)
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'tile', privileges: { secure: true, supportFetchAPI: true, corsEnabled: true } }
+]);
+
 app.whenReady().then(() => {
   // Set the app name for macOS menu bar (defaults to "Electron" otherwise)
   if (process.platform === 'darwin') {
     app.setName('Flight Radar');
   }
   syncNativeTheme();
+
+  // Register tile:// protocol handler for local tile caching.
+  // Renderer rewrites https:// → tile:// for map tile URLs when caching is enabled.
+  // The handler checks a local disk cache first, then falls back to net.fetch().
+  // Weather overlays are NOT cached (time-sensitive data).
+  protocol.handle('tile', async (request) => {
+    const url = request.url.replace(/^tile:\/\//, 'https://');
+    const parsed = new URL(url);
+    const cachePath = path.join(TILE_CACHE_DIR, parsed.hostname, parsed.pathname);
+
+    // Security: ensure resolved path stays inside the cache directory
+    const resolved = path.resolve(cachePath);
+    if (!resolved.startsWith(path.resolve(TILE_CACHE_DIR) + path.sep) &&
+        resolved !== path.resolve(TILE_CACHE_DIR)) {
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    // Serve from cache if available
+    try {
+      const data = await fs.promises.readFile(resolved);
+      const ext = path.extname(resolved).toLowerCase();
+      const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+      return new Response(data, { headers: { 'Content-Type': mime } });
+    } catch {
+      // Cache miss — fall through to network fetch
+    }
+
+    // Fetch from network, cache on success
+    try {
+      const response = await net.fetch(url);
+      if (response.ok) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        await fs.promises.mkdir(path.dirname(resolved), { recursive: true });
+        await fs.promises.writeFile(resolved, buffer);
+        return new Response(buffer, {
+          headers: { 'Content-Type': response.headers.get('content-type') || 'image/png' }
+        });
+      }
+      return new Response(null, { status: response.status });
+    } catch (err) {
+      console.error('[TileCache] Fetch error:', err.message);
+      return new Response('Fetch error', { status: 502 });
+    }
+  });
+
   createWindow();
   buildMenu();
 });

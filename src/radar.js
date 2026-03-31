@@ -50,6 +50,7 @@ async function loadAndApplySettings(overrideSettings) {
       CONFIG.weatherOverlayOpacity = saved.weatherOverlayOpacity ?? DEFAULT_SETTINGS.weatherOverlayOpacity;
       const prevRadarThinning = CONFIG.radarThinning;
       CONFIG.radarThinning = saved.radarThinning !== undefined ? saved.radarThinning : DEFAULT_SETTINGS.radarThinning;
+      CONFIG.tileCacheEnabled = saved.tileCacheEnabled !== undefined ? saved.tileCacheEnabled : DEFAULT_SETTINGS.tileCacheEnabled;
       CONFIG.rotationSpeed = saved.rotationSpeed || DEFAULT_SETTINGS.rotationSpeed;
       const prevEdges = CONFIG.airspaceEdges;
       CONFIG.airspaceEdges = saved.airspaceEdges !== undefined ? saved.airspaceEdges : DEFAULT_SETTINGS.airspaceEdges;

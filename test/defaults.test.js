@@ -33,6 +33,10 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.flightawareApiKey).toBe('')
   })
 
+  it('has tile cache disabled by default', () => {
+    expect(DEFAULT_SETTINGS.tileCacheEnabled).toBe(false)
+  })
+
   it('has empty searchHistory array', () => {
     expect(Array.isArray(DEFAULT_SETTINGS.searchHistory)).toBe(true)
     expect(DEFAULT_SETTINGS.searchHistory).toHaveLength(0)

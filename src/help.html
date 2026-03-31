@@ -491,6 +491,11 @@
     <li><strong>Radar Thinning</strong> — When enabled, NEXRAD radar tiles are filtered to remove
       ground clutter and non-precipitation blues/grays, keeping only saturated weather colors
       (green, yellow, orange, red). Disable to see the full unfiltered radar imagery.</li>
+    <li><strong>Cache map tiles</strong> — When enabled, map tiles are saved to a local disk cache
+      as they are loaded. Subsequent views of the same area load instantly from the cache instead
+      of re-downloading from the network. This reduces display latency and network traffic.
+      Weather overlays (radar, satellite, turbulence) are not cached since they update frequently.
+      Disabled by default. Only available in the desktop (Electron) version.</li>
     <li><strong>Altitude Exaggeration (1&ndash;10&times;)</strong> — Scales all entity altitudes by the chosen factor to make
       vertical separation more visible. Affects aircraft, trails, airspace volumes, turbulence surfaces,
       PIREPs, and flight plan routes. At 1&times; altitudes are shown at their true scale.</li>

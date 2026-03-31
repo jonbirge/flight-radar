@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS = {
   exaggerateAltitudes: 1,
   weatherOverlayOpacity: 25,
   radarThinning: true,
+  tileCacheEnabled: false,
   rotationSpeed: 6,
   credentialsExpanded: false,
   openskyClientId: '',

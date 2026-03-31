@@ -173,9 +173,19 @@ viewer.scene.canvas.addEventListener('wheel', (e) => {
 // Theme Engine
 // ============================================================
 
+// Rewrite tile URLs to use the tile:// protocol for local caching.
+// Only active when running in Electron with tile caching enabled.
+// Weather overlays are NOT cached (time-sensitive data).
+function tileUrl(url) {
+  if (CONFIG.tileCacheEnabled && window.flightAPI) {
+    return url.replace(/^https:\/\//, 'tile://');
+  }
+  return url;
+}
+
 function makeDarkTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    url: tileUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
     subdomains: ['a', 'b', 'c', 'd'],
     credit: new Cesium.Credit('CartoDB'),
     minimumLevel: 0, maximumLevel: 18,
@@ -184,7 +194,7 @@ function makeDarkTiles() {
 
 function makeLightTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    url: tileUrl('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'),
     subdomains: ['a', 'b', 'c', 'd'],
     credit: new Cesium.Credit('CartoDB'),
     minimumLevel: 0, maximumLevel: 18,
@@ -193,7 +203,7 @@ function makeLightTiles() {
 
 function makeDarkNoLabelsTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+    url: tileUrl('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png'),
     subdomains: ['a', 'b', 'c', 'd'],
     credit: new Cesium.Credit('CartoDB'),
     minimumLevel: 0, maximumLevel: 18,
@@ -202,7 +212,7 @@ function makeDarkNoLabelsTiles() {
 
 function makeLightNoLabelsTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+    url: tileUrl('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png'),
     subdomains: ['a', 'b', 'c', 'd'],
     credit: new Cesium.Credit('CartoDB'),
     minimumLevel: 0, maximumLevel: 18,
@@ -212,7 +222,7 @@ function makeLightNoLabelsTiles() {
 function makeEsriGrayTiles() {
   const variant = CONFIG.theme === 'dark' ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
   return new Cesium.UrlTemplateImageryProvider({
-    url: `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${variant}/MapServer/tile/{z}/{y}/{x}`,
+    url: tileUrl(`https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${variant}/MapServer/tile/{z}/{y}/{x}`),
     credit: new Cesium.Credit('Esri'),
     minimumLevel: 0, maximumLevel: 16,
   });
@@ -220,7 +230,7 @@ function makeEsriGrayTiles() {
 
 function makeSatelliteTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    url: tileUrl('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
     credit: new Cesium.Credit('Esri, Maxar, Earthstar Geographics'),
     minimumLevel: 0, maximumLevel: 19,
   });
@@ -228,14 +238,14 @@ function makeSatelliteTiles() {
 
 function makeOsmTiles() {
   return new Cesium.OpenStreetMapImageryProvider({
-    url: 'https://tile.openstreetmap.org/',
+    url: tileUrl('https://tile.openstreetmap.org/'),
     credit: new Cesium.Credit('OpenStreetMap contributors'),
   });
 }
 
 function makeTopoTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    url: tileUrl('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'),
     subdomains: ['a', 'b', 'c'],
     credit: new Cesium.Credit('OpenTopoMap, OpenStreetMap contributors'),
     minimumLevel: 0, maximumLevel: 17,
@@ -335,7 +345,7 @@ function makeVfrMapTiles(chartType, maxZoom) {
   // Proxy URL for VFR map tiles (configured via CONFIG.vfrMapProxyUrl)
   const url = CONFIG.vfrMapProxyUrl
     ? `${CONFIG.vfrMapProxyUrl}?date=${VFRMAP_DATE}&chart=${chartType}&z={z}&y={reverseY}&x={x}`
-    : `https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`;
+    : tileUrl(`https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`);
   const inner = new Cesium.UrlTemplateImageryProvider({
     url,
     credit: new Cesium.Credit('VFRMap.com'),
@@ -511,6 +521,7 @@ async function applyTheme() {
 }
 
 // Expose functions on window for cross-module access
+window.tileUrl = tileUrl;
 window.makeDarkTiles = makeDarkTiles;
 window.makeLightTiles = makeLightTiles;
 window.makeDarkNoLabelsTiles = makeDarkNoLabelsTiles;

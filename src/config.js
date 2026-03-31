@@ -61,6 +61,7 @@ const CONFIG = window.CONFIG = {
   turbulenceLevel: 'none',  // runtime-only: computed from altitude, not persisted
   weatherOverlayOpacity: DEFAULT_SETTINGS.weatherOverlayOpacity,
   radarThinning: DEFAULT_SETTINGS.radarThinning,
+  tileCacheEnabled: DEFAULT_SETTINGS.tileCacheEnabled,
   awcProxyUrl: null,  // null = direct AWC access (Electron main process)
 };
 
