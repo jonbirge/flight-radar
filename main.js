@@ -832,6 +832,7 @@ app.whenReady().then(() => {
         await mkdir(dir, { recursive: true });
         // Write to disk asynchronously — don't block the response
         writeFile(cachePath, buffer).catch(() => {});
+        console.log('[TileCache] Cached:', originalUrl);
         return new Response(buffer, {
           headers: { 'Content-Type': response.headers.get('Content-Type') || 'image/png' },
         });
