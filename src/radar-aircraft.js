@@ -1505,14 +1505,6 @@ async function fetchNextTrack() {
     ac.lastTrackFetch = Date.now() / 1000;
     console.log(`[Track] Got ${data.path.length} waypoints for ${icao24}`);
     renderAircraft();
-    // If a history zoom was pending for this aircraft, trigger it now —
-    // but only if no flight plan fetch is still in progress.  When a
-    // flight plan fetch is pending, let it decide the zoom target: if a
-    // route is found the camera should fly to the route, not the history.
-    if (pendingHistoryZoom === icao24 && selectedIcao === icao24 && !pendingFlightPlanFetch) {
-      pendingHistoryZoom = null;
-      flyToTrackHistory(icao24);
-    }
   }
 }
 
