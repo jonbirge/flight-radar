@@ -246,97 +246,14 @@ function makeTopoTiles() {
 // Uses TMS (y-flipped); CesiumJS handles this via {reverseY}
 const VFRMAP_DATE = '20251225';
 
-// Imagery provider wrapper that keeps tiles visible beyond the source's
-// maximum zoom level.  When the viewer zooms past `_cap`, this provider
-// fetches the parent tile at the cap level and extracts the relevant
-// sub-portion so the chart stays on screen (upscaled) instead of
-// disappearing.
-class CappedLevelImageryProvider {
-  constructor(inner, cap) {
-    this._inner = inner;
-    this._cap = cap;
-    this._cache = new Map();
-  }
-
-  // --- Delegated read-only properties ---
-  get rectangle()        { return this._inner.rectangle; }
-  get tileWidth()        { return this._inner.tileWidth; }
-  get tileHeight()       { return this._inner.tileHeight; }
-  get minimumLevel()     { return this._inner.minimumLevel; }
-  get maximumLevel()     { return undefined; } // no limit — always render
-  get tilingScheme()     { return this._inner.tilingScheme; }
-  get tileDiscardPolicy(){ return this._inner.tileDiscardPolicy; }
-  get errorEvent()       { return this._inner.errorEvent; }
-  get credit()           { return this._inner.credit; }
-  get proxy()            { return this._inner.proxy; }
-  get ready()            { return this._inner.ready; }
-  get readyPromise()     { return this._inner.readyPromise; }
-  get hasAlphaChannel()  { return this._inner.hasAlphaChannel; }
-
-  getTileCredits(x, y, level) {
-    return this._inner.getTileCredits(x, y, level);
-  }
-
-  pickFeatures(x, y, level, longitude, latitude) {
-    return this._inner.pickFeatures(x, y, level, longitude, latitude);
-  }
-
-  requestImage(x, y, level, request) {
-    if (level <= this._cap) {
-      return this._inner.requestImage(x, y, level, request);
-    }
-
-    // Compute the parent tile at _cap that contains (x, y) at this level.
-    // A tile at (level, x, y) maps to (cap, x>>diff, y>>diff) in the
-    // parent grid; the sub-tile offset within that parent is the remainder.
-    const diff = level - this._cap;
-    const scale = 1 << diff;            // 2^diff
-    const parentX = x >>> diff;          // Math.floor(x / scale)
-    const parentY = y >>> diff;          // Math.floor(y / scale)
-    const subX = x - parentX * scale;   // column within the parent tile
-    const subY = y - parentY * scale;   // row within the parent tile
-
-    // Cache parent tile loads so multiple children share one request
-    const key = `${parentX},${parentY}`;
-    let parentPromise = this._cache.get(key);
-    if (!parentPromise) {
-      parentPromise = Promise.resolve(
-        this._inner.requestImage(parentX, parentY, this._cap, request)
-      );
-      this._cache.set(key, parentPromise);
-    }
-
-    return parentPromise.then((image) => {
-      if (!image) return image;
-
-      const tw = image.width  || image.naturalWidth  || 256;
-      const th = image.height || image.naturalHeight || 256;
-      const subW = tw / scale;
-      const subH = th / scale;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = tw;
-      canvas.height = th;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(
-        image,
-        subX * subW, subY * subH, subW, subH,   // source rect
-        0, 0, tw, th                              // dest rect (upscale)
-      );
-      return canvas;
-    }).catch(() => {
-      this._cache.delete(key);
-      return undefined; // let CesiumJS handle the missing tile
-    });
-  }
-}
-
 function makeVfrMapTiles(chartType, maxZoom) {
   // Proxy URL for VFR map tiles (configured via CONFIG.vfrMapProxyUrl)
   const url = CONFIG.vfrMapProxyUrl
     ? `${CONFIG.vfrMapProxyUrl}?date=${VFRMAP_DATE}&chart=${chartType}&z={z}&y={reverseY}&x={x}`
     : `https://vfrmap.com/${VFRMAP_DATE}/tiles/${chartType}/{z}/{reverseY}/{x}.jpg`;
-  const inner = new Cesium.UrlTemplateImageryProvider({
+  // maximumLevel tells CesiumJS not to request tiles beyond this zoom;
+  // it automatically upscales the last available tiles when zoomed further.
+  return new Cesium.UrlTemplateImageryProvider({
     url,
     credit: new Cesium.Credit('VFRMap.com'),
     minimumLevel: 1, maximumLevel: maxZoom,
@@ -344,7 +261,6 @@ function makeVfrMapTiles(chartType, maxZoom) {
     // so the CartoDB base map shows through outside the coverage area
     rectangle: Cesium.Rectangle.fromDegrees(-180, 15, -60, 75),
   });
-  return new CappedLevelImageryProvider(inner, maxZoom);
 }
 
 // Layers that have limited zoom and need a CartoDB base underneath
