@@ -330,17 +330,47 @@ function drawRadarIcon(size) {
   return c;
 }
 
+// ═══════ Bilinear downscale ═══════
+function downscale(srcData, srcSize, dstSize) {
+  const dst = Buffer.alloc(dstSize * dstSize * 4);
+  const ratio = srcSize / dstSize;
+  for (let y = 0; y < dstSize; y++)
+    for (let x = 0; x < dstSize; x++) {
+      const sx = (x + 0.5) * ratio - 0.5;
+      const sy = (y + 0.5) * ratio - 0.5;
+      const x0 = Math.max(0, Math.floor(sx)), y0 = Math.max(0, Math.floor(sy));
+      const x1 = Math.min(srcSize - 1, x0 + 1), y1 = Math.min(srcSize - 1, y0 + 1);
+      const fx = sx - x0, fy = sy - y0;
+      const di = (y * dstSize + x) * 4;
+      for (let c = 0; c < 4; c++) {
+        const v00 = srcData[(y0 * srcSize + x0) * 4 + c];
+        const v10 = srcData[(y0 * srcSize + x1) * 4 + c];
+        const v01 = srcData[(y1 * srcSize + x0) * 4 + c];
+        const v11 = srcData[(y1 * srcSize + x1) * 4 + c];
+        dst[di + c] = Math.round(v00 * (1 - fx) * (1 - fy) + v10 * fx * (1 - fy) + v01 * (1 - fx) * fy + v11 * fx * fy);
+      }
+    }
+  return dst;
+}
+
 // ═══════ Main ═══════
 const outDir = path.join(__dirname, '..', 'assets');
 fs.mkdirSync(outDir, { recursive: true });
 
 console.log('Generating radar icon...');
+const canvas256 = drawRadarIcon(256);
+const buf256 = canvas256.toBuffer();
+const png256 = encodePNG(256, 256, buf256);
+fs.writeFileSync(path.join(outDir, 'icon-256.png'), png256);
+console.log('  icon-256.png');
+
 const sizes = [256, 48, 32, 16];
 const pngs = sizes.map(sz => {
-  const canvas = drawRadarIcon(sz);
-  const png = encodePNG(sz, sz, canvas.toBuffer());
+  if (sz === 256) return png256;
+  const scaled = downscale(buf256, 256, sz);
+  const png = encodePNG(sz, sz, scaled);
   fs.writeFileSync(path.join(outDir, `icon-${sz}.png`), png);
-  console.log(`  icon-${sz}.png`);
+  console.log(`  icon-${sz}.png (downscaled)`);
   return png;
 });
 
