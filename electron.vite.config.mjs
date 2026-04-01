@@ -24,8 +24,8 @@ export default defineConfig({
       outDir: 'out/preload',
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'preload.js'),
-          settings: resolve(__dirname, 'settings-preload.js'),
+          index: resolve(__dirname, 'src/preload.js'),
+          settings: resolve(__dirname, 'src/settings-preload.js'),
           help: resolve(__dirname, 'src/help-preload.js')
         }
       }
