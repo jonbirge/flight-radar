@@ -362,12 +362,39 @@ async function saveView() {
 viewer.canvas.addEventListener('contextmenu', e => e.preventDefault());
 window.contextMenuHandler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 contextMenuHandler.setInputAction(async (click) => {
-  const action = await window.flightAPI.showContextMenu([
+  const items = [
     { id: 'home',      label: 'Go home'   },
     { id: 'save-view', label: 'Save view' },
-  ], click.position.x, click.position.y);
+  ];
+
+  // Check if right-click is on an airport entity
+  let clickedAirport = null;
+  const picks = viewer.scene.drillPick(click.position);
+  for (const picked of picks) {
+    if (Cesium.defined(picked) && picked.id && picked.id.id && picked.id.id.startsWith('apt-')) {
+      const props = picked.id.properties;
+      clickedAirport = {
+        lat: props.lat.getValue(),
+        lon: props.lon.getValue(),
+        name: props.iata.getValue() || props.icao.getValue(),
+      };
+      break;
+    }
+  }
+  if (clickedAirport) {
+    items.push({ id: 'zoom-airport', label: `Zoom to ${clickedAirport.name}` });
+  }
+
+  const action = await window.flightAPI.showContextMenu(items, click.position.x, click.position.y);
   if (action === 'home')      goHome();
   else if (action === 'save-view') saveView();
+  else if (action === 'zoom-airport' && clickedAirport) {
+    const target = Cesium.Cartesian3.fromDegrees(clickedAirport.lon, clickedAirport.lat, 0);
+    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
+      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), 80000),
+      duration: 1.5,
+    });
+  }
 }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
 // North Up — rotate earth around the camera boresight so north faces up,

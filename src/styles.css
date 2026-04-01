@@ -837,7 +837,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-radius: 50%;
   background: lime;
   flex-shrink: 0;
-  border: 1px solid rgba(0, 0, 0, 0.4);
 }
 #origin-weather   { grid-column: 1; grid-row: 2; }
 #timeline-time    { grid-column: 2; grid-row: 2; text-align: center; }
