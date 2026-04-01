@@ -224,10 +224,26 @@ function makeSatelliteTiles() {
   });
 }
 
+function makeEsriReferenceTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, HERE, Garmin, FAO, NOAA, USGS'),
+    minimumLevel: 0, maximumLevel: 19,
+  });
+}
+
 function makeOsmTiles() {
   return new Cesium.OpenStreetMapImageryProvider({
     url: 'https://tile.openstreetmap.org/',
     credit: new Cesium.Credit('OpenStreetMap contributors'),
+  });
+}
+
+function makeShadedReliefTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, USGS, NOAA'),
+    minimumLevel: 0, maximumLevel: 13,
   });
 }
 
@@ -293,7 +309,9 @@ async function makeMapTiles(layerId) {
     case 'noLabels':   return CONFIG.theme === 'dark' ? makeDarkNoLabelsTiles() : makeLightNoLabelsTiles();
     case 'esriGray':   return makeEsriGrayTiles();
     case 'satellite':  return makeSatelliteTiles();
+    case 'satLabels':  return makeSatelliteTiles();
     case 'osm':        return makeOsmTiles();
+    case 'relief':     return makeShadedReliefTiles();
     case 'topo':       return makeTopoTiles();
     case 'vfrHybrid':  return makeVfrMapTiles('vfrc', 12);
     case 'vfrIfrLow':  return makeVfrMapTiles('ifrlc', 11);
@@ -343,7 +361,11 @@ async function applyTheme() {
     }
     const mapLayer = layers.addImageryProvider(provider);
     styleMapLayer(mapLayer, CONFIG.mapLayer);
-    // Layer order: [base] → map → satellite IR → turbulence forecast → radar
+    // Satellite (Labels): add reference overlay on top of imagery
+    if (CONFIG.mapLayer === 'satLabels') {
+      layers.addImageryProvider(makeEsriReferenceTiles());
+    }
+    // Layer order: [base] → map → [reference] → satellite IR → turbulence forecast → radar
     if (CONFIG.satelliteIREnabled) {
       satelliteIRLayer = layers.addImageryProvider(makeSatelliteIRProvider());
       satelliteIRLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
@@ -431,7 +453,9 @@ window.makeDarkNoLabelsTiles = makeDarkNoLabelsTiles;
 window.makeLightNoLabelsTiles = makeLightNoLabelsTiles;
 window.makeEsriGrayTiles = makeEsriGrayTiles;
 window.makeSatelliteTiles = makeSatelliteTiles;
+window.makeEsriReferenceTiles = makeEsriReferenceTiles;
 window.makeOsmTiles = makeOsmTiles;
+window.makeShadedReliefTiles = makeShadedReliefTiles;
 window.makeTopoTiles = makeTopoTiles;
 window.makeVfrMapTiles = makeVfrMapTiles;
 window.styleMapLayer = styleMapLayer;
