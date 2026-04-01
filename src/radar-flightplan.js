@@ -1702,10 +1702,21 @@ async function selectFlightFromResults(flight, flightData) {
   const searchInput = document.getElementById('flight-search');
   if (searchInput) searchInput.value = '';
 
-  // Add the selected flight's ident to search history so the user can
+  // Add the selected flight's ident + details to search history so the user can
   // return to it directly without repeating the original search.
   const ident = (flight.ident || '').trim().toUpperCase();
-  if (ident) addSearchHistory(ident);
+  if (ident) {
+    const originCode = flight.origin ? (flight.origin.code_iata || flight.origin.code_icao || flight.origin.code || '') : '';
+    const destCode = flight.destination ? (flight.destination.code_iata || flight.destination.code_icao || flight.destination.code || '') : '';
+    const depTime = flight.actual_out || flight.scheduled_out || flight.actual_off || '';
+    addSearchHistory({
+      ident,
+      fa_flight_id: flight.fa_flight_id || '',
+      origin: originCode,
+      dest: destCode,
+      depTime,
+    });
+  }
 
   // Advanced search results lack fields like scheduled_out, filed_altitude, route, etc.
   // Detect this and fetch full data using the flight ident.
@@ -2010,7 +2021,7 @@ async function searchFlightsByNL(query) {
   }
 }
 
-async function searchFlightPlan(ident) {
+async function searchFlightPlan(ident, targetFaFlightId = null) {
   if (!ident || ident.trim().length === 0) return;
 
   // Route natural language queries to the dedicated NL search handler
@@ -2046,13 +2057,37 @@ async function searchFlightPlan(ident) {
 
     console.log(`[FlightPlan] Found ${data.flights.length} flight(s) for ${ident}`);
 
-    // Save successful search to history
+    // If a specific fa_flight_id was requested (from search history), auto-select it
+    if (targetFaFlightId && data.flights.length > 1) {
+      const match = data.flights.find(f => f.fa_flight_id === targetFaFlightId);
+      if (match) {
+        if (searchInput) searchInput.value = '';
+        const result = displayFlightPlanRoute(data, match);
+        if (result) await searchForLiveAircraft(result);
+        return;
+      }
+      // fa_flight_id not found in results — fall through to normal flow
+    }
+
+    // Save successful search to history (only plain ident here; selectFlightFromResults
+    // saves rich data when the user picks a specific flight from the list)
     addSearchHistory(ident.trim().toUpperCase());
 
     // If only one result, select it immediately; otherwise let the user pick.
     if (data.flights.length === 1) {
       // Clear the search bar — the flight is shown in the info panel title
       if (searchInput) searchInput.value = '';
+      const f = data.flights[0];
+      const originCode = f.origin ? (f.origin.code_iata || f.origin.code_icao || f.origin.code || '') : '';
+      const destCode = f.destination ? (f.destination.code_iata || f.destination.code_icao || f.destination.code || '') : '';
+      const depTime = f.actual_out || f.scheduled_out || f.actual_off || '';
+      addSearchHistory({
+        ident: ident.trim().toUpperCase(),
+        fa_flight_id: f.fa_flight_id || '',
+        origin: originCode,
+        dest: destCode,
+        depTime,
+      });
       const result = displayFlightPlanRoute(data);
       if (result) {
         await searchForLiveAircraft(result);
@@ -2103,19 +2138,33 @@ document.addEventListener('click', (e) => {
 
 window.MAX_SEARCH_HISTORY = 15;
 
-async function addSearchHistory(ident) {
-  if (!ident || !window.flightAPI) return;
+async function addSearchHistory(identOrEntry) {
+  if (!identOrEntry || !window.flightAPI) return;
   try {
     const saved = await window.flightAPI.getSettings();
     let history = Array.isArray(saved.searchHistory) ? saved.searchHistory : [];
-    // Remove duplicate if present, then prepend
-    history = history.filter(h => h !== ident);
-    history.unshift(ident);
+
+    // Build a rich entry if given a string (backward compat) or use the object as-is
+    const entry = typeof identOrEntry === 'string'
+      ? { ident: identOrEntry }
+      : identOrEntry;
+    if (!entry.ident) return;
+
+    // Remove duplicate — match by fa_flight_id if available, otherwise by ident
+    history = history.filter(h => {
+      const existing = typeof h === 'string' ? { ident: h } : h;
+      if (entry.fa_flight_id && existing.fa_flight_id) {
+        return existing.fa_flight_id !== entry.fa_flight_id;
+      }
+      return existing.ident !== entry.ident;
+    });
+    history.unshift(entry);
     // Keep only the most recent entries
     if (history.length > MAX_SEARCH_HISTORY) history = history.slice(0, MAX_SEARCH_HISTORY);
     saved.searchHistory = history;
     await saveSettingsUnified(saved);
-    console.log(`[FlightPlan] Search history updated: ${history.join(', ')}`);
+    const label = entry.fa_flight_id ? `${entry.ident} (${entry.fa_flight_id})` : entry.ident;
+    console.log(`[FlightPlan] Search history updated: ${label}`);
   } catch (err) {
     console.warn('[FlightPlan] Could not save search history:', err);
   }
@@ -2137,17 +2186,35 @@ async function showSearchHistory() {
       empty.textContent = 'No recent searches';
       panel.appendChild(empty);
     } else {
-      for (const ident of history) {
+      for (const raw of history) {
+        // Support both old string entries and new rich objects
+        const entry = typeof raw === 'string' ? { ident: raw } : raw;
+        const ident = entry.ident || '';
+
+        // Build detail string: "Mar 31 14:30 · BOS → LAX"
+        let detail = '';
+        if (entry.depTime) {
+          const d = new Date(entry.depTime);
+          if (!isNaN(d)) {
+            detail += d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            detail += ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+          }
+        }
+        if (entry.origin && entry.dest) {
+          detail += (detail ? ' \u00b7 ' : '') + `${entry.origin} \u2192 ${entry.dest}`;
+        }
+
         const item = document.createElement('div');
         item.className = 'search-history-item';
         item.innerHTML = `
           <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7a6.97 6.97 0 0 1-4.95-2.05l-1.41 1.41A8.97 8.97 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
           <span class="search-history-ident">${ident}</span>
+          ${detail ? `<span class="search-history-detail">${detail}</span>` : ''}
         `;
         item.addEventListener('click', () => {
           hideFlightResults();
           if (flightSearchInput) flightSearchInput.value = ident;
-          searchFlightPlan(ident);
+          searchFlightPlan(ident, entry.fa_flight_id || null);
         });
         panel.appendChild(item);
       }

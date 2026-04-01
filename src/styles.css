@@ -788,7 +788,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .search-history-ident {
   font-weight: 600;
-  flex: 1;
+}
+.search-history-detail {
+  margin-left: auto;
+  font-size: 0.8em;
+  opacity: 0.6;
+  white-space: nowrap;
 }
 
 .search-history-empty {
