@@ -871,14 +871,30 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 #timeline-slider::-webkit-slider-thumb {
-  background: transparent;
-  border: 3px solid var(--md-primary);
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(50% - 1px),
+      var(--md-primary) calc(50% - 1px),
+      var(--md-primary) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) center / 100% 50% no-repeat,
+    rgb(from var(--md-primary) r g b / 0.15);
+  border: none;
   box-shadow: none;
 }
 
 #timeline-slider::-moz-range-thumb {
-  background: transparent;
-  border: 3px solid var(--md-primary);
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(50% - 1px),
+      var(--md-primary) calc(50% - 1px),
+      var(--md-primary) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) center / 100% 50% no-repeat,
+    rgb(from var(--md-primary) r g b / 0.15);
+  border: none;
   box-shadow: none;
 }
 
