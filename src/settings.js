@@ -588,17 +588,29 @@ function initSettingsPanel(options) {
   let formState = { ...DEFAULT_SETTINGS };
 
   function readForm() {
+    // Derive theme and trail mode from DOM button active states so that
+    // readForm() never returns stale values from the internal formState.
+    // This fixes settings not loading correctly after cloud login, reset
+    // to defaults, or cloud settings sync where populateSettingsForm()
+    // updates the DOM but formState is not refreshed.
+    const theme = btnDark.classList.contains('active') ? 'dark'
+      : btnLight.classList.contains('active') ? 'light'
+      : 'system';
+    const trailMode = btnTrailNone.classList.contains('active') ? 'none'
+      : btnTrailVelocity.classList.contains('active') ? 'velocity'
+      : 'history';
+
     return {
       fontSize: parseInt(fontSlider.value),
-      theme: formState.theme,
+      theme,
       muteMapColors: muteMapColors.checked,
-      darkColor: formState.darkColor,
-      lightColor: formState.lightColor,
+      darkColor: customColor.value,
+      lightColor: lightCustomColor.value,
       darkColorPresets: Array.from(darkSwatches).map(sw => sw.dataset.color),
       lightColorPresets: Array.from(lightSwatches).map(sw => sw.dataset.color),
       colorByAltitude: colorByAlt.checked,
       thickTrailsByAltitude: thickTrails.checked,
-      trailMode: formState.trailMode,
+      trailMode,
       trailLength: parseInt(trailLengthSlider.value),
       airportsEnabled: airportsEnabled.checked,
       airspaceEnabled: airspaceEnabled.checked,
