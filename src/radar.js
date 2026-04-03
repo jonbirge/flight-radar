@@ -190,6 +190,10 @@ async function loadAndApplySettings(overrideSettings) {
       if (prevEdges !== CONFIG.airspaceEdges) {
         updateWeatherEdges();
       }
+      // Airspace 3D mode changed — toggle SIGMET/AIRMET entities between volume and flat
+      if (prev3D !== CONFIG.airspace3D) {
+        updateWeatherAltitudes();
+      }
       // Altitude exaggeration changed — rebuild 3D turb layers, PIREPs, and re-render aircraft
       if (prevExAlt !== CONFIG.exaggerateAltitudes) {
         renderAircraft();
