@@ -661,17 +661,29 @@ async function fetchSigmets() {
             if (!rings || !rings[0] || rings[0].length < 3) continue;
             const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
             const edgesOn = CONFIG.airspaceEdges;
+            const use3D = CONFIG.airspace3D;
+            const polygonOpts = use3D
+              ? {
+                  hierarchy: new Cesium.PolygonHierarchy(positions),
+                  material: fillColor,
+                  outline: edgesOn,
+                  outlineColor: edgesOn ? edgeColor : undefined,
+                  outlineWidth: edgesOn ? 1 : undefined,
+                  height: baseMeters,
+                  extrudedHeight: topMeters,
+                }
+              : {
+                  hierarchy: new Cesium.PolygonHierarchy(positions),
+                  material: fillColor,
+                  outline: edgesOn,
+                  outlineColor: edgesOn ? edgeColor : undefined,
+                  outlineWidth: edgesOn ? 1 : undefined,
+                  height: 0,
+                  classificationType: Cesium.ClassificationType.BOTH,
+                };
             const entity = viewer.entities.add({
               id: `turb-sigmet-${count}`,
-              polygon: {
-                hierarchy: new Cesium.PolygonHierarchy(positions),
-                material: fillColor,
-                outline: edgesOn,
-                outlineColor: edgesOn ? edgeColor : undefined,
-                outlineWidth: edgesOn ? 1 : undefined,
-                height: baseMeters,
-                extrudedHeight: topMeters,
-              },
+              polygon: polygonOpts,
               properties: {
                 turbType: isConvective ? 'CONVECTIVE SIGMET' : 'SIGMET',
                 hazard: hazard,
@@ -729,17 +741,31 @@ function _buildAirmetEntities(responses, targetArray, idPrefix) {
         if (!rings || !rings[0] || rings[0].length < 3) continue;
         const positions = rings[0].map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1]));
         const edgesOn = CONFIG.airspaceEdges;
+        const use3D = CONFIG.airspace3D;
+        const airmetFill = new Cesium.Color(1.0, 0.5, 0.0, 0.10);
+        const airmetOutline = new Cesium.Color(1.0, 0.5, 0.0, 0.7);
+        const polygonOpts = use3D
+          ? {
+              hierarchy: new Cesium.PolygonHierarchy(positions),
+              material: airmetFill,
+              outline: edgesOn,
+              outlineColor: edgesOn ? airmetOutline : undefined,
+              outlineWidth: edgesOn ? 1 : undefined,
+              height: baseMeters,
+              extrudedHeight: topMeters,
+            }
+          : {
+              hierarchy: new Cesium.PolygonHierarchy(positions),
+              material: airmetFill,
+              outline: edgesOn,
+              outlineColor: edgesOn ? airmetOutline : undefined,
+              outlineWidth: edgesOn ? 1 : undefined,
+              height: 0,
+              classificationType: Cesium.ClassificationType.BOTH,
+            };
         const entity = viewer.entities.add({
           id: `${idPrefix}-${count}`,
-          polygon: {
-            hierarchy: new Cesium.PolygonHierarchy(positions),
-            material: new Cesium.Color(1.0, 0.5, 0.0, 0.10),
-            outline: edgesOn,
-            outlineColor: edgesOn ? new Cesium.Color(1.0, 0.5, 0.0, 0.7) : undefined,
-            outlineWidth: edgesOn ? 1 : undefined,
-            height: baseMeters,
-            extrudedHeight: topMeters,
-          },
+          polygon: polygonOpts,
           properties: {
             turbType: 'G-AIRMET',
             hazard: ap.hazard || '?',
@@ -1463,20 +1489,34 @@ function updateWeatherAltitudes() {
   for (const entity of sigmetEntities) {
     const p = entity.properties;
     if (!p) continue;
-    const baseFt = p.base ? Number(p.base.getValue()) : NaN;
-    const topFt = p.top ? Number(p.top.getValue()) : NaN;
-    entity.polygon.height = !isNaN(baseFt) ? exAlt(baseFt * 0.3048) : 0;
-    entity.polygon.extrudedHeight = !isNaN(topFt) ? exAlt(topFt * 0.3048) : exAlt(60000 * 0.3048);
+    if (CONFIG.airspace3D) {
+      const baseFt = p.base ? Number(p.base.getValue()) : NaN;
+      const topFt = p.top ? Number(p.top.getValue()) : NaN;
+      entity.polygon.height = !isNaN(baseFt) ? exAlt(baseFt * 0.3048) : 0;
+      entity.polygon.extrudedHeight = !isNaN(topFt) ? exAlt(topFt * 0.3048) : exAlt(60000 * 0.3048);
+      entity.polygon.classificationType = undefined;
+    } else {
+      entity.polygon.height = 0;
+      entity.polygon.extrudedHeight = undefined;
+      entity.polygon.classificationType = Cesium.ClassificationType.BOTH;
+    }
   }
   // AIRMETs (live + scrub)
   const allAirmets = airmetEntities.concat(_scrubAirmetEntities);
   for (const entity of allAirmets) {
     const p = entity.properties;
     if (!p) continue;
-    const baseFL = p.base ? parseAltToFL(p.base.getValue()) : null;
-    const topFL = p.top ? parseAltToFL(p.top.getValue()) : null;
-    entity.polygon.height = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
-    entity.polygon.extrudedHeight = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
+    if (CONFIG.airspace3D) {
+      const baseFL = p.base ? parseAltToFL(p.base.getValue()) : null;
+      const topFL = p.top ? parseAltToFL(p.top.getValue()) : null;
+      entity.polygon.height = baseFL != null ? exAlt(baseFL * 100 * 0.3048) : 0;
+      entity.polygon.extrudedHeight = topFL != null ? exAlt(topFL * 100 * 0.3048) : exAlt(60000 * 0.3048);
+      entity.polygon.classificationType = undefined;
+    } else {
+      entity.polygon.height = 0;
+      entity.polygon.extrudedHeight = undefined;
+      entity.polygon.classificationType = Cesium.ClassificationType.BOTH;
+    }
   }
 }
 
