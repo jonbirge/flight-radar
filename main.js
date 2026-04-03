@@ -702,7 +702,7 @@ function createWindow() {
     height: 1000,
     backgroundColor: '#000000',
     title: '3D Flight Radar - FAA Scope',
-    icon: path.join(app.getAppPath(), 'assets/icon.ico'),
+    icon: path.join(app.getAppPath(), { darwin: 'assets/icon.icns', win32: 'assets/icon.ico' }[process.platform] || 'assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
