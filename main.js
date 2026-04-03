@@ -1,7 +1,7 @@
 // main.js - Electron main process
 // Handles OpenSky Network API calls via IPC to avoid CORS issues
 
-import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, session } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import https from 'https'
@@ -753,6 +753,30 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin') {
     app.setName('Flight Radar');
   }
+
+  // Set Content Security Policy for all renderer windows
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          [
+            "default-src 'self'",
+            "script-src 'self' 'wasm-unsafe-eval'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' blob: data: https://*.basemaps.cartocdn.com https://services.arcgisonline.com https://server.arcgisonline.com https://tile.openstreetmap.org https://*.tile.opentopomap.org https://vfrmap.com https://mesonet.agron.iastate.edu https://nyc.birgefuller.com",
+            "font-src 'self'",
+            "connect-src 'self' https://opensky-network.org https://auth.opensky-network.org https://aeroapi.flightaware.com https://aviationweather.gov https://nasstatus.faa.gov https://api.open-meteo.com https://nyc.birgefuller.com https://*.basemaps.cartocdn.com https://services.arcgisonline.com https://server.arcgisonline.com https://tile.openstreetmap.org https://*.tile.opentopomap.org https://vfrmap.com https://mesonet.agron.iastate.edu",
+            "worker-src 'self' blob:",
+            "frame-src 'none'",
+            "object-src 'none'",
+            "base-uri 'self'",
+          ].join('; '),
+        ],
+      },
+    });
+  });
+
   syncNativeTheme();
   createWindow();
   buildMenu();
