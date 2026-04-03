@@ -29,6 +29,14 @@ async function loadAndApplySettings(overrideSettings) {
     // and loadSettingsUnified() returns stale data that overwrites the local change.
     let saved = overrideSettings || await loadSettingsUnified();
 
+    // Keep local file in sync with the loaded settings (cloud or override).
+    // Main-panel toggle handlers read via getSettings() which returns the
+    // local file — if it's stale, toggling any control would overwrite
+    // cloud values with old local values via saveSettingsUnified().
+    if (saved && window.flightAPI?.saveSettings) {
+      window.flightAPI.saveSettings(saved);
+    }
+
     if (saved) {
       CONFIG.fontSize = saved.fontSize || DEFAULT_SETTINGS.fontSize;
       CONFIG.themePref = saved.theme || DEFAULT_SETTINGS.theme;
