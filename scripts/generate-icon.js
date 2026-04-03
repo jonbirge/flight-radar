@@ -1,6 +1,11 @@
 #!/usr/bin/env node
-// Generates a radar-themed application icon (phosphor green scope)
+// Generates application icons for all desktop platforms (macOS, Windows, Linux)
 // No external dependencies — uses only Node.js built-ins
+//
+// Outputs to assets/:
+//   icon.png   — 1024x1024 PNG (Linux, source for all sizes)
+//   icon.ico   — Windows ICO (256, 48, 32, 16)
+//   icon.icns  — macOS ICNS (1024, 512, 256, 128)
 
 const zlib = require('zlib');
 const fs = require('fs');
@@ -63,6 +68,32 @@ function encodeICO(pngBufs, sizes) {
   return Buffer.concat([hdr, ...dirs, ...pngBufs]);
 }
 
+// ═══════ ICNS Encoder (PNG-in-ICNS for macOS) ═══════
+// Modern ICNS uses tagged chunks containing PNG data
+const ICNS_TYPES = {
+  1024: 'ic10',  // 1024x1024 (512x512@2x)
+  512:  'ic09',  // 512x512
+  256:  'ic08',  // 256x256
+  128:  'ic07',  // 128x128
+};
+
+function encodeICNS(pngBufs, sizes) {
+  const chunks = [];
+  for (let i = 0; i < sizes.length; i++) {
+    const type = ICNS_TYPES[sizes[i]];
+    if (!type) continue;
+    const tag = Buffer.from(type, 'ascii');         // 4 bytes
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(8 + pngBufs[i].length);       // size includes tag + length + data
+    chunks.push(Buffer.concat([tag, len, pngBufs[i]]));
+  }
+  const body = Buffer.concat(chunks);
+  const header = Buffer.alloc(8);
+  header.write('icns', 0, 4, 'ascii');
+  header.writeUInt32BE(8 + body.length, 4);
+  return Buffer.concat([header, body]);
+}
+
 // ═══════ Canvas with alpha compositing ═══════
 class Canvas {
   constructor(size) { this.size = size; this.data = new Float64Array(size * size * 4); }
@@ -114,8 +145,6 @@ class Canvas {
       }
   }
 
-  // Draw a line with per-pixel color interpolated along the line (t) and/or across it (p).
-  // colorFn(t, p) where t=0..1 along the line, p=-1..+1 across (negative=left, positive=right).
   drawLineGradient(x0, y0, x1, y1, colorFn, thick) {
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
     if (len < 0.001) return;
@@ -125,14 +154,14 @@ class Canvas {
       for (let x = Math.max(0, Math.floor(Math.min(x0, x1) - thick - 1)); x <= Math.min(this.size - 1, Math.ceil(Math.max(x0, x1) + thick + 1)); x++) {
         const t = ((x - x0) * dx + (y - y0) * dy) / (len * len);
         if (t < -1 / len || t > 1 + 1 / len) continue;
-        const sd = (x - x0) * nx + (y - y0) * ny; // signed distance from line (left negative, right positive)
+        const sd = (x - x0) * nx + (y - y0) * ny;
         const pd = Math.abs(sd);
         if (pd > half + 0.5) continue;
         let cov = Math.min(1, half + 0.5 - pd);
         if (t < 0) cov *= Math.max(0, 1 + t * len);
         if (t > 1) cov *= Math.max(0, 1 - (t - 1) * len);
         const tc = Math.max(0, Math.min(1, t));
-        const pc = Math.max(-1, Math.min(1, sd / half)); // -1 to +1 across the line
+        const pc = Math.max(-1, Math.min(1, sd / half));
         const [r, g, b, a] = colorFn(tc, pc);
         this.blend(x, y, r, g, b, a * Math.min(1, cov));
       }
@@ -211,12 +240,11 @@ function drawRadarIcon(size) {
     const headAng = 310, trailLen = 25, steps = 6;
     const dist = maxR * 0.55;
     for (let i = steps; i >= 0; i--) {
-      const t = i / steps; // 0 = head, 1 = tail
+      const t = i / steps;
       const ang = (headAng - trailLen * t) * Math.PI / 180;
       const d = dist - t * maxR * 0.04;
       const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
       const dotR = br * (1 - t * 0.5);
-      // Cyan at tail → bright green at head
       const r = 0.0 + 0.15 * (1 - t);
       const g = 0.6 + 0.4 * (1 - t);
       const b = 0.8 * t + 0.35 * (1 - t);
@@ -235,7 +263,6 @@ function drawRadarIcon(size) {
       const d = dist + t * maxR * 0.02;
       const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
       const dotR = br * 0.8 * (1 - t * 0.5);
-      // Deep amber at tail → bright yellow at head
       const r = 0.8 + 0.2 * (1 - t);
       const g = 0.5 + 0.4 * (1 - t);
       const b = 0.0;
@@ -254,7 +281,6 @@ function drawRadarIcon(size) {
       const d = dist - t * maxR * 0.02;
       const px = cx + d * Math.sin(ang), py = cy - d * Math.cos(ang);
       const dotR = br * 0.6 * (1 - t * 0.5);
-      // Magenta at tail → bright white-green at head
       const r = 0.7 * t + 0.3 * (1 - t);
       const g = 0.3 * t + 0.95 * (1 - t);
       const b = 0.8 * t + 0.5 * (1 - t);
@@ -357,27 +383,32 @@ function downscale(srcData, srcSize, dstSize) {
 const outDir = path.join(__dirname, '..', 'assets');
 fs.mkdirSync(outDir, { recursive: true });
 
-console.log('Generating radar icon...');
-const canvas256 = drawRadarIcon(256);
-const buf256 = canvas256.toBuffer();
-const png256 = encodePNG(256, 256, buf256);
-fs.writeFileSync(path.join(outDir, 'icon-256.png'), png256);
-console.log('  icon-256.png');
+// Render master icon at 1024x1024 (macOS retina needs this)
+console.log('Generating application icons...');
+const masterSize = 1024;
+const canvas = drawRadarIcon(masterSize);
+const masterBuf = canvas.toBuffer();
 
-const sizes = [256, 48, 32, 16];
-const pngs = sizes.map(sz => {
-  if (sz === 256) return png256;
-  const scaled = downscale(buf256, 256, sz);
-  const png = encodePNG(sz, sz, scaled);
-  fs.writeFileSync(path.join(outDir, `icon-${sz}.png`), png);
-  console.log(`  icon-${sz}.png (downscaled)`);
-  return png;
-});
+// Generate PNGs at all needed sizes
+const allSizes = [1024, 512, 256, 128, 48, 32, 16];
+const pngBySize = {};
+for (const sz of allSizes) {
+  const rgba = sz === masterSize ? masterBuf : downscale(masterBuf, masterSize, sz);
+  pngBySize[sz] = encodePNG(sz, sz, rgba);
+}
 
-fs.writeFileSync(path.join(outDir, 'icon.png'), pngs[0]);
-console.log('  icon.png (256px copy)');
+// icon.png — 1024x1024 master (Linux, and source-of-truth)
+fs.writeFileSync(path.join(outDir, 'icon.png'), pngBySize[1024]);
+console.log('  icon.png (1024x1024)');
 
-fs.writeFileSync(path.join(outDir, 'icon.ico'), encodeICO(pngs, sizes));
-console.log('  icon.ico');
+// icon.ico — Windows (256, 48, 32, 16)
+const icoSizes = [256, 48, 32, 16];
+fs.writeFileSync(path.join(outDir, 'icon.ico'), encodeICO(icoSizes.map(s => pngBySize[s]), icoSizes));
+console.log('  icon.ico (256, 48, 32, 16)');
+
+// icon.icns — macOS (1024, 512, 256, 128)
+const icnsSizes = [1024, 512, 256, 128];
+fs.writeFileSync(path.join(outDir, 'icon.icns'), encodeICNS(icnsSizes.map(s => pngBySize[s]), icnsSizes));
+console.log('  icon.icns (1024, 512, 256, 128)');
 
 console.log('Done!');

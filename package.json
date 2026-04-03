@@ -7,13 +7,15 @@
   "author": "Jonathan Birge",
   "scripts": {
     "start": "electron-vite preview",
+    "predev": "node scripts/generate-icon.js",
     "dev": "electron-vite dev",
+    "prebuild": "node scripts/generate-icon.js",
     "build": "electron-vite build",
     "build:snap:js": "node scripts/obfuscate-snap.js",
     "postinstall": "node scripts/copy-cesium.js && node scripts/check-fonts.js && node scripts/patch-electron-plist.js && npm run pull-data",
     "pull-data": "node scripts/download-airports.js && node scripts/download-airspace.js && node scripts/download-waypoints.js && node scripts/promote-airports.js",
-    "pack": "electron-vite build && electron-builder --dir",
-    "dist": "electron-vite build && electron-builder",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
     "test": "vitest run",
     "test:watch": "vitest"
   },
