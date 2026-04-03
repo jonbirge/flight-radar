@@ -943,15 +943,16 @@ function extrapolatePositions() {
 function _computeTrailHash(ac, s, isSelected) {
   // Selected aircraft always use history-style trail hash regardless of global trail mode
   if (!isSelected && CONFIG.trailMode === 'none') return '';
+  const exAltKey = CONFIG.exaggerateAltitudes;
   if (!isSelected && CONFIG.trailMode === 'velocity') {
-    return `V:${(s.heading||0).toFixed(1)}:${(s.velocity||0).toFixed(0)}:${s.lon.toFixed(4)}:${s.lat.toFixed(4)}`;
+    return `V:${(s.heading||0).toFixed(1)}:${(s.velocity||0).toFixed(0)}:${s.lon.toFixed(4)}:${s.lat.toFixed(4)}:${exAltKey}`;
   }
   const histLen = ac.history.length;
   const last = histLen > 0 ? ac.history[histLen - 1] : null;
   const granLen = ac.granularTrack && ac.granularTrack.path ? ac.granularTrack.path.length : 0;
   return last
-    ? `T:${histLen}:${granLen}:${last.time.toFixed(0)}`
-    : `T:0:${granLen}`;
+    ? `T:${histLen}:${granLen}:${last.time.toFixed(0)}:${exAltKey}`
+    : `T:0:${granLen}:${exAltKey}`;
 }
 
 // Compute the straight-line distance from camera to the geometric horizon.
