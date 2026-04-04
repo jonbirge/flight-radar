@@ -118,67 +118,6 @@ snapcraft pack
 sudo snap install flight-radar_*.snap --dangerous
 ```
 
-## Project Structure
-
-```
-main.js                   # Electron main process (ESM, API calls, IPC, windows)
-preload.js                # Context-isolated IPC bridge → window.flightAPI
-settings-preload.js       # IPC bridge for settings window
-electron.vite.config.mjs  # Vite config (main, preload, renderer builds)
-src/
-  entry.js                # Renderer entry — imports all modules + renderer.js
-  index.html              # Electron renderer HTML (<script type="module">)
-  renderer.js             # Electron renderer entry point
-  settings-entry.js       # Settings window entry — imports defaults + settings
-  settings.html           # Settings window HTML
-  settings-electron.js    # Settings window logic (Electron IPC wrapper)
-  settings.js             # Settings panel UI — HTML template, CSS, event wiring
-  settings.css            # Settings window styling
-  help.html               # In-app help documentation
-  help.css                # Help window styling
-  help-preload.js         # Help window preload
-  defaults.js             # Default settings values
-  config.js               # CONFIG object, color/theme utilities
-  data.js                 # Airport DB, state vector parsing
-  icons.js                # Canvas-based aircraft icon generation
-  cloud.js                # PocketBase cloud sync + Google OAuth
-  radar-core.js           # Cesium viewer init, theme engine (load first)
-  radar-weather.js        # NEXRAD, GTG turbulence, PIREPs, SIGMETs, G-AIRMETs
-  radar-markers.js        # Airport markers, airspace, waypoints, navaids
-  radar-aircraft.js       # Aircraft entities, trails, polling loop
-  radar-ui.js             # HUD, camera events, UI controls, 2D/3D morphing
-  radar-flightplan.js     # Aircraft selection, FlightAware flight plan search
-  radar-timeline.js       # Timeline scrubber for flight plan playback
-  radar.js                # Init helpers (loaded last)
-  styles.css              # All application CSS
-out/                      # Build output (gitignored)
-  main/index.js           # Bundled main process
-  preload/                # Bundled preload scripts
-  renderer/               # Bundled renderer (HTML, JS, CSS, static assets)
-data/
-  airports.json           # Airport database
-  airspace.json           # Class B/C/D airspace boundaries
-  waypoints.json          # Navigation fixes
-vendor/                   # Third-party assets (gitignored, created by postinstall)
-  cesium/                 # CesiumJS runtime
-  fonts/                  # Bundled fonts (Roboto Flex, JetBrains Mono)
-scripts/
-  copy-cesium.js          # postinstall: copies CesiumJS build to vendor/
-  check-fonts.js          # postinstall: verifies/downloads fonts to vendor/fonts/
-  obfuscate-snap.js       # snap build: minifies/obfuscates JS before packaging
-  generate-icon.js        # generates app icon assets
-  download-airports.js    # data refresh scripts
-  download-airspace.js
-  download-waypoints.js
-  promote-airports.js
-  publish-snap.sh         # snap publishing helper
-  snap-launcher.sh        # snap launcher wrapper
-utils/
-  fix-sandbox.sh          # sandbox fix utility
-site/                     # Static marketing/help site
-  screenshots/            # App screenshots used in README and marketing
-```
-
 ## Screenshots
 
 <img src="site/screenshots/flightplan.png" alt="Flight plan view" width="49%"> <img src="site/screenshots/search.png" alt="Search panel" width="49%">
