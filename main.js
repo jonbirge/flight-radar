@@ -6,8 +6,60 @@ import path from 'path'
 import fs from 'fs'
 import https from 'https'
 import http from 'http'
+import { execSync } from 'child_process'
 import DEFAULT_SETTINGS from './src/defaults.js'
 import pkg from './package.json'
+
+// --- GPU Availability Detection ---
+// Detect environments where hardware GPU acceleration is unavailable (e.g. xrdp,
+// SSH X-forwarding, headless Linux, Windows without a real GPU driver) and fall
+// back to software rendering so the app doesn't crash or show a black window.
+
+function shouldDisableGpu() {
+  const platform = process.platform;
+
+  // macOS always has GPU support via Metal/OpenGL
+  if (platform === 'darwin') return false;
+
+  if (platform === 'linux') {
+    // xrdp session — no GPU passthrough
+    if (process.env.XRDP_SESSION) return 'XRDP_SESSION is set';
+
+    // X11 forwarding over SSH — remote display, no local GPU
+    if (process.env.SSH_CONNECTION && process.env.DISPLAY) return 'SSH X-forwarding detected';
+
+    // No usable DRI render nodes — absent, or present but not accessible
+    // (e.g. user not in the 'render' / 'video' groups)
+    try {
+      execSync('test -r /dev/dri/renderD* 2>/dev/null', { stdio: 'pipe' });
+    } catch {
+      return '/dev/dri/renderD* devices not found or not accessible';
+    }
+  }
+
+  if (platform === 'win32') {
+    // Check if the only GPU is the Microsoft Basic Display Adapter (no real driver)
+    try {
+      const output = execSync('wmic path win32_VideoController get Name', { stdio: 'pipe' }).toString();
+      const lines = output.split(/\r?\n/).map(l => l.trim()).filter(l => l && l !== 'Name');
+      if (lines.length > 0 && lines.every(l => /Microsoft Basic Display Adapter/i.test(l))) {
+        return 'only Microsoft Basic Display Adapter found';
+      }
+    } catch {
+      // wmic not available or failed — assume GPU is present
+    }
+  }
+
+  return false;
+}
+
+const gpuDisableReason = shouldDisableGpu();
+if (gpuDisableReason) {
+  console.warn(`[GPU] Hardware acceleration disabled: ${gpuDisableReason}. Using software rendering.`);
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+}
 
 // --- Settings Persistence ---
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
