@@ -193,8 +193,11 @@ class Canvas {
 function drawRadarIcon(size) {
   const c = new Canvas(size);
   const cx = (size - 1) / 2, cy = (size - 1) / 2;
-  const maxR = size / 2 - 2;
   const s = size / 256; // scale factor relative to 256px
+
+  // Compute outer ring width first so maxR accounts for it
+  const ow = Math.max(1.5, 3.2 * s) * 3;
+  const maxR = (size - 1) / 2 - ow / 2 - 1;
 
   // 1. Dark background disc
   c.fillCircle(cx, cy, maxR, 0.01, 0.05, 0.01, 1.0);
@@ -343,8 +346,7 @@ function drawRadarIcon(size) {
     }
   }
 
-  // 7. Outer ring (bold) — 3x thicker
-  const ow = Math.max(1.5, 3.2 * s) * 3;
+  // 7. Outer ring (bold) — 3x thicker (ow computed above for maxR sizing)
   c.strokeCircle(cx, cy, maxR, 0, 0.8, 0.27, 0.9, ow);
 
   // 8. Center dot — 3x larger
@@ -410,5 +412,11 @@ console.log('  icon.ico (256, 48, 32, 16)');
 const icnsSizes = [1024, 512, 256, 128];
 fs.writeFileSync(path.join(outDir, 'icon.icns'), encodeICNS(icnsSizes.map(s => pngBySize[s]), icnsSizes));
 console.log('  icon.icns (1024, 512, 256, 128)');
+
+// favicon.png — site favicon (256x256)
+const siteDir = path.join(__dirname, '..', 'site');
+fs.mkdirSync(siteDir, { recursive: true });
+fs.writeFileSync(path.join(siteDir, 'favicon.png'), pngBySize[256]);
+console.log('  site/favicon.png (256x256)');
 
 console.log('Done!');
