@@ -151,7 +151,6 @@ src/
   radar-timeline.js       # Timeline scrubber for flight plan playback
   radar.js                # Init helpers (loaded last)
   styles.css              # All application CSS
-  fonts/                  # Bundled fonts (Roboto Flex, JetBrains Mono)
 out/                      # Build output (gitignored)
   main/index.js           # Bundled main process
   preload/                # Bundled preload scripts
@@ -160,9 +159,12 @@ data/
   airports.json           # Airport database
   airspace.json           # Class B/C/D airspace boundaries
   waypoints.json          # Navigation fixes
+vendor/                   # Third-party assets (gitignored, created by postinstall)
+  cesium/                 # CesiumJS runtime
+  fonts/                  # Bundled fonts (Roboto Flex, JetBrains Mono)
 scripts/
   copy-cesium.js          # postinstall: copies CesiumJS build to vendor/
-  check-fonts.js          # postinstall: verifies/downloads fonts to src/fonts/
+  check-fonts.js          # postinstall: verifies/downloads fonts to vendor/fonts/
   obfuscate-snap.js       # snap build: minifies/obfuscates JS before packaging
   generate-icon.js        # generates app icon assets
   download-airports.js    # data refresh scripts
