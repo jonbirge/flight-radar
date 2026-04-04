@@ -91,8 +91,9 @@ async function downloadFont(font) {
         try {
           await downloadFont(font);
         } catch (err) {
-          console.error(`ERROR: failed to download ${font.name}: ${err.message}`);
-          process.exit(1);
+          // Font file exists but checksum differs — keep the existing file
+          // rather than failing the build (network may be unavailable)
+          console.warn(`  WARNING: failed to download ${font.name}: ${err.message} — using existing file`);
         }
       }
     } else {

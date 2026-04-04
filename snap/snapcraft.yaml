@@ -11,6 +11,9 @@ contact: https://github.com/jonbirge/flight-radar/issues
 source-code: https://github.com/jonbirge/flight-radar
 issues: https://github.com/jonbirge/flight-radar/issues
 website: https://flightradar.birgefuller.com
+architectures:
+  - build-on: [amd64]
+  - build-on: [arm64]
 grade: stable
 confinement: strict
 
@@ -37,6 +40,7 @@ parts:
   app:
     plugin: nil
     source: .
+    source-type: git
     build-snaps:
       - node/22/stable
     build-packages:
@@ -54,6 +58,10 @@ parts:
       # Electron's JS, not the binary.  The binary is fetched separately
       # below with curl, which handles the Launchpad proxy correctly.
       ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --include=dev
+
+      # Generate application icons (normally done by npm prebuild hook,
+      # but we call electron-vite directly so the hook doesn't fire)
+      node scripts/generate-icon.js
 
       # Build with electron-vite → out/
       npx electron-vite build
@@ -82,7 +90,13 @@ parts:
       # Fetch the Electron binary with curl (respects HTTPS_PROXY, unlike
       # Electron's install.js which fails in Launchpad's proxy environment)
       ELECTRON_VERSION="$(node -p "require('./node_modules/electron/package.json').version")"
-      ELECTRON_ZIP="electron-v${ELECTRON_VERSION}-linux-x64.zip"
+      case "$(dpkg --print-architecture)" in
+        amd64)  ELECTRON_ARCH="x64" ;;
+        arm64)  ELECTRON_ARCH="arm64" ;;
+        armhf)  ELECTRON_ARCH="armv7l" ;;
+        *)      echo "Unsupported arch: $(dpkg --print-architecture)"; exit 1 ;;
+      esac
+      ELECTRON_ZIP="electron-v${ELECTRON_VERSION}-linux-${ELECTRON_ARCH}.zip"
       env -u LD_LIBRARY_PATH curl -fSL \
         "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/${ELECTRON_ZIP}" \
         -o "/tmp/${ELECTRON_ZIP}"
