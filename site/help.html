@@ -64,9 +64,9 @@
           <a href="#aircraft-info-panel" class="nav-h2">Aircraft Info Panel</a>
           <ul>
             <li><a href="#airport-filter" class="nav-h3">Airport Flight Filter</a></li>
+            <li><a href="#airport-delays" class="nav-h3">Airport Delays</a></li>
           </ul>
         </li>
-        <li><a href="#hud" class="nav-h2">HUD</a></li>
         <li><a href="#airspace-colors" class="nav-h2">Airspace Colors</a></li>
         <li><a href="#map-layers" class="nav-h2">Map Layers</a></li>
         <li>
@@ -81,6 +81,7 @@
           </ul>
         </li>
         <li><a href="#data-sources" class="nav-h2">Data Sources</a></li>
+        <li><a href="#license" class="nav-h2">License &amp; Attribution</a></li>
       </ul>
     </nav>
 
@@ -149,6 +150,7 @@
       <ul>
         <li><strong>Go home</strong> — Return to your saved view, or the default starting location.</li>
         <li><strong>Save view</strong> — Save the current camera position as your home view.</li>
+        <li><strong>Zoom to [airport]</strong> — Right-click on an airport marker to zoom in and center the camera on that airport. Only appears when an airport is under the cursor.</li>
       </ul>
 
       <h3 id="buttons">Buttons</h3>
@@ -403,16 +405,6 @@
         information is shown anywhere.
       </p>
 
-      <h2 id="hud">HUD (Heads-Up Display)</h2>
-      <p>The top-right bar shows:</p>
-      <ul>
-        <li><strong>Clock</strong> — Current UTC time.</li>
-        <li><strong>Tracks</strong> — Number of aircraft currently tracked.</li>
-        <li><strong>Updated</strong> — Time of the last data update.</li>
-        <li><strong>Lat, Lon</strong> — Camera center coordinates.</li>
-        <li><strong>Alt</strong> — Camera altitude above the surface.</li>
-      </ul>
-
       <h2 id="airspace-colors">Airspace Colors</h2>
       <table>
         <tr><th>Class</th><th>Color</th></tr>
@@ -437,7 +429,9 @@
         <tr><td>Simple (Labels)</td><td>Same CartoDB basemap with city and road labels</td></tr>
         <tr><td>Gray Canvas</td><td>Esri minimal gray basemap (dark/light variants match theme)</td></tr>
         <tr><td>Satellite</td><td>ESRI/ArcGIS global satellite and aerial imagery</td></tr>
+        <tr><td>Satellite (Labels)</td><td>Satellite imagery with place names and boundary labels overlaid</td></tr>
         <tr><td>OpenStreetMap</td><td>Standard OpenStreetMap road and street map</td></tr>
+        <tr><td>Shaded Relief</td><td>Esri World Shaded Relief &mdash; hill shading without roads or labels</td></tr>
         <tr><td>Topographic</td><td>OpenTopoMap with contour lines and hill shading</td></tr>
         <tr><td>VFR Sectional</td><td>VFRMap.com hybrid VFR &mdash; shows WAC at low zoom, Sectional at mid, TAC at high; upscaled beyond native zoom</td></tr>
         <tr><td>IFR Low</td><td>VFRMap.com IFR Low Altitude Enroute; upscaled beyond native zoom</td></tr>
@@ -541,6 +535,22 @@
           airport data, and navigation aids.</li>
         <li><strong>VFRMap.com</strong> — VFR/IFR aeronautical charts.</li>
       </ul>
+
+      <h2 id="license">License &amp; Attribution</h2>
+      <p>Flight Radar 3D is free software licensed under the
+        <strong>GNU General Public License v3.0</strong> (or later).
+        You may redistribute and/or modify it under the terms of that license.
+        See the LICENSE file included with the source code for the full text.</p>
+      <p>This application incorporates the following third-party components:</p>
+      <ul>
+        <li><strong>CesiumJS</strong> — Apache License 2.0 — cesium.com</li>
+        <li><strong>Electron</strong> — MIT License — electronjs.org</li>
+        <li><strong>Vite</strong> — MIT License — vite.dev</li>
+        <li><strong>Node.js</strong> — MIT License — nodejs.org</li>
+        <li><strong>PocketBase JS SDK</strong> — MIT License — pocketbase.io</li>
+      </ul>
+      <p>A complete list of third-party notices is available in the NOTICES file
+        in the project repository.</p>
     </main>
 
   </div>
