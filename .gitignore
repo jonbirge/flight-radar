@@ -6,5 +6,4 @@ vendor/fonts/*
 out/
 assets/
 dist/
-.claude/*
 *.snap
