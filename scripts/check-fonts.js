@@ -100,8 +100,9 @@ async function downloadFont(font) {
       try {
         await downloadFont(font);
       } catch (err) {
-        console.error(`ERROR: failed to download ${font.name}: ${err.message}`);
-        process.exit(1);
+        console.error(`WARNING: failed to download ${font.name}: ${err.message}`);
+        console.error(`  Font file ${font.file} is missing and could not be downloaded.`);
+        console.error(`  The app will fall back to system fonts at runtime.`);
       }
     }
   }

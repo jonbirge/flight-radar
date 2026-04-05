@@ -1,5 +1,8 @@
 node_modules/
-vendor/
+vendor/*
+!vendor/fonts/
+vendor/fonts/*
+!vendor/fonts/*.woff2
 out/
 assets/
 dist/

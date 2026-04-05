@@ -1,6 +1,6 @@
 {
   "name": "flight-radar",
-  "version": "2.29.0",
+  "version": "2.29.1",
   "description": "Real-time 3D flight tracker with Material 3 Expressive design",
   "main": "out/main/index.js",
   "license": "GPL-3.0-or-later",
@@ -71,5 +71,5 @@
     "vite-plugin-static-copy": "^3.3.0",
     "vitest": "^4.1.2"
   },
-  "cesiumVersion": "1.139.1"
+  "cesiumVersion": "1.140.0"
 }
