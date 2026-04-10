@@ -119,18 +119,6 @@ const SETTINGS_CSS = window.SETTINGS_CSS = `
   color: var(--md-on-surface-variant, var(--settings-label-color, #666));
 }
 
-.settings-cred-section {
-  transition: background 0.15s, border-color 0.15s;
-  border: 2px dashed transparent;
-  border-radius: 12px;
-  margin: -6px;
-  padding: 6px;
-}
-.settings-cred-section.drag-over {
-  border-color: var(--md-on-surface-variant, var(--settings-label-color, #666));
-  background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.04)));
-}
-
 .settings-cred-details {
   border: none;
   margin: 0;
@@ -874,56 +862,6 @@ function initSettingsPanel(options) {
   if (btnCloudLogout) {
     btnCloudLogout.addEventListener('click', async () => {
       if (onCloudLogout) await onCloudLogout();
-    });
-  }
-
-  // --- Credential JSON drag-and-drop ---
-  const credDropZone = container.querySelector('#cred-drop-zone');
-  if (credDropZone) {
-    let dragCounter = 0;
-
-    credDropZone.addEventListener('dragenter', (e) => {
-      e.preventDefault();
-      dragCounter++;
-      credDropZone.classList.add('drag-over');
-    });
-
-    credDropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-    });
-
-    credDropZone.addEventListener('dragleave', () => {
-      dragCounter--;
-      if (dragCounter <= 0) {
-        dragCounter = 0;
-        credDropZone.classList.remove('drag-over');
-      }
-    });
-
-    credDropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dragCounter = 0;
-      credDropZone.classList.remove('drag-over');
-
-      const file = e.dataTransfer.files && e.dataTransfer.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const json = JSON.parse(reader.result);
-          const id = json.client_id || json.clientId || json.openskyClientId || '';
-          const secret = json.client_secret || json.clientSecret || json.openskyClientSecret || '';
-          const faKey = json.flightaware_api_key || json.flightawareApiKey || '';
-          if (id) clientId.value = id;
-          if (secret) clientSecret.value = secret;
-          if (faKey && faApiKey) faApiKey.value = faKey;
-          if (id || secret || faKey) broadcast();
-        } catch (_) {
-          // Silently ignore non-JSON files
-        }
-      };
-      reader.readAsText(file);
     });
   }
 
