@@ -247,12 +247,27 @@ function makeShadedReliefTiles() {
   });
 }
 
-function makeTopoTiles() {
+function makeEsriRoadmapTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    subdomains: ['a', 'b', 'c'],
-    credit: new Cesium.Credit('OpenTopoMap, OpenStreetMap contributors'),
-    minimumLevel: 0, maximumLevel: 17,
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, HERE, Garmin, FAO, NOAA, USGS'),
+    minimumLevel: 0, maximumLevel: 19,
+  });
+}
+
+function makeEsriTopoTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors'),
+    minimumLevel: 0, maximumLevel: 19,
+  });
+}
+
+function makeEsriNatGeoTiles() {
+  return new Cesium.UrlTemplateImageryProvider({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, National Geographic, DeLorme, HERE'),
+    minimumLevel: 0, maximumLevel: 16,
   });
 }
 
@@ -312,7 +327,9 @@ async function makeMapTiles(layerId) {
     case 'satLabels':  return makeSatelliteTiles();
     case 'osm':        return makeOsmTiles();
     case 'relief':     return makeShadedReliefTiles();
-    case 'topo':       return makeTopoTiles();
+    case 'esriRoadmap': return makeEsriRoadmapTiles();
+    case 'esriTopo':   return makeEsriTopoTiles();
+    case 'esriNatGeo': return makeEsriNatGeoTiles();
     case 'vfrHybrid':  return makeVfrMapTiles('vfrc', 12);
     case 'vfrIfrLow':  return makeVfrMapTiles('ifrlc', 11);
     case 'vfrIfrHigh': return makeVfrMapTiles('ehc', 10);
