@@ -487,7 +487,15 @@
       vertical separation more visible. Affects aircraft, trails, airspace volumes, turbulence surfaces,
       PIREPs, and flight plan routes. At 1&times; altitudes are shown at their true scale.</li>
     <li><strong>API Credentials</strong> — Click the disclosure triangle to expand. Enter OpenSky Network client ID/secret for authenticated
-      access (higher rate limits), and FlightAware AeroAPI key for flight plan search.</li>
+      access (higher rate limits), and FlightAware AeroAPI key for flight plan search.
+      You can also drag and drop a JSON credentials file onto the credentials section
+      to populate all fields at once. The JSON file should contain any combination of the
+      following keys:
+      <pre><code>{
+  "client_id": "your_opensky_client_id",
+  "client_secret": "your_opensky_client_secret",
+  "flightaware_api_key": "your_flightaware_api_key"
+}</code></pre></li>
   </ul>
 
   <h2 id="data-sources">Data Sources</h2>
