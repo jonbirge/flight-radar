@@ -85,21 +85,13 @@ window._lastPriorityPollMs = 0;          // timestamp of last priority poll API 
 // Cesium Viewer Initialization
 // ============================================================
 
-// No Ion token needed — we use CartoDB tiles, but Cesium wants something non-null
+// No Ion token needed — we use Esri tiles, but Cesium wants something non-null
 Cesium.Ion.defaultAccessToken = 'not-used';
 
-// Create dark basemap imagery provider (CartoDB dark_matter)
-const darkTiles = new Cesium.UrlTemplateImageryProvider({
-  url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  subdomains: ['a', 'b', 'c', 'd'],
-  credit: new Cesium.Credit('CartoDB'),
-  minimumLevel: 0,
-  maximumLevel: 18,
-});
-
-// CesiumJS 1.104+ replaced `imageryProvider` with `baseLayer`
+// CesiumJS 1.104+ replaced `imageryProvider` with `baseLayer`.
+// applyTheme() swaps this out once settings load.
 viewer = new Cesium.Viewer('cesiumContainer', {
-  baseLayer: new Cesium.ImageryLayer(darkTiles),
+  baseLayer: new Cesium.ImageryLayer(makeEsriGrayTiles()),
   baseLayerPicker: false,
   geocoder: false,
   homeButton: false,
@@ -171,42 +163,6 @@ viewer.scene.canvas.addEventListener('wheel', (e) => {
 // Theme Engine
 // ============================================================
 
-function makeDarkTiles() {
-  return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-    subdomains: ['a', 'b', 'c', 'd'],
-    credit: new Cesium.Credit('CartoDB'),
-    minimumLevel: 0, maximumLevel: 18,
-  });
-}
-
-function makeLightTiles() {
-  return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-    subdomains: ['a', 'b', 'c', 'd'],
-    credit: new Cesium.Credit('CartoDB'),
-    minimumLevel: 0, maximumLevel: 18,
-  });
-}
-
-function makeDarkNoLabelsTiles() {
-  return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
-    subdomains: ['a', 'b', 'c', 'd'],
-    credit: new Cesium.Credit('CartoDB'),
-    minimumLevel: 0, maximumLevel: 18,
-  });
-}
-
-function makeLightNoLabelsTiles() {
-  return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
-    subdomains: ['a', 'b', 'c', 'd'],
-    credit: new Cesium.Credit('CartoDB'),
-    minimumLevel: 0, maximumLevel: 18,
-  });
-}
-
 function makeEsriGrayTiles() {
   const variant = CONFIG.theme === 'dark' ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
   return new Cesium.UrlTemplateImageryProvider({
@@ -224,49 +180,26 @@ function makeSatelliteTiles() {
   });
 }
 
-function makeEsriReferenceTiles() {
+function makeEsriStreetTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-    credit: new Cesium.Credit('Esri, HERE, Garmin, FAO, NOAA, USGS'),
-    minimumLevel: 0, maximumLevel: 19,
-  });
-}
-
-function makeOsmTiles() {
-  return new Cesium.OpenStreetMapImageryProvider({
-    url: 'https://tile.openstreetmap.org/',
-    credit: new Cesium.Credit('OpenStreetMap contributors'),
-  });
-}
-
-function makeShadedReliefTiles() {
-  return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}',
-    credit: new Cesium.Credit('Esri, USGS, NOAA'),
-    minimumLevel: 0, maximumLevel: 13,
-  });
-}
-
-function makeEsriRoadmapTiles() {
-  return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    credit: new Cesium.Credit('Esri, HERE, Garmin, FAO, NOAA, USGS'),
-    minimumLevel: 0, maximumLevel: 19,
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri'),
+    minimumLevel: 0, maximumLevel: 18,
   });
 }
 
 function makeEsriTopoTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-    credit: new Cesium.Credit('Esri, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors'),
-    minimumLevel: 0, maximumLevel: 19,
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri'),
+    minimumLevel: 0, maximumLevel: 18,
   });
 }
 
 function makeEsriNatGeoTiles() {
   return new Cesium.UrlTemplateImageryProvider({
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
-    credit: new Cesium.Credit('Esri, National Geographic, DeLorme, HERE'),
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
+    credit: new Cesium.Credit('Esri, National Geographic'),
     minimumLevel: 0, maximumLevel: 16,
   });
 }
@@ -287,18 +220,18 @@ function makeVfrMapTiles(chartType, maxZoom) {
     credit: new Cesium.Credit('VFRMap.com'),
     minimumLevel: 1, maximumLevel: maxZoom,
     // Restrict to US coverage area (CONUS + Alaska + Hawaii + territories)
-    // so the CartoDB base map shows through outside the coverage area
+    // so the base map shows through outside the coverage area
     rectangle: Cesium.Rectangle.fromDegrees(-180, 15, -60, 75),
   });
 }
 
-// Layers that have limited zoom and need a CartoDB base underneath
+// Layers that have limited zoom and need a base underneath
 const OVERLAY_LAYERS = new Set(['vfrHybrid', 'vfrIfrLow', 'vfrIfrHigh']);
 
 // Apply theme-appropriate brightness/saturation to map imagery layers.
 // Dark mode always darkens (except layers that are already theme-matched).
 // Light mode only mutes when the user has "Mute map colors" enabled.
-const NO_STYLE_LAYERS = new Set(['carto', 'noLabels', 'esriGray']);
+const NO_STYLE_LAYERS = new Set(['esriGray']);
 const NO_MUTE_LAYERS = new Set(['vfrIfrLow', 'vfrIfrHigh']);
 
 function styleMapLayer(layer, layerId) {
@@ -321,24 +254,20 @@ function styleMapLayer(layer, layerId) {
 
 async function makeMapTiles(layerId) {
   switch (layerId) {
-    case 'noLabels':   return CONFIG.theme === 'dark' ? makeDarkNoLabelsTiles() : makeLightNoLabelsTiles();
     case 'esriGray':   return makeEsriGrayTiles();
-    case 'satellite':  return makeSatelliteTiles();
-    case 'satLabels':  return makeSatelliteTiles();
-    case 'osm':        return makeOsmTiles();
-    case 'relief':     return makeShadedReliefTiles();
-    case 'esriRoadmap': return makeEsriRoadmapTiles();
+    case 'esriStreet': return makeEsriStreetTiles();
     case 'esriTopo':   return makeEsriTopoTiles();
     case 'esriNatGeo': return makeEsriNatGeoTiles();
+    case 'satellite':  return makeSatelliteTiles();
     case 'vfrHybrid':  return makeVfrMapTiles('vfrc', 12);
     case 'vfrIfrLow':  return makeVfrMapTiles('ifrlc', 11);
     case 'vfrIfrHigh': return makeVfrMapTiles('ehc', 10);
-    default:           return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
+    default:           return makeEsriGrayTiles();
   }
 }
 
 function makeBaseTiles() {
-  return CONFIG.theme === 'dark' ? makeDarkTiles() : makeLightTiles();
+  return makeEsriGrayTiles();
 }
 
 // ============================================================
@@ -372,17 +301,13 @@ async function applyTheme() {
   turbLayer = null;  // cleared by removeAll
   satelliteIRLayer = null; // cleared by removeAll
   makeMapTiles(CONFIG.mapLayer).then(async (provider) => {
-    // FAA chart layers have limited zoom — add CartoDB base underneath
+    // FAA chart layers have limited zoom — add base underneath
     if (OVERLAY_LAYERS.has(CONFIG.mapLayer)) {
       layers.addImageryProvider(makeBaseTiles());
     }
     const mapLayer = layers.addImageryProvider(provider);
     styleMapLayer(mapLayer, CONFIG.mapLayer);
-    // Satellite (Labels): add reference overlay on top of imagery
-    if (CONFIG.mapLayer === 'satLabels') {
-      layers.addImageryProvider(makeEsriReferenceTiles());
-    }
-    // Layer order: [base] → map → [reference] → satellite IR → turbulence forecast → radar
+    // Layer order: [base] → map → satellite IR → turbulence forecast → radar
     if (CONFIG.satelliteIREnabled) {
       satelliteIRLayer = layers.addImageryProvider(makeSatelliteIRProvider());
       satelliteIRLayer.alpha = CONFIG.weatherOverlayOpacity / 100;
@@ -464,15 +389,11 @@ async function applyTheme() {
 }
 
 // Expose functions on window for cross-module access
-window.makeDarkTiles = makeDarkTiles;
-window.makeLightTiles = makeLightTiles;
-window.makeDarkNoLabelsTiles = makeDarkNoLabelsTiles;
-window.makeLightNoLabelsTiles = makeLightNoLabelsTiles;
 window.makeEsriGrayTiles = makeEsriGrayTiles;
 window.makeSatelliteTiles = makeSatelliteTiles;
-window.makeEsriReferenceTiles = makeEsriReferenceTiles;
-window.makeOsmTiles = makeOsmTiles;
-window.makeShadedReliefTiles = makeShadedReliefTiles;
+window.makeEsriStreetTiles = makeEsriStreetTiles;
+window.makeEsriTopoTiles = makeEsriTopoTiles;
+window.makeEsriNatGeoTiles = makeEsriNatGeoTiles;
 window.makeVfrMapTiles = makeVfrMapTiles;
 window.styleMapLayer = styleMapLayer;
 window.makeMapTiles = makeMapTiles;
