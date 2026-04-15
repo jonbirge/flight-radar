@@ -8,6 +8,10 @@
 
 const POCKETBASE_URL = 'https://nyc.birgefuller.com/pb/';
 
+// PocketBase collection names
+const USERS_COLLECTION = 'users';
+const SETTINGS_COLLECTION = 'flight_settings';
+
 // Keys that are never synced to cloud (UI state or runtime-only)
 const CLOUD_EXCLUDE_KEYS = [
   'credentialsExpanded',
@@ -24,6 +28,7 @@ const CREDENTIAL_KEYS = ['openskyClientId', 'openskyClientSecret', 'flightawareA
 let pb = null;           // PocketBase client instance
 let cloudUser = null;    // Current authenticated user info { name, email, avatarUrl }
 let saveTimer = null;    // Debounce timer for cloud saves
+let pendingSaveSettings = null; // Settings waiting for debounce to fire
 let settingsRecordId = null; // Cached PocketBase record ID for upserts
 
 // ============================================================
@@ -58,7 +63,7 @@ async function initCloud() {
       _setUserFromAuth();
       // Silently refresh the token
       try {
-        await pb.collection('users').authRefresh({ $autoCancel: false });
+        await pb.collection(USERS_COLLECTION).authRefresh({ $autoCancel: false });
         _setUserFromAuth();
         console.log('[Cloud] Auth session restored for', cloudUser?.email);
       } catch (err) {
@@ -82,7 +87,7 @@ async function cloudLogin() {
 
   // Verify the Google OAuth provider is configured on the PocketBase server
   try {
-    const methods = await pb.collection('users').listAuthMethods({ $autoCancel: false });
+    const methods = await pb.collection(USERS_COLLECTION).listAuthMethods({ $autoCancel: false });
     const providers = methods?.oauth2?.providers || methods?.authProviders || [];
     const hasGoogle = providers.some(p => p.name === 'google');
     if (!hasGoogle) {
@@ -93,7 +98,7 @@ async function cloudLogin() {
     throw new Error('Cannot reach PocketBase server: ' + err.message);
   }
 
-  const authData = await pb.collection('users').authWithOAuth2({
+  const authData = await pb.collection(USERS_COLLECTION).authWithOAuth2({
     provider: 'google',
     urlCallback: (url) => {
       // Open a centered popup window for the OAuth flow.
@@ -120,13 +125,21 @@ async function cloudLogout() {
   console.log('[Cloud] Logged out');
 }
 
-/** Check if user is authenticated. */
+/** Check if user is authenticated. Lazily rehydrates cloudUser from authStore
+ *  so a login in a sibling Electron window (shared localStorage) is picked up. */
 function isCloudLoggedIn() {
-  return pb != null && pb.authStore.isValid && cloudUser != null;
+  if (pb == null) return false;
+  if (!pb.authStore.isValid) {
+    if (cloudUser) cloudUser = null;
+    return false;
+  }
+  if (!cloudUser) _setUserFromAuth();
+  return cloudUser != null;
 }
 
 /** Get current user info or null. */
 function getCloudUser() {
+  if (pb != null && pb.authStore.isValid && !cloudUser) _setUserFromAuth();
   return cloudUser;
 }
 
@@ -140,35 +153,58 @@ async function cloudLoadSettings() {
   try {
     const userId = pb.authStore.record?.id;
     if (!userId) return null;
-    const record = await pb.collection('user_settings').getFirstListItem(`user="${userId}"`, { $autoCancel: false });
+    const record = await pb.collection(SETTINGS_COLLECTION).getFirstListItem(`user="${userId}"`, { $autoCancel: false });
     settingsRecordId = record.id;
     return record.settings || null;
   } catch (err) {
     // 404 means no settings record yet — that's fine
     if (err.status === 404) return null;
-    console.warn('[Cloud] Load settings failed:', err.message);
+    _logPbError(`Load settings failed [${SETTINGS_COLLECTION}.getFirstListItem]`, err);
     return null;
   }
 }
 
 /** Save settings to PocketBase (debounced 500ms). Strips sensitive keys. */
 function cloudSaveSettings(settings) {
-  if (!pb || !pb.authStore.isValid) {
+  if (!isCloudLoggedIn()) {
     console.log('[Cloud] Save skipped — not logged in');
     return Promise.resolve();
   }
+  pendingSaveSettings = settings;
   if (saveTimer) clearTimeout(saveTimer);
   console.log('[Cloud] Save queued (debounce 500ms)');
   return new Promise((resolve) => {
     saveTimer = setTimeout(async () => {
+      const toSave = pendingSaveSettings;
+      pendingSaveSettings = null;
+      saveTimer = null;
       try {
-        await _doCloudSave(settings);
+        await _doCloudSave(toSave);
       } catch (err) {
-        console.warn('[Cloud] Save settings failed:', err.message);
+        _logPbError(`Save settings failed [${SETTINGS_COLLECTION}]`, err);
       }
       resolve();
     }, 500);
   });
+}
+
+/** Flush any pending debounced cloud save immediately. Used when a window is
+ *  about to close and we can't wait for the 500ms debounce to fire. */
+async function flushCloudSave() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (!pendingSaveSettings) return;
+  const toSave = pendingSaveSettings;
+  pendingSaveSettings = null;
+  if (!isCloudLoggedIn()) return;
+  try {
+    await _doCloudSave(toSave);
+    console.log('[Cloud] Pending save flushed');
+  } catch (err) {
+    _logPbError(`Flush save failed [${SETTINGS_COLLECTION}]`, err);
+  }
 }
 
 /** Immediate cloud save (used internally after debounce). */
@@ -185,41 +221,81 @@ async function _doCloudSave(settings) {
   if (!userId) return;
 
   const payload = { user: userId, settings: sanitized };
+  const coll = pb.collection(SETTINGS_COLLECTION);
 
   if (settingsRecordId) {
-    // Update existing record
     try {
-      await pb.collection('user_settings').update(settingsRecordId, payload, { $autoCancel: false });
-      console.log('[Cloud] Settings saved to PocketBase (update, record:', settingsRecordId + ')');
+      await coll.update(settingsRecordId, payload, { $autoCancel: false });
+      console.log(`[Cloud] Settings saved [${SETTINGS_COLLECTION}.update ${settingsRecordId}]`);
       return;
     } catch (err) {
-      // Record may have been deleted; fall through to create
-      if (err.status !== 404) throw err;
+      if (err.status !== 404) {
+        err._op = `${SETTINGS_COLLECTION}.update(${settingsRecordId})`;
+        throw err;
+      }
       settingsRecordId = null;
     }
   }
 
-  // Try to find existing record first
+  let record;
   try {
-    const record = await pb.collection('user_settings').getFirstListItem(`user="${userId}"`, { $autoCancel: false });
-    settingsRecordId = record.id;
-    await pb.collection('user_settings').update(settingsRecordId, payload, { $autoCancel: false });
-    console.log('[Cloud] Settings saved to PocketBase (found + update, record:', settingsRecordId + ')');
+    record = await coll.getFirstListItem(`user="${userId}"`, { $autoCancel: false });
   } catch (err) {
-    if (err.status === 404) {
-      // Create new record
-      const record = await pb.collection('user_settings').create(payload, { $autoCancel: false });
-      settingsRecordId = record.id;
-      console.log('[Cloud] Settings saved to PocketBase (new record:', settingsRecordId + ')');
-    } else {
+    if (err.status !== 404) {
+      err._op = `${SETTINGS_COLLECTION}.getFirstListItem(user="${userId}")`;
       throw err;
     }
+    // No record yet → create
+    try {
+      record = await coll.create(payload, { $autoCancel: false });
+      settingsRecordId = record.id;
+      console.log(`[Cloud] Settings saved [${SETTINGS_COLLECTION}.create ${settingsRecordId}]`);
+      return;
+    } catch (createErr) {
+      createErr._op = `${SETTINGS_COLLECTION}.create`;
+      throw createErr;
+    }
+  }
+
+  settingsRecordId = record.id;
+  try {
+    await coll.update(settingsRecordId, payload, { $autoCancel: false });
+    console.log(`[Cloud] Settings saved [${SETTINGS_COLLECTION}.update ${settingsRecordId} (post-find)]`);
+  } catch (err) {
+    err._op = `${SETTINGS_COLLECTION}.update(${settingsRecordId})`;
+    throw err;
   }
 }
 
 // ============================================================
 // Internal helpers
 // ============================================================
+
+/** Verbose PocketBase error logger — surfaces status, URL, server response,
+ *  and field-level validation errors so server rule/hook failures are visible.
+ *  ClientResponseError shape: { url, status, response: {code, message, data: {field: {code, message}}}, isAbort, originalError }
+ */
+function _logPbError(label, err) {
+  const status = err?.status ?? '?';
+  const url = err?.url || '';
+  const op = err?._op || '';
+  const response = err?.response || {};
+  const serverMsg = response?.message || '';
+  const fieldErrors = response?.data || {};
+  const authRecord = pb?.authStore?.record;
+  const authCtx = authRecord
+    ? { id: authRecord.id, collectionName: authRecord.collectionName, collectionId: authRecord.collectionId }
+    : null;
+
+  console.warn(`[Cloud] ${label}${op ? ' @ ' + op : ''}`);
+  console.warn('  message :', err?.message || String(err));
+  console.warn('  status  :', status);
+  console.warn('  url     :', url);
+  if (serverMsg) console.warn('  server  :', serverMsg);
+  if (Object.keys(fieldErrors).length) console.warn('  fields  :', fieldErrors);
+  console.warn('  auth    :', authCtx);
+  if (err?.originalError) console.warn('  cause   :', err.originalError);
+}
 
 function _setUserFromAuth() {
   const record = pb.authStore.record;
@@ -333,6 +409,7 @@ window.isCloudLoggedIn = isCloudLoggedIn;
 window.getCloudUser = getCloudUser;
 window.cloudLoadSettings = cloudLoadSettings;
 window.cloudSaveSettings = cloudSaveSettings;
+window.flushCloudSave = flushCloudSave;
 window.cloudLoadCredentials = cloudLoadCredentials;
 window.cloudSaveCredentials = cloudSaveCredentials;
 window.CREDENTIAL_KEYS = CREDENTIAL_KEYS;

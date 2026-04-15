@@ -118,7 +118,8 @@ initSettingsPanel({
       cloudSaveSettings(merged);
     }
   },
-  onClose: () => {
+  onClose: async () => {
+    if (typeof flushCloudSave === 'function') await flushCloudSave();
     window.settingsAPI.close();
   },
   onFontSizePreview: (size) => {
@@ -178,6 +179,14 @@ initSettingsPanel({
     populateSettingsForm(container, originalSettings);
     applySettingsTheme(originalSettings);
   },
+});
+
+// Best-effort flush of any pending cloud save if the window is closed
+// via the X button instead of the Done button. beforeunload cannot await
+// async work, but _doCloudSave fires a fetch which the browser will let
+// finish in-flight.
+window.addEventListener('beforeunload', () => {
+  if (typeof flushCloudSave === 'function') flushCloudSave();
 });
 
 // Resize Electron window when credentials section is toggled

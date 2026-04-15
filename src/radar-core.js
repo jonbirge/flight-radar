@@ -473,7 +473,6 @@ window.makeSatelliteTiles = makeSatelliteTiles;
 window.makeEsriReferenceTiles = makeEsriReferenceTiles;
 window.makeOsmTiles = makeOsmTiles;
 window.makeShadedReliefTiles = makeShadedReliefTiles;
-window.makeTopoTiles = makeTopoTiles;
 window.makeVfrMapTiles = makeVfrMapTiles;
 window.styleMapLayer = styleMapLayer;
 window.makeMapTiles = makeMapTiles;
