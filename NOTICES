@@ -28,11 +28,6 @@ Node.js
   License: MIT
   https://github.com/nodejs/node
 
-PocketBase JavaScript SDK
-  Copyright (c) 2022 PocketBase
-  License: MIT
-  https://github.com/pocketbase/js-sdk
-
 electron-vite
   Copyright (c) 2022-present Alex Wei
   License: MIT

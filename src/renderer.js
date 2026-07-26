@@ -46,48 +46,12 @@ window.flightAPI.onAltGainPreview((factor) => {
 // Start
 // ============================================================
 
-// Listen for cloud settings changes from the settings window
-if (window.flightAPI.onCloudSettingsChanged) {
-  window.flightAPI.onCloudSettingsChanged(async () => {
-    try {
-      await loadAndApplySettings();
-    } catch (err) {
-      console.warn('[Cloud] Could not reload settings:', err);
-    }
-  });
-}
-
 async function init() {
   // In dev mode (Vite dev server), route AWC API calls through the proxy
   // to avoid CORS. In production (file:// protocol), calls go direct.
   if (location.protocol !== 'file:') {
     CONFIG.awcProxyUrl = '/awc-api';
     CONFIG.vfrMapProxyUrl = '/vfrmap-tiles';
-  }
-  // Initialize cloud sync (restores session from localStorage if exists)
-  if (typeof initCloud === 'function') await initCloud();
-  // If cloud-logged-in, sync credentials to local settings so the main
-  // process can use them for API calls (main process reads from local file).
-  if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
-    try {
-      const cloudSettings = await cloudLoadSettings();
-      if (cloudSettings) {
-        const local = await window.flightAPI.getSettings();
-        let changed = false;
-        for (const k of CREDENTIAL_KEYS) {
-          if (cloudSettings[k] && cloudSettings[k] !== local[k]) {
-            local[k] = cloudSettings[k];
-            changed = true;
-          }
-        }
-        if (changed) {
-          await window.flightAPI.saveSettings(local);
-          console.log('[Cloud] Synced credentials from PocketBase to local settings');
-        }
-      }
-    } catch (err) {
-      console.warn('[Cloud] Could not load credentials from PocketBase:', err.message);
-    }
   }
   await loadAndApplySettings();
   applySavedView();

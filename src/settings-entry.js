@@ -2,6 +2,5 @@
 // then the Electron settings-specific code.
 
 import './defaults.js'
-import './cloud.js'
 import './settings.js'
 import './settings-electron.js'

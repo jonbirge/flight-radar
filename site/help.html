@@ -72,12 +72,12 @@
         <li>
           <a href="#settings" class="nav-h2">Settings</a>
           <ul>
-            <li><a href="#cloud-sync" class="nav-h3">Cloud Sync</a></li>
             <li><a href="#display-mode" class="nav-h3">Display Mode</a></li>
             <li><a href="#ui-color" class="nav-h3">UI Color</a></li>
             <li><a href="#aircraft-display" class="nav-h3">Aircraft Display</a></li>
             <li><a href="#aviation-data" class="nav-h3">Aviation Data</a></li>
             <li><a href="#other" class="nav-h3">Other</a></li>
+            <li><a href="#danger-zone" class="nav-h3">Import / Export</a></li>
           </ul>
         </li>
         <li><a href="#data-sources" class="nav-h2">Data Sources</a></li>
@@ -441,24 +441,6 @@
       <h2 id="settings">Settings</h2>
       <p>Open via <strong>Edit &gt; Settings</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) or the Settings button.</p>
 
-      <h3 id="cloud-sync">Cloud Sync</h3>
-      <p>
-        Sign in with your Google account to sync settings across devices. When signed in,
-        all your preferences (display mode, colors, toggles, saved view, etc.) are automatically
-        saved to the cloud whenever you make a change. If you sign in on a new device, your
-        cloud settings are applied automatically.
-      </p>
-      <ul>
-        <li><strong>Sign in with Google</strong> &mdash; Click to authenticate via Google OAuth.
-          A popup window will open for Google sign-in.</li>
-        <li><strong>Sign out</strong> &mdash; Disconnects cloud sync. Settings continue to be
-          saved locally on this device.</li>
-      </ul>
-      <p>
-        Cloud sync is entirely optional. API credentials (OpenSky, FlightAware) are never
-        synced to the cloud and remain local to each device.
-      </p>
-
       <h3 id="display-mode">Display Mode</h3>
       <ul>
         <li><strong>Dark / System / Light</strong> — Dark mode uses a custom accent color aesthetic;
@@ -526,6 +508,23 @@
 }</code></pre></li>
       </ul>
 
+      <h3 id="danger-zone">Import / Export</h3>
+      <p>
+        All settings are stored locally on this device only &mdash; there is no cloud sync.
+        The Import and Export buttons in the settings footer let you back up your preferences
+        or move them to another device.
+      </p>
+      <ul>
+        <li><strong>Export&hellip;</strong> &mdash; Saves all current settings, including
+          API credentials, to a JSON file you choose.</li>
+        <li><strong>Import&hellip;</strong> (red) &mdash; Replaces all current settings with the
+          contents of a previously exported JSON file, after a confirmation prompt.</li>
+      </ul>
+      <p>
+        <strong>Exported files contain your API keys in plain text.</strong> Store them
+        securely and avoid sharing them.
+      </p>
+
       <h2 id="data-sources">Data Sources</h2>
       <ul>
         <li><strong>OpenSky Network</strong> — Real-time ADS-B aircraft surveillance data.
@@ -553,7 +552,6 @@
         <li><strong>Electron</strong> — MIT License — electronjs.org</li>
         <li><strong>Vite</strong> — MIT License — vite.dev</li>
         <li><strong>Node.js</strong> — MIT License — nodejs.org</li>
-        <li><strong>PocketBase JS SDK</strong> — MIT License — pocketbase.io</li>
       </ul>
       <p>A complete list of third-party notices is available in the NOTICES file
         in the project repository.</p>

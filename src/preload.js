@@ -52,9 +52,6 @@ contextBridge.exposeInMainWorld('flightAPI', {
   getSystemTheme: () => ipcRenderer.invoke('get-system-theme'),
   onSystemThemeChanged: (callback) => ipcRenderer.on('system-theme-changed', (_, theme) => callback(theme)),
 
-  // Listen for cloud settings changes from the settings window
-  onCloudSettingsChanged: (callback) => ipcRenderer.on('cloud-settings-changed', () => callback()),
-
   // Native context menu — returns selected item id or null if dismissed
   showContextMenu: (items) => ipcRenderer.invoke('show-context-menu', items),
 })

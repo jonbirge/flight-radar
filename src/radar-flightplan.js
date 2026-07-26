@@ -2162,7 +2162,7 @@ async function addSearchHistory(identOrEntry) {
     // Keep only the most recent entries
     if (history.length > MAX_SEARCH_HISTORY) history = history.slice(0, MAX_SEARCH_HISTORY);
     saved.searchHistory = history;
-    await saveSettingsUnified(saved);
+    await window.flightAPI.saveSettings(saved);
     const label = entry.fa_flight_id ? `${entry.ident} (${entry.fa_flight_id})` : entry.ident;
     console.log(`[FlightPlan] Search history updated: ${label}`);
   } catch (err) {

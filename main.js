@@ -577,26 +577,6 @@ function openSettingsWindow() {
     },
   });
   settingsWindow.setMenu(null);
-  // Allow OAuth popups for PocketBase cloud sync (Google sign-in).
-  // The OAuth flow opens a popup that navigates through Google → PocketBase → back,
-  // so allow all HTTPS popups from the settings window.
-  settingsWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) {
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          width: 600,
-          height: 700,
-          autoHideMenuBar: true,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-          },
-        },
-      };
-    }
-    return { action: 'deny' };
-  });
   // Forward settings window console output to terminal for debugging
   settingsWindow.webContents.on('console-message', (event, level, message) => {
     if (level <= 1) console.log('[Settings]', message);
@@ -709,6 +689,65 @@ ipcMain.handle('reset-settings', async () => {
   return { reset: false };
 });
 
+// IPC: export all settings (including credentials) to a user-chosen JSON file
+ipcMain.handle('export-settings', async () => {
+  const parent = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : mainWindow;
+  const { canceled, filePath } = await dialog.showSaveDialog(parent, {
+    title: 'Export Settings',
+    defaultPath: 'flight-radar-settings.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+  if (canceled || !filePath) return { canceled: true };
+  fs.writeFileSync(filePath, JSON.stringify(loadSettings(), null, 2), 'utf-8');
+  return { canceled: false, filePath };
+});
+
+// IPC: import settings from a user-chosen JSON file (replaces all current settings)
+ipcMain.handle('import-settings', async () => {
+  const parent = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : mainWindow;
+  const { canceled, filePaths } = await dialog.showOpenDialog(parent, {
+    title: 'Import Settings',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || !filePaths?.length) return { canceled: true };
+
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(filePaths[0], 'utf-8'));
+  } catch (err) {
+    await dialog.showMessageBox(parent, {
+      type: 'error',
+      title: 'Import Failed',
+      message: 'That file is not a valid settings file.',
+      detail: err.message,
+    });
+    return { error: 'invalid' };
+  }
+
+  const { response } = await dialog.showMessageBox(parent, {
+    type: 'warning',
+    title: 'Import Settings',
+    message: 'Replace all current settings with the imported file?',
+    detail: 'This will overwrite your current preferences, view position, and credentials. This cannot be undone.',
+    buttons: ['Import', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+  });
+  if (response !== 0) return { canceled: true };
+
+  const merged = { ...DEFAULT_SETTINGS, ...data };
+  saveSettings(merged);
+  syncNativeTheme();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('settings-changed', merged);
+  }
+  if (helpWindow && !helpWindow.isDestroyed()) {
+    helpWindow.webContents.send('settings-changed', merged);
+  }
+  return { canceled: false, settings: merged };
+});
+
 // IPC: close settings window (Done)
 ipcMain.on('close-settings-window', () => {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -738,13 +777,6 @@ ipcMain.on('preview-alt-gain', (event, factor) => {
   }
 });
 
-// IPC: forward cloud settings changes from settings window to renderer
-ipcMain.on('cloud-settings-changed', () => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('cloud-settings-changed');
-  }
-});
-
 // --- Window Creation ---
 let mainWindow;
 
@@ -768,25 +800,6 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/src/index.html'));
   }
-
-  // Allow OAuth popups for PocketBase cloud sync (Google sign-in)
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) {
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          width: 600,
-          height: 700,
-          autoHideMenuBar: true,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-          },
-        },
-      };
-    }
-    return { action: 'deny' };
-  });
 
   // Forward renderer console output to terminal
   mainWindow.webContents.on('console-message', (event, level, message) => {

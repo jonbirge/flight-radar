@@ -84,15 +84,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', asy
 // Settings panel initialization
 // ============================================================
 
-// Initialize cloud sync so the settings panel can show login state.
-// Do not block UI rendering — fire and forget, then update cloud UI once auth is restored.
-if (typeof initCloud === 'function') {
-  initCloud().then(() => {
-    const container = document.getElementById('settings-container');
-    if (container) updateCloudUI(container);
-  }).catch(err => console.warn('[Cloud] Init failed in settings:', err.message));
-}
-
 const container = document.getElementById('settings-container');
 
 let originalSettings = {};
@@ -100,8 +91,7 @@ let originalSettings = {};
 initSettingsPanel({
   container,
   getSettings: async () => {
-    // Cloud-first: loadSettingsUnified uses cloud as source of truth when logged in
-    originalSettings = await loadSettingsUnified();
+    originalSettings = await window.settingsAPI.getSettings();
     applySettingsTheme(originalSettings);
     // Always open the settings window with credentials collapsed
     return { ...originalSettings, credentialsExpanded: false };
@@ -111,15 +101,8 @@ initSettingsPanel({
     const merged = { ...originalSettings, ...form };
     // updateSettings saves locally + broadcasts to main window
     window.settingsAPI.updateSettings(merged);
-    // Save to cloud if logged in (saveSettingsUnified handles both, but
-    // settings window uses updateSettings for the broadcast side-effect,
-    // so we call cloud save directly here)
-    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
-      cloudSaveSettings(merged);
-    }
   },
-  onClose: async () => {
-    if (typeof flushCloudSave === 'function') await flushCloudSave();
+  onClose: () => {
     window.settingsAPI.close();
   },
   onFontSizePreview: (size) => {
@@ -138,9 +121,6 @@ initSettingsPanel({
     applySettingsTheme(form);
     const merged = { ...originalSettings, ...form };
     window.settingsAPI.updateSettingsQuiet(merged);
-    if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
-      cloudSaveSettings(merged);
-    }
   },
   onDefaults: async () => {
     const result = await window.settingsAPI.resetSettings();
@@ -149,44 +129,19 @@ initSettingsPanel({
       populateSettingsForm(container, DEFAULT_SETTINGS);
       applySettingsTheme(DEFAULT_SETTINGS);
       window.settingsAPI.resizeToContent();
-      // Also reset cloud settings if logged in
-      if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn()) {
-        cloudSaveSettings(DEFAULT_SETTINGS);
-      }
     }
   },
-  onCloudLogin: async () => {
-    await cloudLogin();
-    // Check for existing cloud settings
-    const cloudSettings = await cloudLoadSettings();
-    if (cloudSettings) {
-      // Cloud is source of truth — use cloud settings
-      const merged = { ...DEFAULT_SETTINGS, ...cloudSettings };
-      await window.settingsAPI.updateSettings(merged);
-      originalSettings = merged;
-    } else {
-      // First-time cloud user — upload current local settings to cloud
-      const local = await window.settingsAPI.getSettings();
-      await cloudSaveSettings(local);
-      originalSettings = local;
-    }
-    populateSettingsForm(container, originalSettings);
-    applySettingsTheme(originalSettings);
-    window.settingsAPI.cloudSettingsChanged();
+  onExport: async () => {
+    await window.settingsAPI.exportSettings();
   },
-  onCloudLogout: async () => {
-    await cloudLogout();
-    populateSettingsForm(container, originalSettings);
-    applySettingsTheme(originalSettings);
+  onImport: async () => {
+    const result = await window.settingsAPI.importSettings();
+    if (!result || result.canceled || result.error) return;
+    originalSettings = result.settings;
+    populateSettingsForm(container, { ...result.settings, credentialsExpanded: false });
+    applySettingsTheme(result.settings);
+    window.settingsAPI.resizeToContent();
   },
-});
-
-// Best-effort flush of any pending cloud save if the window is closed
-// via the X button instead of the Done button. beforeunload cannot await
-// async work, but _doCloudSave fires a fetch which the browser will let
-// finish in-flight.
-window.addEventListener('beforeunload', () => {
-  if (typeof flushCloudSave === 'function') flushCloudSave();
 });
 
 // Resize Electron window when credentials section is toggled

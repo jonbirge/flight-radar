@@ -12,5 +12,6 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   previewRotationSpeed: (speed) => ipcRenderer.send('preview-rotation-speed', speed),
   previewWeatherOpacity: (opacity) => ipcRenderer.send('preview-weather-opacity', opacity),
   previewAltGain: (factor) => ipcRenderer.send('preview-alt-gain', factor),
-  cloudSettingsChanged: () => ipcRenderer.send('cloud-settings-changed'),
+  exportSettings: () => ipcRenderer.invoke('export-settings'),
+  importSettings: () => ipcRenderer.invoke('import-settings'),
 })

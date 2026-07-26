@@ -164,51 +164,6 @@ const SETTINGS_CSS = window.SETTINGS_CSS = `
   padding-top: 10px;
 }
 
-.settings-cloud-section {
-  padding: 18px 16px;
-  border-bottom: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
-}
-.settings-cloud-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-#cloud-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--md-outline-variant, var(--settings-border, #ccc));
-}
-#cloud-user-name {
-  font-size: 14px;
-  flex: 1;
-  color: var(--md-on-surface, var(--settings-text-color, #333));
-  font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
-}
-.cloud-hint {
-  font-size: 13px;
-  color: var(--md-on-surface-variant, var(--settings-label-color, #666));
-  flex: 1;
-}
-#btn-cloud-login,
-#btn-cloud-logout {
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--md-outline, var(--settings-border, #ccc));
-  border-radius: 9999px;
-  background: transparent;
-  color: var(--md-on-surface, var(--settings-text-color, #333));
-  font-family: 'Roboto Flex', system-ui, sans-serif;
-  transition: background 0.15s;
-  white-space: nowrap;
-}
-#btn-cloud-login:hover,
-#btn-cloud-logout:hover {
-  background: var(--md-surface-container-highest, var(--settings-btn-hover-bg, rgba(0,0,0,0.06)));
-}
-
 .settings-seg-group {
   display: inline-flex;
   border-radius: 9999px;
@@ -339,6 +294,32 @@ input[type="range"]::-webkit-slider-thumb:hover {
   z-index: 5;
 }
 /* Footer buttons use .scope-btn from styles.css or settings.css */
+.settings-footer-left {
+  display: flex;
+  gap: 8px;
+}
+
+/* Destructive footer buttons (Defaults, Import) — red hue */
+.scope-btn-danger {
+  background: #4a1414;
+  color: #ff8a80;
+}
+.scope-btn-danger:hover {
+  background: #5c1a1a;
+}
+.scope-btn-danger:active {
+  background: #6b1f1f;
+}
+.theme-light .scope-btn-danger {
+  background: #fdecea;
+  color: #c62828;
+}
+.theme-light .scope-btn-danger:hover {
+  background: #fbdad7;
+}
+.theme-light .scope-btn-danger:active {
+  background: #f8c9c5;
+}
 
 @media (max-width: 767px) {
   .settings-columns {
@@ -496,34 +477,6 @@ function populateSettingsForm(container, settings) {
   // Credentials collapsed/expanded
   const credDetails = container.querySelector('#cred-details');
   if (credDetails) credDetails.open = !!s.credentialsExpanded;
-
-  // Cloud sync UI
-  updateCloudUI(container);
-}
-
-// ============================================================
-// Cloud UI helper
-// ============================================================
-
-function updateCloudUI(container) {
-  const loggedOut = container.querySelector('#cloud-logged-out');
-  const loggedIn = container.querySelector('#cloud-logged-in');
-  if (!loggedOut || !loggedIn) return;
-
-  const authenticated = typeof isCloudLoggedIn === 'function' && isCloudLoggedIn();
-  loggedOut.style.display = authenticated ? 'none' : 'flex';
-  loggedIn.style.display = authenticated ? 'flex' : 'none';
-
-  if (authenticated) {
-    const user = typeof getCloudUser === 'function' ? getCloudUser() : null;
-    const avatar = container.querySelector('#cloud-avatar');
-    const name = container.querySelector('#cloud-user-name');
-    if (avatar) {
-      avatar.src = user?.avatarUrl || '';
-      avatar.style.display = user?.avatarUrl ? '' : 'none';
-    }
-    if (name) name.textContent = user?.name || user?.email || 'Signed in';
-  }
 }
 
 // ============================================================
@@ -540,7 +493,7 @@ function updateCloudUI(container) {
  * @returns {{ populate: (settings) => void }}
  */
 function initSettingsPanel(options) {
-  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onAltGainPreview, onQuietSave, onCloudLogin, onCloudLogout } = options;
+  const { container, getSettings, onChanged, onClose, onDefaults, onFontSizePreview, onRotationSpeedPreview, onWeatherOpacityPreview, onAltGainPreview, onQuietSave, onExport, onImport } = options;
 
   // Inject shared CSS into this document
   injectSettingsCSS(container.ownerDocument);
@@ -590,9 +543,9 @@ function initSettingsPanel(options) {
   function readForm() {
     // Derive theme and trail mode from DOM button active states so that
     // readForm() never returns stale values from the internal formState.
-    // This fixes settings not loading correctly after cloud login, reset
-    // to defaults, or cloud settings sync where populateSettingsForm()
-    // updates the DOM but formState is not refreshed.
+    // This fixes settings not loading correctly after a reset to defaults
+    // or an import, where populateSettingsForm() updates the DOM but
+    // formState is not refreshed.
     const theme = btnDark.classList.contains('active') ? 'dark'
       : btnLight.classList.contains('active') ? 'light'
       : 'system';
@@ -849,32 +802,16 @@ function initSettingsPanel(options) {
     btnDefaults.addEventListener('click', onDefaults);
   }
 
-  // --- Cloud sync buttons ---
-  const btnCloudLogin = container.querySelector('#btn-cloud-login');
-  const btnCloudLogout = container.querySelector('#btn-cloud-logout');
+  // --- Footer: export/import buttons ---
+  const btnExport = container.querySelector('#btn-settings-export');
+  const btnImport = container.querySelector('#btn-settings-import');
 
-  if (btnCloudLogin) {
-    btnCloudLogin.addEventListener('click', async () => {
-      if (onCloudLogin) {
-        btnCloudLogin.disabled = true;
-        btnCloudLogin.textContent = 'Signing in\u2026';
-        try {
-          await onCloudLogin();
-        } catch (err) {
-          console.error('[Cloud] Login failed:', err);
-        } finally {
-          btnCloudLogin.disabled = false;
-          btnCloudLogin.textContent = 'Sign in with Google';
-          updateCloudUI(container);
-        }
-      }
-    });
+  if (btnExport && onExport) {
+    btnExport.addEventListener('click', onExport);
   }
 
-  if (btnCloudLogout) {
-    btnCloudLogout.addEventListener('click', async () => {
-      if (onCloudLogout) await onCloudLogout();
-    });
+  if (btnImport && onImport) {
+    btnImport.addEventListener('click', onImport);
   }
 
   // --- Credential JSON drag-and-drop ---
@@ -947,6 +884,5 @@ function initSettingsPanel(options) {
 
 window.initSettingsPanel = initSettingsPanel;
 window.populateSettingsForm = populateSettingsForm;
-window.updateCloudUI = updateCloudUI;
 
 export {}

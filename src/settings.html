@@ -7,19 +7,6 @@
 </head>
 <body>
   <div id="settings-container">
-    <div class="settings-cloud-section" id="cloud-section">
-      <div class="settings-label">Cloud sync</div>
-      <div class="settings-cloud-row" id="cloud-logged-out">
-        <span class="cloud-hint">Sign in with Google to sync settings across devices</span>
-        <button type="button" id="btn-cloud-login">Sign in with Google</button>
-      </div>
-      <div class="settings-cloud-row" id="cloud-logged-in" style="display:none;">
-        <img id="cloud-avatar" src="" alt="">
-        <span id="cloud-user-name"></span>
-        <button type="button" id="btn-cloud-logout">Sign out</button>
-      </div>
-    </div>
-
     <div class="settings-columns">
       <div class="settings-column">
         <div class="settings-section">
@@ -187,7 +174,11 @@
     </div>
 
     <div class="settings-footer">
-      <button type="button" class="scope-btn" id="btn-settings-defaults">Defaults</button>
+      <div class="settings-footer-left">
+        <button type="button" class="scope-btn scope-btn-danger" id="btn-settings-defaults">Defaults</button>
+        <button type="button" class="scope-btn scope-btn-danger" id="btn-settings-import">Import…</button>
+        <button type="button" class="scope-btn" id="btn-settings-export">Export…</button>
+      </div>
       <button type="button" class="scope-btn" id="btn-settings-done">Done</button>
     </div>
   </div>
